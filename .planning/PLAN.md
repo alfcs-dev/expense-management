@@ -49,14 +49,16 @@ Since the goal is web-first then mobile, a monorepo is the right call. Here are 
 ```
 budget-app/
 ├── apps/
-│   ├── web/                  # Next.js web application
+│   ├── web/                  # Next.js web application (frontend only)
+│   ├── api/                  # Standalone Fastify + tRPC API server
 │   └── mobile/               # React Native / Expo (Phase 2)
 ├── packages/
-│   ├── api/                  # tRPC router definitions (shared backend logic)
 │   ├── db/                   # Prisma schema + migrations + seed
 │   ├── shared/               # Shared types, utils, constants, validators (zod)
-│   └── ui/                   # Shared UI component library
+│   ├── trpc/                 # tRPC router definitions (consumed by api, imported by clients)
+│   └── ui/                   # Shared UI component library (web + mobile)
 ├── docker/
+│   ├── Dockerfile.api
 │   ├── Dockerfile.web
 │   └── docker-compose.yml
 ├── turbo.json
@@ -65,17 +67,38 @@ budget-app/
 └── .env.example
 ```
 
+> **Architecture Decision: Separate API Server**
+>
+> The API lives in `apps/api` as a standalone Fastify server (not inside
+> Next.js). This is intentional:
+>
+> - **Client parity** — Web and mobile are equal consumers of the same API.
+>   Neither goes through a Next.js middleman.
+> - **Independent optimization** — The API can be profiled, scaled, and tuned
+>   without touching the frontend. Fastify is significantly faster than
+>   Next.js API routes for raw throughput.
+> - **Clean separation** — The Next.js app becomes a pure frontend (SSR/SSG
+>   for the shell, client-side tRPC calls for data). No business logic leaks
+>   into the frontend layer.
+> - **Deployment flexibility** — On the VPS both run in Docker Compose side by
+>   side. In the future, the API could move to a larger instance or a
+>   different region while the frontend stays on a CDN.
+> - **Minimal overhead** — Docker Compose makes running two services trivially
+>   simple. One extra Dockerfile, one extra service block — that's it.
+
 ---
 
 ## 3. Tech Stack Options
 
 ### 3.1 Frontend Framework (Web)
 
+With the API living in a separate server, the frontend is a pure UI layer. This actually makes a SPA more viable since we don't need Next.js for API routes. However, Next.js still offers SSR benefits for initial load performance and SEO (less critical for a private dashboard, but nice to have).
+
 | Option | Pros | Cons | Recommendation |
 |---|---|---|---|
-| **Next.js (App Router)** | SSR/SSG, API routes, huge ecosystem, great DX, App Router + Server Components | Some complexity with App Router patterns | **Recommended** — most versatile for a dashboard-heavy app |
-| **Remix** | Great data loading patterns, progressive enhancement | Smaller ecosystem, less community content | Solid alternative |
-| **React + Vite (SPA)** | Simple, fast builds, no server needed | No SSR, must build API separately | Only if SSR is not needed |
+| **Next.js (App Router)** | SSR/SSG for fast initial load, huge ecosystem, great DX, file-based routing, image optimization | Heavier than a pure SPA, App Router complexity | **Recommended** — even without API routes, the SSR shell and routing are valuable for a dashboard |
+| **React + Vite (SPA)** | Simplest setup, fast builds, lightweight, no server to run | No SSR (fine for a private app), must handle routing manually (React Router) | **Strong alternative** — seriously consider this if SSR isn't important to you |
+| **Remix** | Great data loading patterns, progressive enhancement | Smaller ecosystem, less community content | Solid but less compelling without the API integration story |
 
 ### 3.2 UI Component Library
 
@@ -88,12 +111,53 @@ budget-app/
 
 ### 3.3 Backend / API Layer
 
+> **Decision: Standalone API server with tRPC.**
+> Since the app will eventually serve both web and mobile clients, keeping
+> the API as an independent service is the right architecture. Both clients
+> hit the same backend directly — no Next.js middleman for mobile.
+
+#### API Framework (the HTTP server hosting tRPC)
+
 | Option | Pros | Cons | Recommendation |
 |---|---|---|---|
-| **tRPC (inside Next.js)** | End-to-end type safety, no code generation, works great in monorepos | Tied to TypeScript clients, not great for public APIs | **Recommended for MVP** — perfect for a personal app with TS frontend |
-| **Next.js Route Handlers (REST)** | Simple, built-in, no extra deps | Manual type sharing, more boilerplate | Good fallback if tRPC feels like overhead |
-| **Fastify (standalone)** | Very fast, great plugin system, schema validation | Separate server to deploy and maintain | Better if you want to decouple API from frontend |
-| **NestJS** | Enterprise patterns, decorators, DI | Heavy for a personal project, steep learning curve | Overkill for MVP |
+| **Fastify** | Fastest mainstream Node.js framework, excellent plugin system, schema-based validation, hooks lifecycle, mature tRPC adapter | Slightly more boilerplate than Express | **Recommended** — best performance, great ecosystem, battle-tested |
+| **Hono** | Ultra-lightweight, runs on Node/Bun/Deno/edge, very modern API, tRPC adapter available | Newer, smaller ecosystem, fewer plugins | Strong alternative — consider if you value minimalism and portability |
+| **Express** | Largest ecosystem, most tutorials/examples | Slower, no native async error handling, legacy patterns | No strong reason to choose over Fastify |
+
+#### API Protocol (how clients talk to the server)
+
+| Option | Pros | Cons | Recommendation |
+|---|---|---|---|
+| **tRPC** | End-to-end type safety with zero codegen, shared types via monorepo, works with Fastify/Hono, TanStack Query integration built-in | Tied to TypeScript clients (fine for web + Expo) | **Recommended** — perfect for a TS monorepo where all clients are yours |
+| **REST (manual)** | Universal, any client can consume, well-understood | No automatic type safety, more boilerplate, need OpenAPI/Swagger for docs | Only if you need third-party API consumers |
+| **GraphQL** | Flexible querying, great for complex data relationships | Heavy tooling (codegen, resolvers, schema), overkill for a personal app | Not recommended for this project |
+
+#### How it fits together
+
+```
+┌─────────────┐     ┌─────────────┐
+│   Next.js   │     │  Expo App   │
+│  (web SPA)  │     │  (mobile)   │
+└──────┬──────┘     └──────┬──────┘
+       │    tRPC client    │
+       └────────┬──────────┘
+                │ HTTP (JSON)
+                ▼
+       ┌─────────────────┐
+       │  Fastify + tRPC │
+       │   (apps/api)    │
+       └────────┬────────┘
+                │ Prisma
+                ▼
+       ┌─────────────────┐
+       │   PostgreSQL     │
+       └─────────────────┘
+```
+
+The `packages/trpc` package contains all router definitions and is imported
+by `apps/api` (to mount on Fastify) and by `apps/web` + `apps/mobile`
+(for the typed client). The `packages/shared` package holds Zod schemas
+used by both tRPC input validation and client-side form validation.
 
 ### 3.4 Database
 
@@ -120,14 +184,19 @@ budget-app/
 
 ### 3.7 Authentication
 
-Since this is a personal app, auth can be simple. However, planning for multi-user (e.g., partner access via `BUDGET_COLLABORATOR`) is wise.
+Since the API is now a standalone server (not inside Next.js), auth must work at the API layer. The web and mobile clients authenticate against the API, which issues/validates tokens.
 
 | Option | Pros | Cons | Recommendation |
 |---|---|---|---|
-| **Auth.js (NextAuth v5)** | Built for Next.js, many providers, session management | Config can be finicky, breaking changes between versions | **Recommended** — most integrated with Next.js |
-| **Lucia** | Lightweight, no magic, full control | More manual setup, less documentation | Great if you want full control |
-| **Better Auth** | New, modern, TypeScript-first, supports many frameworks | Very new (less battle-tested) | Worth evaluating |
-| **Custom JWT** | Full control, minimal deps | Must handle security yourself | Only if the above don't fit |
+| **Better Auth** | Framework-agnostic, TypeScript-first, works with Fastify/Hono/Express, supports many providers, modern API, session + JWT modes | Newer (less battle-tested than NextAuth) | **Recommended** — best fit for a standalone API that serves multiple clients |
+| **Lucia** | Lightweight, no magic, full control, framework-agnostic | More manual setup, recently moved to maintenance mode (v3 is final) | Good if you want maximum control |
+| **Custom JWT (jsonwebtoken + bcrypt)** | Full control, minimal deps, framework-agnostic by nature | Must handle refresh tokens, CSRF, password hashing, etc. yourself | Viable for a personal app with simple auth needs |
+| **Auth.js (NextAuth v5)** | Many providers, session management | Tightly coupled to Next.js — doesn't fit a standalone API well | **Not recommended** for this architecture |
+
+> **Note:** With a standalone Fastify API, Auth.js loses its main advantage
+> (tight Next.js integration). Better Auth or Lucia are more natural fits
+> since they work at the HTTP/framework level and can issue JWTs that both
+> web and mobile clients use.
 
 ### 3.8 State Management (Client)
 
@@ -171,13 +240,21 @@ Since this is a personal app, auth can be simple. However, planning for multi-us
 ```
 DigitalOcean Droplet (2GB+ RAM recommended)
 ├── Docker Compose
-│   ├── app (Next.js — production build)
-│   ├── postgres (PostgreSQL 16)
-│   └── nginx (reverse proxy + SSL termination)
+│   ├── api     (Fastify + tRPC — port 4000, internal)
+│   ├── web     (Next.js — port 3000, internal)
+│   ├── postgres (PostgreSQL 16 — port 5432, internal only)
+│   └── nginx   (reverse proxy + SSL termination — ports 80/443)
+│       ├── app.example.com       → web:3000
+│       └── app.example.com/api   → api:4000  (or api.example.com)
 ├── Certbot / Let's Encrypt (HTTPS)
 ├── GitHub Actions (CI/CD — build, test, deploy via SSH)
 └── Automated backups (pg_dump cron + DO Spaces or similar)
 ```
+
+> Nginx routes `/api/*` requests to the Fastify container and everything
+> else to the Next.js container. Alternatively, the API can live on a
+> subdomain (`api.example.com`). Both services share the same Docker
+> network and connect to Postgres internally.
 
 ### 4.3 CI/CD
 
@@ -231,11 +308,13 @@ SavingsGoal (target allocation)
 ### Phase 1 — Foundation (Weeks 1–2)
 
 - [ ] Initialize monorepo (Turborepo + pnpm)
-- [ ] Set up Next.js app with App Router
+- [ ] Set up Fastify API server (`apps/api`) with tRPC
+- [ ] Set up Next.js frontend (`apps/web`) with tRPC client
+- [ ] Create shared packages (`packages/db`, `packages/trpc`, `packages/shared`)
 - [ ] Configure Prisma + PostgreSQL schema
-- [ ] Implement authentication (Auth.js)
+- [ ] Implement authentication (Better Auth on Fastify)
 - [ ] Seed database from existing CSV data
-- [ ] Set up Docker Compose for local development
+- [ ] Set up Docker Compose for local development (API + Web + Postgres)
 - [ ] Basic CI with GitHub Actions (lint, type-check, build)
 
 ### Phase 2 — Core Features (Weeks 3–5)
@@ -285,18 +364,19 @@ This is the recommended "default" stack based on the analysis above. Alternative
 | Layer | Choice | Reasoning |
 |---|---|---|
 | **Monorepo** | Turborepo + pnpm | Simple, fast, purpose-built for JS/TS |
-| **Frontend** | Next.js 15 (App Router) | SSR, API routes, largest ecosystem |
+| **Frontend** | Next.js 15 (App Router) | SSR shell, file-based routing, largest ecosystem |
 | **UI** | shadcn/ui + Tailwind CSS v4 | Beautiful, accessible, full ownership |
-| **API** | tRPC v11 | End-to-end type safety, no codegen |
+| **API Server** | Fastify | Fastest Node.js framework, great plugin system, mature |
+| **API Protocol** | tRPC v11 (on Fastify) | End-to-end type safety, no codegen, serves web + mobile |
 | **Database** | PostgreSQL 16 | ACID compliance, best for financial data |
 | **ORM** | Prisma | Best DX, auto-generated types, great migrations |
 | **Validation** | Zod | Standard with tRPC, runtime + static types |
-| **Auth** | Auth.js v5 | Built for Next.js, session management |
+| **Auth** | Better Auth | Framework-agnostic, TS-first, works with standalone API |
 | **State** | TanStack Query | Server state caching, pairs with tRPC |
 | **Charts** | Recharts or Tremor | Simple, declarative, Tailwind-compatible |
-| **Deployment** | Docker Compose on DO VPS | Reproducible, manages Postgres + app |
+| **Deployment** | Docker Compose on DO VPS | Reproducible, manages Postgres + API + web |
 | **CI/CD** | GitHub Actions | Free, great ecosystem |
-| **Mobile (future)** | Expo | Shared logic via monorepo packages |
+| **Mobile (future)** | Expo | Shared tRPC client + logic via monorepo |
 
 ---
 
