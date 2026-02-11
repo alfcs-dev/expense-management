@@ -147,7 +147,54 @@ budget-app/
 |---|---|---|---|
 | **tRPC** | End-to-end type safety with zero codegen, shared types via monorepo, works with Fastify/Hono, TanStack Query integration built-in | Tied to TypeScript clients (fine for web + Expo) | **Recommended** — perfect for a TS monorepo where all clients are yours |
 | **REST (manual)** | Universal, any client can consume, well-understood | No automatic type safety, more boilerplate, need OpenAPI/Swagger for docs | Only if you need third-party API consumers |
-| **GraphQL** | Flexible querying, great for complex data relationships | Heavy tooling (codegen, resolvers, schema), overkill for a personal app | Not recommended for this project |
+| **GraphQL** | Flexible querying, great for complex data relationships, excellent for multi-client scenarios with differing data needs | Heavy tooling (codegen, resolvers, schema), more complex server setup | Not recommended for MVP — see detailed analysis below |
+
+#### When GraphQL Makes Sense (and When It Doesn't)
+
+GraphQL is a powerful tool, but it solves specific problems. Here's when it
+would become worth considering for this project — and why tRPC is the better
+choice right now.
+
+**GraphQL shines when:**
+
+| Scenario | Why GraphQL Helps | Applies to This Project? |
+|---|---|---|
+| **Multiple clients need different data shapes** | Mobile might need a lightweight expense summary while web needs full details + related accounts. GraphQL lets each client request exactly what it needs in a single query. | **Not yet** — MVP is single-client. Becomes relevant when Expo app has different data needs than web. |
+| **Deeply nested relational data** | A single query can traverse `Budget → Categories → Expenses → InstallmentPlan → Account` without multiple round-trips. The client controls the depth. | **Partially** — the schema has relationships, but tRPC can handle them with well-designed endpoints. GraphQL wins if you frequently need ad-hoc combinations of nested data. |
+| **Third-party / public API consumers** | GraphQL provides self-documenting schemas, introspection, and a playground. External developers can explore the API without docs. | **Not yet** — currently all clients are yours. Becomes relevant if you open the API to other apps or services. |
+| **Large team with frontend/backend split** | Frontend devs can query new data combinations without backend changes. Reduces coordination overhead. | **No** — solo developer, full control of both sides. |
+| **Micro-frontends or federated architecture** | Apollo Federation lets multiple teams/services compose a single graph. | **No** — single monolith API. |
+
+**Why tRPC wins for this project right now:**
+
+1. **Zero codegen** — GraphQL requires running codegen to get TypeScript types
+   from the schema. tRPC types flow automatically through the monorepo.
+2. **Simpler server** — tRPC procedures are just functions. GraphQL requires
+   defining a schema (SDL or code-first), writing resolvers, and managing
+   a query execution layer (Apollo Server, Yoga, Mercurius).
+3. **No N+1 problem** — GraphQL's flexibility introduces the N+1 query problem
+   (fetching a list of budgets, then fetching categories for each). Solving
+   it requires DataLoader. tRPC endpoints are explicit — you control exactly
+   what SQL runs.
+4. **TanStack Query integration** — tRPC's React client IS TanStack Query
+   under the hood. GraphQL needs a separate client (Apollo Client, urql) that
+   partially duplicates what TanStack Query does.
+
+**When to reconsider (future triggers):**
+
+- The Expo mobile app consistently needs different data shapes than the web
+  app, and you're writing too many "slim" vs "full" tRPC endpoints
+- You want to open the API to third parties (e.g., a public API for other
+  budget tools to integrate with)
+- The data model becomes deeply graph-like and clients need ad-hoc traversals
+  that are painful to express as fixed tRPC procedures
+
+**Migration path if needed:** tRPC and GraphQL can coexist on the same Fastify
+server. You could add a `/graphql` endpoint (via Mercurius, Fastify's native
+GraphQL plugin) alongside the existing tRPC routes, migrate endpoints
+incrementally, and eventually deprecate tRPC if GraphQL proves more valuable.
+Prisma generates both tRPC-compatible types and GraphQL-compatible types, so
+the data layer doesn't change.
 
 #### How it fits together
 
@@ -313,23 +360,25 @@ Building on the existing schema visualization, here's an enhanced version addres
 2. **Frequency Handling** — Support monthly, biweekly, annual, bimonthly frequencies
 3. **Account Routing** — Each recurring expense maps source account → destination account
 4. **Savings Goals** — First-class entity with target percentages
-5. **Budget Periods** — Support biweekly budgeting (matching salary cycle)
+5. **Monthly Budgets** — Budget period is monthly (matching how most charges work)
 6. **Tags/Labels** — Flexible tagging for cross-cutting concerns
-7. **Currency** — Support MXN and USD (for dollar savings)
+7. **Currency** — `MXN` and `USD` enum on Account and Expense. Amounts stored as integers (centavos/cents)
+8. **Multi-user ready** — `userId` FK on all entities from day one. `BudgetCollaborator` table in schema (UI built later)
 
 ### 5.2 Proposed Entities
 
 ```
-User
-Account (type: debit | credit | investment | cash)
-Budget (monthly budget instance)
-BudgetPeriod (biweekly or monthly period)
-Category (Kids, Subscriptions, Telecom, Savings, Auto, Home, Misc)
-RecurringExpense (budget template — what you expect to spend)
-Expense (actual recorded expense)
-InstallmentPlan (MSI tracking)
-Transfer (inter-account movement)
-SavingsGoal (target allocation)
+User                    (id, email, name, createdAt)
+Account                 (id, userId, name, type[debit|credit|investment|cash], currency[MXN|USD], CLABE, balance)
+Budget                  (id, userId, name, month, year)
+Category                (id, userId, name, icon, color, sortOrder)
+RecurringExpense        (id, userId, categoryId, sourceAccountId, destAccountId, description, amount, currency, frequency[monthly|biweekly|annual|bimonthly], isAnnual, annualCost, notes)
+Expense                 (id, userId, budgetId, categoryId, accountId, installmentPlanId?, description, amount, currency, date, installmentNumber?)
+InstallmentPlan         (id, userId, accountId, categoryId, description, totalAmount, months, interestRate, startDate, status[active|completed|cancelled])
+Transfer                (id, userId, amount, currency, sourceAccountId, destAccountId, date, notes)
+SavingsGoal             (id, userId, accountId, name, targetPercentage, targetAmount?, notes)
+BudgetCollaborator      (id, budgetId, userId, role[owner|editor|viewer]) — schema only for MVP
+BankLink                (id, userId, provider[belvo|syncfy], externalLinkId, status, lastSyncAt) — for Phase 6
 ```
 
 ---
@@ -342,57 +391,84 @@ SavingsGoal (target allocation)
 - [ ] Set up Fastify API server (`apps/api`) with tRPC
 - [ ] Set up React + Vite SPA (`apps/web`) with TanStack Router + tRPC client
 - [ ] Create shared packages (`packages/db`, `packages/trpc`, `packages/shared`)
-- [ ] Configure Prisma + PostgreSQL schema
-- [ ] Implement authentication (Better Auth on Fastify)
-- [ ] Seed database from existing CSV data
+- [ ] Configure Prisma + PostgreSQL schema (with `userId` FK on all entities, `currency` enum)
+- [ ] Implement authentication (Better Auth on Fastify) — single-user but multi-user-ready
+- [ ] Set up i18n plumbing (`react-i18next`) — English strings, wrap all text in `t()`
+- [ ] Seed database from existing CSV data (`packages/db/seed.ts`)
 - [ ] Set up Docker Compose for local development (API + Postgres + Nginx)
 - [ ] Basic CI with GitHub Actions (lint, type-check, build)
 
 ### Phase 2 — Core Features (Weeks 3–5)
 
-- [ ] Account management (CRUD)
-- [ ] Category management
-- [ ] Recurring expense templates (the budget "plan")
+- [ ] Account management (CRUD) — with currency support (MXN/USD)
+- [ ] Category management (seed from CSV categories: Kids, Subscriptions, etc.)
+- [ ] Recurring expense templates (the budget "plan") with account routing
 - [ ] Monthly budget generation from templates
 - [ ] Expense logging (manual entry)
-- [ ] Dashboard with monthly overview
+- [ ] Dashboard with monthly overview (income vs. expenses, category totals)
 - [ ] Budget vs. actual comparison
+- [ ] Spanish translation file (`es.json`) — complete i18n
 
 ### Phase 3 — Advanced Features (Weeks 6–8)
 
-- [ ] Installment plan (MSI) management
-- [ ] Transfer tracking
-- [ ] Savings goals with progress tracking
-- [ ] Annual expense proration (monthly breakdown)
-- [ ] Reports and charts (monthly/annual trends)
+- [ ] Installment plan (MSI) management with auto-generated future expenses
+- [ ] Transfer tracking between accounts
+- [ ] Savings goals with progress tracking (percentage-based allocation)
+- [ ] Annual expense proration (show monthly cost for annual charges)
+- [ ] Reports and charts (monthly/annual trends, category breakdowns)
+- [ ] Data import: CSV/OFX bank statement upload
+- [ ] Data import: CFDI XML upload with parsing (`@nodecfdi/cfdi-to-json`)
+- [ ] Basic auto-categorization (rule-based on merchant name/RFC)
 - [ ] Data export (CSV)
 
 ### Phase 4 — Deployment & Polish (Weeks 9–10)
 
 - [ ] Docker Compose production setup
 - [ ] Deploy to DigitalOcean VPS
-- [ ] SSL + domain setup
-- [ ] CI/CD pipeline (GitHub Actions → VPS)
-- [ ] Database backup automation
-- [ ] Performance optimization
+- [ ] SSL + domain setup (Cloudflare DNS + Let's Encrypt)
+- [ ] CI/CD pipeline (GitHub Actions → build → deploy via SSH)
+- [ ] Database backup automation (pg_dump cron → DO Spaces)
 - [ ] UX polish and responsive design
+- [ ] "Upcoming payments" dashboard widget (in-app reminders, no push)
 
-### Phase 5 — Mobile & Beyond (Future)
+### Phase 5 — Mobile App (After Solid MVP)
 
-- [ ] PWA support (offline, installable)
-- [ ] Expo mobile app (shared logic from monorepo)
-- [ ] Bank statement import (CSV/OFX parsing)
-- [ ] Notification system (upcoming payments, budget alerts)
-- [ ] Multi-user / collaborator support
-- [ ] AI-powered expense categorization
+- [ ] PWA support (offline capable, installable — interim mobile solution)
+- [ ] Initialize Expo app (`apps/mobile`) in monorepo
+- [ ] Shared tRPC client + Zod validators (from `packages/trpc` + `packages/shared`)
+- [ ] Core screens: Dashboard, Expense entry, Account overview
+- [ ] Better Auth mobile integration (token-based auth flow)
+- [ ] Push notification groundwork (Expo Push, device token registration)
 
-### Phase 6 — Frontend Performance & Scale (When Data Gets Heavy)
+### Phase 6 — Bank & SAT Integration (Automation)
+
+- [ ] Belvo Connect Widget integration (bank account linking)
+- [ ] Automated bank transaction sync (daily / webhook-triggered)
+- [ ] Transaction → expense matching and deduplication
+- [ ] Smart categorization (learn from user corrections)
+- [ ] e.firma certificate upload and secure storage
+- [ ] SAT WS Descarga Masiva integration (`@nodecfdi/sat-ws-descarga-masiva`)
+- [ ] Automated CFDI download, parsing, and expense creation
+- [ ] Cross-reference CFDIs with bank transactions for reconciliation
+
+### Phase 7 — Multi-User, Notifications & Intelligence
+
+- [ ] Multi-user support: invite collaborators to budgets
+- [ ] Role-based access (owner, editor, viewer)
+- [ ] Push notifications (web: Web Push API + Service Worker; mobile: Expo Push)
+- [ ] Notification preferences UI (what to notify, quiet hours, batching)
+- [ ] Auto-categorization based on RFC vendor directory
+- [ ] Duplicate detection across bank + SAT data sources
+- [ ] Anomaly detection (unusual charges, missing invoices)
+- [ ] Tax deduction suggestions based on CFDI data
+
+### Phase 8 — Frontend Performance & Scale (When Data Gets Heavy)
 
 This phase addresses the inevitable point where the dashboard handles years of
 expense history, thousands of transactions, and complex visualizations. The
 optimizations are grouped by the specific bottleneck they solve.
 
-#### 6.1 Problem: Large Tables & Lists (Transaction History, Expense Lists)
+#### 8.1 Problem: Large Tables & Lists (Transaction History, Expense Lists)
 
 As transaction count grows into the thousands, rendering full lists will
 cause jank and high memory usage.
@@ -403,7 +479,7 @@ cause jank and high memory usage.
 | **Cursor-based pagination** | API returns pages of data instead of full datasets. tRPC + TanStack Query support `useInfiniteQuery` natively for infinite scroll patterns. | When single API responses exceed ~500 records |
 | **Server-side filtering & aggregation** | Move filtering, search, and grouping to the API/database layer instead of fetching all data and filtering client-side. PostgreSQL is very good at this. | When client-side filtering causes noticeable lag |
 
-#### 6.2 Problem: Heavy Charts & Visualizations
+#### 8.2 Problem: Heavy Charts & Visualizations
 
 Multi-year trend charts with thousands of data points can choke the browser,
 especially on mobile.
@@ -415,7 +491,7 @@ especially on mobile.
 | **Lazy chart loading** | Only render charts when they scroll into the viewport using `IntersectionObserver` or `React.lazy` + `Suspense`. Dashboard pages with 5+ charts benefit significantly. | When dashboard initial render is slow |
 | **Web Workers for data processing** | Offload heavy data transformations (rolling averages, category rollups, percentile calculations) to a Web Worker so the main thread stays responsive. | When data processing blocks UI interaction |
 
-#### 6.3 Problem: Bundle Size Growth
+#### 8.3 Problem: Bundle Size Growth
 
 As features accumulate, the JS bundle grows and initial load slows down.
 
@@ -426,7 +502,7 @@ As features accumulate, the JS bundle grows and initial load slows down.
 | **Tree-shaking audit** | Ensure imports from large libraries (date-fns, lodash-es, Recharts) use named imports. Vite tree-shakes well, but barrel exports can defeat it. | Periodic audit every few months |
 | **React Compiler** | Automatic memoization of components and hooks. Eliminates the need for manual `useMemo`/`useCallback`. Expected to be stable and production-ready by this phase. | When it hits stable release |
 
-#### 6.4 Problem: Slow Initial Load / Perceived Performance
+#### 8.4 Problem: Slow Initial Load / Perceived Performance
 
 Even with code splitting, a large SPA can feel slow on first load compared
 to a server-rendered page.
@@ -438,7 +514,7 @@ to a server-rendered page.
 | **Service Worker (pre-caching)** | Cache the app shell and critical assets so repeat visits load instantly. Workbox (by Google) integrates with Vite via `vite-plugin-pwa`. | When you want offline support or instant repeat loads |
 | **Streaming / Progressive rendering** | With TanStack Start, the server can stream HTML as data becomes available. Critical UI appears immediately, data-heavy sections fill in progressively. | After migrating to TanStack Start |
 
-#### 6.5 Problem: Client-Side Memory & Responsiveness
+#### 8.5 Problem: Client-Side Memory & Responsiveness
 
 Long sessions with lots of open views, background data refreshing, and
 accumulated query cache can cause memory pressure.
@@ -450,7 +526,7 @@ accumulated query cache can cause memory pressure.
 | **IndexedDB for local cache** | Persist TanStack Query cache to IndexedDB (via `persistQueryClient` plugin) so the app starts with warm data instead of loading everything fresh. | When startup data fetching is noticeable |
 | **Debounced search & filters** | Debounce user input before triggering API calls. Prevents request storms when typing in search fields or adjusting date ranges. | From the start — but tune thresholds as data grows |
 
-#### 6.6 Problem: Backend Becomes the Bottleneck
+#### 8.6 Problem: Backend Becomes the Bottleneck
 
 Sometimes the frontend is fast but waiting on slow API responses.
 
@@ -461,7 +537,7 @@ Sometimes the frontend is fast but waiting on slow API responses.
 | **Database indexes** | Add compound indexes for common query patterns (e.g., `expenses(userId, date, categoryId)`). Use `EXPLAIN ANALYZE` to identify slow queries. | Proactively during Phase 3–4, then ongoing |
 | **Connection pooling** | Use PgBouncer or Prisma's built-in connection pool to handle concurrent requests efficiently. | When API concurrency increases (multiple users or aggressive prefetching) |
 
-#### 6.7 The TanStack Start Migration Path
+#### 8.7 The TanStack Start Migration Path
 
 This deserves special attention because it's the single biggest architectural
 improvement available to the frontend, and the migration is designed to be smooth.
@@ -496,37 +572,261 @@ by code splitting and caching alone.
 
 This is the recommended "default" stack based on the analysis above. Alternatives are documented in Section 3 for each decision.
 
-| Layer | Choice | Reasoning |
-|---|---|---|
-| **Monorepo** | Turborepo + pnpm | Simple, fast, purpose-built for JS/TS |
-| **Frontend** | React + Vite (SPA) | Static output, fastest builds, no server needed, TanStack Router for file-based routing |
-| **Routing** | TanStack Router | Type-safe, file-based routes, deep TanStack Query integration |
-| **UI** | shadcn/ui + Tailwind CSS v4 | Beautiful, accessible, full ownership |
-| **API Server** | Fastify | Fastest Node.js framework, great plugin system, mature |
-| **API Protocol** | tRPC v11 (on Fastify) | End-to-end type safety, no codegen, serves web + mobile |
-| **Database** | PostgreSQL 16 | ACID compliance, best for financial data |
-| **ORM** | Prisma | Best DX, auto-generated types, great migrations |
-| **Validation** | Zod | Standard with tRPC, runtime + static types |
-| **Auth** | Better Auth | Framework-agnostic, TS-first, works with standalone API |
-| **State** | TanStack Query | Server state caching, built-in tRPC integration |
-| **Charts** | Recharts or Tremor | Simple, declarative, Tailwind-compatible |
-| **Deployment** | Docker Compose on DO VPS | API + Postgres in containers, static frontend in Nginx |
-| **CI/CD** | GitHub Actions | Free, great ecosystem |
-| **Mobile (future)** | Expo | Shared tRPC client + logic via monorepo |
+| Layer | Choice | Status | Reasoning |
+|---|---|---|---|
+| **Monorepo** | Turborepo + pnpm | Confirmed | Simple, fast, purpose-built for JS/TS |
+| **Frontend** | React + Vite (SPA) | Confirmed | Static output, fastest builds, no server needed |
+| **Routing** | TanStack Router | Confirmed | Type-safe, file-based routes, deep TanStack Query integration |
+| **UI** | shadcn/ui + Tailwind CSS v4 | Confirmed | Beautiful, accessible, full ownership |
+| **API Server** | Fastify | Confirmed | Fastest Node.js framework, great plugin system, mature |
+| **API Protocol** | tRPC v11 (on Fastify) | Confirmed | End-to-end type safety, no codegen, serves web + mobile |
+| **Database** | PostgreSQL 16 | Confirmed | ACID compliance, best for financial data |
+| **ORM** | Prisma | **Decided** | Familiar, great DX, raw SQL escape hatch available |
+| **Validation** | Zod | Confirmed | Standard with tRPC, runtime + static types |
+| **Auth** | Better Auth | Confirmed | Framework-agnostic, TS-first, multi-user ready |
+| **State** | TanStack Query | Confirmed | Server state caching, built-in tRPC integration |
+| **i18n** | react-i18next | **Decided** | Infrastructure from day one, English first, Spanish in Phase 2 |
+| **Charts** | Recharts or Tremor | Confirmed | Simple, declarative, Tailwind-compatible |
+| **Deployment** | Docker Compose on DO VPS | **Decided** | API + Postgres in containers, static frontend in Nginx |
+| **CI/CD** | GitHub Actions | Confirmed | Free, great ecosystem |
+| **Mobile** | Expo (Phase 5) | **Decided** | After solid MVP, before performance work |
+| **Bank sync** | Belvo (Phase 6) | **Decided** | Leading open banking platform for Mexico |
+| **Fiscal data** | @nodecfdi (Phase 6) | **Decided** | SAT CFDI integration via community TS toolkit |
 
 ---
 
-## 8. Open Questions & Decisions Needed
+## 8. Resolved Decisions
 
-Before starting development, these decisions should be finalized:
+These questions have been answered and inform the implementation plan.
 
-1. **ORM**: Prisma vs. Drizzle — Prisma is easier to start with; Drizzle is lighter and closer to SQL. Which do you prefer?
-2. **Auth**: Do you need multi-user from day one, or is single-user (with login) fine for MVP?
-3. **Deployment tool**: Plain Docker Compose vs. Coolify (self-hosted PaaS)? Coolify adds convenience but uses more resources.
-4. **Budget period**: Is the primary budgeting cycle monthly or biweekly (aligned with salary)?
-5. **Data migration**: Should the app import the existing CSV as seed data for the initial setup?
-6. **Locale**: Should the app support i18n from the start (Spanish + English), or English-only MVP?
-7. **Currency**: Should the app handle multi-currency (MXN + USD) from the start?
-8. **Mobile timeline**: When do you realistically want to start the mobile app? This affects early architecture decisions.
-9. **Notifications**: Do you want payment reminders? If so, email or push notifications?
-10. **Bank integration**: Any interest in connecting to bank APIs (e.g., Belvo for Mexican banks) for automatic transaction import?
+| # | Decision | Answer | Impact on Architecture |
+|---|---|---|---|
+| 1 | **ORM** | **Prisma** — more familiar, sufficient for the project's needs | No change. Prisma was already recommended. If query limitations arise for complex reports, raw SQL via `prisma.$queryRaw` is always available. |
+| 2 | **Auth scope** | **Single-user MVP**, but design for multi-user from day one | Use Better Auth with user table + session management. Add `userId` foreign key to all entities now. Add `BudgetCollaborator` table in schema but don't build the invite/share UI until a later phase. |
+| 3 | **Deployment** | **Docker Compose** — sufficient for current VPS, solid foundation | No change. Coolify or other PaaS can be layered on top later without changing the app itself. |
+| 4 | **Budget period** | **Monthly** — most intuitive, matches how most charges work | Budget entity is monthly. The biweekly salary maps to 2 income entries per month. Simplifies the schema (no `BudgetPeriod` entity needed for MVP). |
+| 5 | **Seed data** | **Yes** — build a CSV parser that imports the existing spreadsheet | Add a `packages/db/seed.ts` that reads the CSV and populates accounts, categories, recurring expenses. Critical for validating the schema against real data. |
+| 6 | **Locale / i18n** | **Set up infrastructure from day one, ship English first, add Spanish soon after** | See Section 8.1 below for full i18n analysis. |
+| 7 | **Currency** | **MXN + USD from the start** | Store all monetary amounts as integers (centavos/cents) to avoid floating-point errors. Add `currency` field (enum: `MXN`, `USD`) to Account and Expense. Exchange rate conversion is NOT needed for MVP — just track each amount in its native currency. |
+| 8 | **Mobile timeline** | **After solid MVP, before performance optimizations** | Phases reordered: Mobile (Phase 5) → Performance (Phase 7). The monorepo + shared packages architecture already supports this. |
+| 9 | **Notifications** | **Later phase** — push notifications done properly require significant infrastructure | Moved to Phase 7. See Section 8.2 for what "properly" means. |
+| 10 | **Bank + SAT integration** | **Yes — high-value feature, include in plan** | See Section 9 for full research on Belvo, Open Banking Mexico, and SAT CFDI integration. |
+
+### 8.1 i18n — Complexity Analysis & Recommendation
+
+**How much complexity does i18n add?**
+
+| Aspect | Effort | Notes |
+|---|---|---|
+| **Initial setup** | ~2–3 hours | Install `react-i18next` + `i18next`, configure language detection, create namespace files |
+| **Wrapping strings** | Ongoing, minimal per component | Every user-facing string uses `t('key')` instead of a raw string. This is a habit, not a burden. |
+| **Translation files** | ~1 hour for MVP scope | Two JSON files (`en.json`, `es.json`). MVP has ~100–150 translatable strings. |
+| **Date/number formatting** | Near zero | Use `Intl.DateTimeFormat` and `Intl.NumberFormat` (built into browsers). Pass the locale. |
+| **Currency formatting** | Near zero | `Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' })` — already needed for the multi-currency requirement. |
+| **RTL support** | Not needed | Spanish and English are both LTR. |
+| **Backend strings** | Minimal | API error messages and validation messages. Use error codes that the client maps to translated strings. |
+
+**Recommendation: Set up i18n plumbing in Phase 1, ship English strings, add Spanish in Phase 2.**
+
+The key insight: **retrofitting i18n is 10x harder than setting it up from the start.** If you hardcode strings in English and later want to add Spanish, you have to find and replace every string in every component. If you wrap them in `t()` from day one, adding Spanish is just filling in a JSON file.
+
+**Recommended library:**
+
+| Option | Pros | Cons | Recommendation |
+|---|---|---|---|
+| **react-i18next** | Most popular, namespace support, lazy loading, interpolation, pluralization | Slightly verbose API | **Recommended** — battle-tested, works in React + Expo |
+| **FormatJS (react-intl)** | ICU message syntax, great for complex pluralization | More complex message format | Good alternative |
+| **Paraglide** | Compiled at build time (no runtime overhead), type-safe keys | Newer, smaller ecosystem | Worth evaluating for bundle-conscious apps |
+
+### 8.2 Push Notifications — Why Later
+
+Push notifications done properly require:
+
+- **Web Push API** — Service Worker registration, VAPID keys, browser permission
+  prompts, subscription management
+- **Mobile Push (Expo)** — Expo Push Notification service, device token management,
+  APNs (iOS) and FCM (Android) configuration
+- **Backend** — Notification scheduling service, delivery tracking, retry logic,
+  user preference management (what to notify, when, which channels)
+- **UX** — Notification preferences UI, quiet hours, batching (don't send 10
+  separate notifications for 10 upcoming bills)
+
+This is easily 2–3 weeks of work to do well. For MVP, a simple in-app
+"upcoming payments" dashboard widget provides 80% of the value at 10% of the
+effort. Push notifications belong in Phase 7+.
+
+---
+
+## 9. Bank & SAT Integration Research
+
+This section documents the available options for automatic transaction import
+from Mexican banks and the SAT (tax authority). This is a high-value feature
+that could eliminate most manual expense entry.
+
+### 9.1 Bank Account Aggregation (Transaction Sync)
+
+#### Option A: Belvo (Recommended for MVP)
+
+[Belvo](https://belvo.com) is the leading open banking platform for Latin
+America. It connects to Mexican bank APIs and provides normalized transaction
+data.
+
+| Aspect | Details |
+|---|---|
+| **What it does** | Connects to bank accounts (HSBC, BBVA, Banorte, Santander, Nu, etc.), retrieves transactions, balances, and account details via REST API |
+| **Supported banks** | 30+ Mexican institutions including HSBC, Nu, and most major banks |
+| **How it works** | User authenticates via Belvo's Connect Widget (embeddable iframe/popup). Belvo handles bank login, 2FA, and session management. Your API receives a `link_id` to fetch data. |
+| **SDK** | Official Node.js SDK (`belvo-node`), REST API, Python SDK |
+| **Pricing** | Free sandbox (test data). Production: pay-per-link model. Startup-friendly pricing. Contact for exact rates. |
+| **Data provided** | Transactions (amount, description, date, category, merchant), account balances, account owner identity |
+| **Refresh** | On-demand or scheduled. Can set up webhooks for new transaction notifications. |
+| **Compliance** | Aligned with Mexico's Ley Fintech open banking regulations |
+
+**Integration architecture:**
+
+```
+User clicks "Connect Bank"
+        │
+        ▼
+┌──────────────────┐
+│  Belvo Connect   │  (embedded widget in web/mobile app)
+│  Widget          │
+└────────┬─────────┘
+         │ returns link_id
+         ▼
+┌──────────────────┐     ┌──────────────┐
+│  Fastify API     │────▶│  Belvo API   │
+│  (apps/api)      │◀────│              │
+└────────┬─────────┘     └──────────────┘
+         │ normalized transactions
+         ▼
+┌──────────────────┐
+│  PostgreSQL      │  (matched/categorized expenses)
+└──────────────────┘
+```
+
+**Implementation tasks:**
+- [ ] Embed Belvo Connect Widget in web app (account linking flow)
+- [ ] Store `link_id` per user account in database
+- [ ] Build sync endpoint: fetch transactions from Belvo → match to accounts
+- [ ] Transaction matching: auto-categorize based on merchant/description
+- [ ] Deduplication: prevent importing the same transaction twice
+- [ ] Scheduled sync (cron job or webhook-triggered)
+
+#### Option B: Syncfy (formerly Paybook)
+
+[Syncfy](https://syncfy.com) is a Mexican fintech specializing in bank data
+aggregation.
+
+| Aspect | Details |
+|---|---|
+| **What it does** | Similar to Belvo — connects to Mexican banks, retrieves transactions |
+| **Supported banks** | 30+ Mexican institutions |
+| **Differentiator** | Also supports SAT (fiscal data), IMSS, utility providers |
+| **SDK** | REST API, no official Node.js SDK (use `fetch`/`axios`) |
+| **Pricing** | Contact for pricing. Generally competitive with Belvo. |
+
+**When to prefer over Belvo:** If the SAT integration (see 9.2) is important
+and you want a single provider for both bank and fiscal data.
+
+#### Option C: Finerio Connect
+
+Smaller player in the Mexican open banking space. Less documentation,
+fewer integrations. Only consider if Belvo and Syncfy don't meet needs.
+
+#### Option D: Direct Bank APIs (Open Banking Mexico)
+
+Mexico's Ley Fintech (2018) mandates that banks expose APIs for:
+- Open data (branch locations, product info — already available)
+- Aggregated data (anonymized statistics — partially available)
+- Transactional data (account transactions — still being rolled out)
+
+**Current state (2026):** The CNBV (banking regulator) has published standards,
+but most banks are still in compliance phases for transactional APIs. Direct
+bank-by-bank integration is impractical for an MVP. Belvo/Syncfy abstract
+this complexity away.
+
+### 9.2 SAT Integration (Fiscal Data / CFDI)
+
+The SAT (Servicio de Administración Tributaria) is Mexico's tax authority.
+Every formal purchase generates a CFDI (Comprobante Fiscal Digital por
+Internet) — an XML invoice. Importing these gives you a verified record of
+every invoiced expense.
+
+#### How CFDI Works
+
+1. Every purchase with a formal receipt generates a CFDI XML file
+2. CFDIs are stored on the SAT's servers and accessible via web services
+3. Each CFDI contains: date, amount, vendor name/RFC, tax breakdown (IVA,
+   ISR, IEPS), payment method, and item descriptions
+4. Authentication requires either e.firma (electronic signature) or CIEC
+   (simplified password)
+
+#### Integration Options
+
+| Option | Pros | Cons | Recommendation |
+|---|---|---|---|
+| **SAT WS Descarga Masiva** | Official SOAP web service for bulk CFDI download. Gives you ALL invoices (emitted and received). Free, no third-party dependency. | Complex SOAP protocol, requires e.firma certificate handling, XML parsing, must handle SAT's unreliable uptime | **Recommended for long-term** — gives full control and zero ongoing cost |
+| **Syncfy SAT module** | Syncfy handles SAT authentication and CFDI retrieval. Returns normalized JSON. | Adds cost (Syncfy pricing), third-party dependency | Good alternative if you want faster integration |
+| **Facturapi** | SaaS for CFDI management. Has APIs to retrieve and parse invoices. | Primarily designed for invoice *creation*, not bulk import | Only if you also need to *emit* invoices |
+| **Manual XML upload** | User downloads CFDIs from SAT portal and uploads them to the app. App parses the XML. | Manual process, user friction | Good interim solution before automated sync |
+
+#### SAT WS Descarga Masiva — Technical Details
+
+The official bulk download service works as follows:
+
+1. **Authentication** — Sign a SOAP request with the user's e.firma
+   (`.cer` + `.key` + password). This generates a token.
+2. **Request** — Submit a download request specifying date range and type
+   (emitted/received). SAT queues the request.
+3. **Verify** — Poll until SAT confirms the request is ready (can take
+   minutes to hours depending on volume).
+4. **Download** — Download ZIP packages containing CFDI XML files.
+5. **Parse** — Extract XML, parse CFDI fields, map to app's expense model.
+
+**Available libraries:**
+- `@nodecfdi/sat-ws-descarga-masiva` — Node.js/TypeScript implementation
+  of the SAT bulk download protocol. Active community, well-maintained.
+- `@nodecfdi/cfdi-to-json` — Parses CFDI XML into JSON.
+- `@nodecfdi/credentials` — Handles e.firma certificate reading and signing.
+
+The `@nodecfdi` ecosystem is the most mature TypeScript toolkit for Mexican
+fiscal operations. It's community-maintained and actively developed.
+
+#### CFDI → Expense Mapping
+
+| CFDI Field | Maps To |
+|---|---|
+| `Fecha` (date) | Expense date |
+| `Total` | Expense amount |
+| `Moneda` (currency) | Expense currency (MXN/USD) |
+| `Receptor.Nombre` (vendor name) | Expense description / merchant |
+| `Receptor.Rfc` | Vendor identifier (for auto-categorization) |
+| `Conceptos` (line items) | Detailed expense breakdown |
+| `MetodoPago` | Payment method hint (card, transfer, cash) |
+| `FormaPago` | Can help identify which account was used |
+
+#### Implementation Roadmap for Bank + SAT
+
+**Phase A — Manual import (included in Phase 3):**
+- [ ] CSV/OFX file upload for bank statements
+- [ ] CFDI XML file upload with parsing (`@nodecfdi/cfdi-to-json`)
+- [ ] Basic auto-categorization (rule-based on merchant name/RFC)
+
+**Phase B — Belvo bank sync (Phase 6):**
+- [ ] Belvo Connect Widget integration
+- [ ] Automated transaction sync (daily or webhook-triggered)
+- [ ] Transaction → expense matching and deduplication
+- [ ] Smart categorization (learn from user corrections)
+
+**Phase C — SAT automated sync (Phase 6):**
+- [ ] e.firma certificate upload and secure storage
+- [ ] SAT WS Descarga Masiva integration (`@nodecfdi`)
+- [ ] Automated CFDI download and parsing
+- [ ] Cross-reference CFDIs with bank transactions for reconciliation
+
+**Phase D — Intelligence (Phase 7+):**
+- [ ] Auto-categorization based on RFC directory (build a local vendor database)
+- [ ] Duplicate detection across bank + SAT data
+- [ ] Anomaly detection (unusual charges, missing invoices)
+- [ ] Tax deduction suggestions based on CFDI data
