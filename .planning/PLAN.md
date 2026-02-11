@@ -386,6 +386,110 @@ SavingsGoal (target allocation)
 - [ ] Multi-user / collaborator support
 - [ ] AI-powered expense categorization
 
+### Phase 6 — Frontend Performance & Scale (When Data Gets Heavy)
+
+This phase addresses the inevitable point where the dashboard handles years of
+expense history, thousands of transactions, and complex visualizations. The
+optimizations are grouped by the specific bottleneck they solve.
+
+#### 6.1 Problem: Large Tables & Lists (Transaction History, Expense Lists)
+
+As transaction count grows into the thousands, rendering full lists will
+cause jank and high memory usage.
+
+| Solution | What It Does | When to Apply |
+|---|---|---|
+| **TanStack Table + Virtualization** | Only renders rows visible in the viewport. TanStack Table (same ecosystem) handles sorting, filtering, grouping, and column pinning. Pair with `@tanstack/react-virtual` for virtualized rendering. | When any list exceeds ~200 rows |
+| **Cursor-based pagination** | API returns pages of data instead of full datasets. tRPC + TanStack Query support `useInfiniteQuery` natively for infinite scroll patterns. | When single API responses exceed ~500 records |
+| **Server-side filtering & aggregation** | Move filtering, search, and grouping to the API/database layer instead of fetching all data and filtering client-side. PostgreSQL is very good at this. | When client-side filtering causes noticeable lag |
+
+#### 6.2 Problem: Heavy Charts & Visualizations
+
+Multi-year trend charts with thousands of data points can choke the browser,
+especially on mobile.
+
+| Solution | What It Does | When to Apply |
+|---|---|---|
+| **Data downsampling** | API returns pre-aggregated data (e.g., weekly averages instead of daily entries for charts spanning years). Add `granularity` parameter to chart endpoints (`day`, `week`, `month`). | When chart datasets exceed ~500 points |
+| **Canvas-based charting** | Switch from SVG-based Recharts to a Canvas renderer (e.g., Chart.js, uPlot, or Recharts with `<canvas>` via `customized`). Canvas handles 10k+ points without DOM overhead. | When SVG charts visibly lag on zoom/pan |
+| **Lazy chart loading** | Only render charts when they scroll into the viewport using `IntersectionObserver` or `React.lazy` + `Suspense`. Dashboard pages with 5+ charts benefit significantly. | When dashboard initial render is slow |
+| **Web Workers for data processing** | Offload heavy data transformations (rolling averages, category rollups, percentile calculations) to a Web Worker so the main thread stays responsive. | When data processing blocks UI interaction |
+
+#### 6.3 Problem: Bundle Size Growth
+
+As features accumulate, the JS bundle grows and initial load slows down.
+
+| Solution | What It Does | When to Apply |
+|---|---|---|
+| **Route-based code splitting** | TanStack Router supports lazy route loading out of the box. Each route's component and data loader are separate chunks loaded on navigation. | Enable from day one — nearly free |
+| **Dynamic imports for heavy components** | Charts, rich editors, export dialogs — anything heavy that isn't needed on first render. Use `React.lazy()` + `Suspense`. | When `vite-bundle-analyzer` shows large chunks |
+| **Tree-shaking audit** | Ensure imports from large libraries (date-fns, lodash-es, Recharts) use named imports. Vite tree-shakes well, but barrel exports can defeat it. | Periodic audit every few months |
+| **React Compiler** | Automatic memoization of components and hooks. Eliminates the need for manual `useMemo`/`useCallback`. Expected to be stable and production-ready by this phase. | When it hits stable release |
+
+#### 6.4 Problem: Slow Initial Load / Perceived Performance
+
+Even with code splitting, a large SPA can feel slow on first load compared
+to a server-rendered page.
+
+| Solution | What It Does | When to Apply |
+|---|---|---|
+| **TanStack Start (SSR migration)** | The natural evolution of the current stack. TanStack Start is a full-stack framework built on TanStack Router + Vite. Migrating from the SPA to Start adds SSR/streaming without changing the router, query, or tRPC setup. The migration path is designed to be incremental. | When TanStack Start reaches stable (currently beta) and initial load time becomes a user complaint |
+| **CDN for static assets** | Move the Vite build output to Cloudflare Pages, Vercel, or an S3 + CloudFront setup. Assets load from edge nodes worldwide instead of your single VPS. | When users access the app from multiple regions |
+| **Service Worker (pre-caching)** | Cache the app shell and critical assets so repeat visits load instantly. Workbox (by Google) integrates with Vite via `vite-plugin-pwa`. | When you want offline support or instant repeat loads |
+| **Streaming / Progressive rendering** | With TanStack Start, the server can stream HTML as data becomes available. Critical UI appears immediately, data-heavy sections fill in progressively. | After migrating to TanStack Start |
+
+#### 6.5 Problem: Client-Side Memory & Responsiveness
+
+Long sessions with lots of open views, background data refreshing, and
+accumulated query cache can cause memory pressure.
+
+| Solution | What It Does | When to Apply |
+|---|---|---|
+| **TanStack Query garbage collection** | Configure `gcTime` (garbage collection time) and `staleTime` per query to evict old cache entries. Reduce `gcTime` for heavy queries like full transaction lists. | When DevTools shows query cache growing unbounded |
+| **Optimistic updates** | Update the UI immediately on mutation (e.g., marking an expense as paid) and reconcile with the server response. Reduces perceived latency and avoids full refetches. Already supported by tRPC + TanStack Query. | When mutations feel slow due to network round-trips |
+| **IndexedDB for local cache** | Persist TanStack Query cache to IndexedDB (via `persistQueryClient` plugin) so the app starts with warm data instead of loading everything fresh. | When startup data fetching is noticeable |
+| **Debounced search & filters** | Debounce user input before triggering API calls. Prevents request storms when typing in search fields or adjusting date ranges. | From the start — but tune thresholds as data grows |
+
+#### 6.6 Problem: Backend Becomes the Bottleneck
+
+Sometimes the frontend is fast but waiting on slow API responses.
+
+| Solution | What It Does | When to Apply |
+|---|---|---|
+| **PostgreSQL materialized views** | Pre-compute expensive aggregations (monthly totals, category breakdowns, year-over-year comparisons). Refresh on a schedule or on data change. | When dashboard summary queries exceed ~200ms |
+| **Redis caching layer** | Cache frequently-read, rarely-changed data (category lists, account info, monthly summaries). Add a Redis container to Docker Compose. | When the same expensive queries run repeatedly |
+| **Database indexes** | Add compound indexes for common query patterns (e.g., `expenses(userId, date, categoryId)`). Use `EXPLAIN ANALYZE` to identify slow queries. | Proactively during Phase 3–4, then ongoing |
+| **Connection pooling** | Use PgBouncer or Prisma's built-in connection pool to handle concurrent requests efficiently. | When API concurrency increases (multiple users or aggressive prefetching) |
+
+#### 6.7 The TanStack Start Migration Path
+
+This deserves special attention because it's the single biggest architectural
+improvement available to the frontend, and the migration is designed to be smooth.
+
+**What TanStack Start is:** A full-stack framework built on TanStack Router +
+TanStack Query + Vite. It adds SSR, streaming, and server functions to the
+exact stack we're already using.
+
+**Why the migration is low-risk:**
+- The SPA already uses TanStack Router → Start uses the same router with the
+  same file-based route structure
+- TanStack Query integration stays identical
+- tRPC client code doesn't change
+- Vite remains the build tool
+- You're essentially adding a thin server layer on top of the existing app
+
+**What you gain:**
+- Server-side rendering for faster initial paint
+- Streaming HTML — critical UI renders immediately, data fills in progressively
+- Server functions — for operations that benefit from running server-side
+  (e.g., generating PDF reports, heavy data transforms)
+- Still deploys to your VPS — just adds a Node.js process for SSR (like
+  adding Next.js back, but without leaving the TanStack ecosystem)
+
+**When to do it:** When TanStack Start reaches stable (v1.0) AND you have
+a measurable performance problem with initial load times that can't be solved
+by code splitting and caching alone.
+
 ---
 
 ## 7. Recommended Stack Summary
