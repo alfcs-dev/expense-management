@@ -49,7 +49,7 @@ Since the goal is web-first then mobile, a monorepo is the right call. Here are 
 ```
 budget-app/
 ├── apps/
-│   ├── web/                  # Next.js web application (frontend only)
+│   ├── web/                  # React + Vite SPA (static output, served by Nginx)
 │   ├── api/                  # Standalone Fastify + tRPC API server
 │   └── mobile/               # React Native / Expo (Phase 2)
 ├── packages/
@@ -58,33 +58,27 @@ budget-app/
 │   ├── trpc/                 # tRPC router definitions (consumed by api, imported by clients)
 │   └── ui/                   # Shared UI component library (web + mobile)
 ├── docker/
-│   ├── Dockerfile.api
-│   ├── Dockerfile.web
-│   └── docker-compose.yml
+│   ├── Dockerfile.api        # Builds + runs the Fastify server
+│   └── docker-compose.yml    # API + Postgres + Nginx (serves static web build)
 ├── turbo.json
 ├── package.json
 ├── pnpm-workspace.yaml
 └── .env.example
 ```
 
-> **Architecture Decision: Separate API Server**
+> **Architecture Decisions**
 >
-> The API lives in `apps/api` as a standalone Fastify server (not inside
-> Next.js). This is intentional:
+> **1. Separate API Server** — The API lives in `apps/api` as a standalone
+> Fastify server. Web and mobile are equal consumers of the same API. The
+> API can be optimized and scaled independently.
 >
-> - **Client parity** — Web and mobile are equal consumers of the same API.
->   Neither goes through a Next.js middleman.
-> - **Independent optimization** — The API can be profiled, scaled, and tuned
->   without touching the frontend. Fastify is significantly faster than
->   Next.js API routes for raw throughput.
-> - **Clean separation** — The Next.js app becomes a pure frontend (SSR/SSG
->   for the shell, client-side tRPC calls for data). No business logic leaks
->   into the frontend layer.
-> - **Deployment flexibility** — On the VPS both run in Docker Compose side by
->   side. In the future, the API could move to a larger instance or a
->   different region while the frontend stays on a CDN.
-> - **Minimal overhead** — Docker Compose makes running two services trivially
->   simple. One extra Dockerfile, one extra service block — that's it.
+> **2. Static SPA Frontend** — With all data fetching handled by tRPC +
+> TanStack Query on the client, the web app is a pure SPA built with Vite.
+> The `dist/` output is static files served by Nginx — no Node.js server
+> needed for the frontend. This means:
+>   - Only two processes on the VPS: Fastify (API) + PostgreSQL
+>   - Nginx serves both static files and reverse-proxies `/api` to Fastify
+>   - Frontend can trivially move to a CDN in the future
 
 ---
 
@@ -92,13 +86,36 @@ budget-app/
 
 ### 3.1 Frontend Framework (Web)
 
-With the API living in a separate server, the frontend is a pure UI layer. This actually makes a SPA more viable since we don't need Next.js for API routes. However, Next.js still offers SSR benefits for initial load performance and SEO (less critical for a private dashboard, but nice to have).
+> **Architecture note:** With the API on a standalone Fastify server and
+> TanStack Query + tRPC handling all data fetching, the frontend is a pure
+> client-side UI layer. This fundamentally changes the framework calculus.
+>
+> Next.js's biggest advantages — SSR, Server Components, API routes — provide
+> little value here. The dashboard is behind authentication (no SEO benefit),
+> Server Components can't read the DB directly (it's behind the API), and
+> API routes are replaced by Fastify. Meanwhile, Next.js adds a Node.js
+> server process, App Router complexity, and potential friction with
+> tRPC + TanStack Query patterns.
 
 | Option | Pros | Cons | Recommendation |
 |---|---|---|---|
-| **Next.js (App Router)** | SSR/SSG for fast initial load, huge ecosystem, great DX, file-based routing, image optimization | Heavier than a pure SPA, App Router complexity | **Recommended** — even without API routes, the SSR shell and routing are valuable for a dashboard |
-| **React + Vite (SPA)** | Simplest setup, fast builds, lightweight, no server to run | No SSR (fine for a private app), must handle routing manually (React Router) | **Strong alternative** — seriously consider this if SSR isn't important to you |
-| **Remix** | Great data loading patterns, progressive enhancement | Smaller ecosystem, less community content | Solid but less compelling without the API integration story |
+| **React + Vite (SPA)** | Fastest builds, simplest mental model, static output (no Node server needed), TanStack Router offers file-based routing, perfect fit with TanStack Query + tRPC | No SSR (irrelevant for an auth-gated dashboard) | **Recommended** — the natural fit for this architecture |
+| **Next.js (App Router)** | SSR/SSG, huge ecosystem, image optimization | Requires Node server for SSR (extra resources), App Router complexity overlaps with TanStack Query, Server Components add no value when data comes from external API | Only if you specifically want SSR for some pages |
+| **Remix** | Good data loading, progressive enhancement | Smaller ecosystem, similar SSR overhead as Next.js | Less compelling without server-side data story |
+
+#### Why React + Vite wins here
+
+1. **Static output** — `vite build` produces static HTML/JS/CSS. Nginx serves
+   these files directly. No Node.js process, no memory usage, instant TTFB.
+2. **TanStack Router** — Provides file-based routing (like Next.js) plus
+   deep integration with TanStack Query for loader patterns, search params
+   type safety, and pending UI states.
+3. **Zero friction with tRPC** — TanStack Query is tRPC's built-in client
+   integration. No conflict with framework-level caching or data fetching.
+4. **Simpler deploys** — One fewer Docker container. Just copy the `dist/`
+   folder to Nginx.
+5. **Same code works in Expo** — The shared packages (`packages/trpc`,
+   `packages/shared`) work identically in the SPA and the mobile app.
 
 ### 3.2 UI Component Library
 
@@ -135,23 +152,24 @@ With the API living in a separate server, the frontend is a pure UI layer. This 
 #### How it fits together
 
 ```
-┌─────────────┐     ┌─────────────┐
-│   Next.js   │     │  Expo App   │
-│  (web SPA)  │     │  (mobile)   │
-└──────┬──────┘     └──────┬──────┘
-       │    tRPC client    │
-       └────────┬──────────┘
-                │ HTTP (JSON)
-                ▼
-       ┌─────────────────┐
-       │  Fastify + tRPC │
-       │   (apps/api)    │
-       └────────┬────────┘
-                │ Prisma
-                ▼
-       ┌─────────────────┐
-       │   PostgreSQL     │
-       └─────────────────┘
+┌──────────────────┐     ┌─────────────┐
+│  React + Vite    │     │  Expo App   │
+│  (static SPA)    │     │  (mobile)   │
+│  served by Nginx │     │             │
+└───────┬──────────┘     └──────┬──────┘
+        │     tRPC client       │
+        └──────────┬────────────┘
+                   │ HTTP (JSON)
+                   ▼
+          ┌─────────────────┐
+          │  Fastify + tRPC │
+          │   (apps/api)    │
+          └────────┬────────┘
+                   │ Prisma
+                   ▼
+          ┌─────────────────┐
+          │   PostgreSQL     │
+          └─────────────────┘
 ```
 
 The `packages/trpc` package contains all router definitions and is imported
@@ -198,15 +216,28 @@ Since the API is now a standalone server (not inside Next.js), auth must work at
 > since they work at the HTTP/framework level and can issue JWTs that both
 > web and mobile clients use.
 
-### 3.8 State Management (Client)
+### 3.8 Client-Side Routing
 
 | Option | Pros | Cons | Recommendation |
 |---|---|---|---|
-| **TanStack Query (React Query)** | Best for server state, caching, revalidation | Not for pure client state | **Recommended** — pairs perfectly with tRPC |
+| **TanStack Router** | Type-safe routes + search params, file-based routing, built-in TanStack Query integration, loader patterns, pending/error states | Newer, less community content than React Router | **Recommended** — completes the TanStack ecosystem (Router + Query + tRPC) |
+| **React Router v7** | Most popular, huge ecosystem, file-based routing (via framework mode) | Less type-safe than TanStack Router, framework mode overlaps with Remix | Solid fallback if TanStack Router feels too new |
+
+> **TanStack ecosystem synergy:** Using TanStack Router + TanStack Query +
+> tRPC together creates a deeply integrated data flow. Routes can declare
+> data dependencies via `loader`, Query handles caching and revalidation,
+> and tRPC provides the typed API layer. All three libraries are designed
+> to work together.
+
+### 3.9 State Management (Client)
+
+| Option | Pros | Cons | Recommendation |
+|---|---|---|---|
+| **TanStack Query (React Query)** | Best for server state, caching, revalidation | Not for pure client state | **Recommended** — built-in tRPC integration, pairs with TanStack Router |
 | **Zustand** | Simple, lightweight, great for client-only state | Another dependency | Add only if needed for complex client state |
 | **React Context** | Built-in, no deps | Verbose for complex state, re-render issues | Use for simple global state (theme, locale) |
 
-### 3.9 Charts / Data Visualization
+### 3.10 Charts / Data Visualization
 
 | Option | Pros | Cons | Recommendation |
 |---|---|---|---|
@@ -215,7 +246,7 @@ Since the API is now a standalone server (not inside Next.js), auth must work at
 | **Chart.js (react-chartjs-2)** | Feature-rich, well-documented | Imperative API, less React-idiomatic | Solid fallback |
 | **Nivo** | Beautiful, many chart types, animations | Heavier bundle | If you need advanced visualizations |
 
-### 3.10 Mobile (Phase 2)
+### 3.11 Mobile (Phase 2)
 
 | Option | Pros | Cons | Recommendation |
 |---|---|---|---|
@@ -238,23 +269,23 @@ Since the API is now a standalone server (not inside Next.js), auth must work at
 ### 4.2 Recommended VPS Stack
 
 ```
-DigitalOcean Droplet (2GB+ RAM recommended)
+DigitalOcean Droplet (1GB RAM is sufficient, 2GB comfortable)
 ├── Docker Compose
-│   ├── api     (Fastify + tRPC — port 4000, internal)
-│   ├── web     (Next.js — port 3000, internal)
+│   ├── api      (Fastify + tRPC — port 4000, internal)
 │   ├── postgres (PostgreSQL 16 — port 5432, internal only)
-│   └── nginx   (reverse proxy + SSL termination — ports 80/443)
-│       ├── app.example.com       → web:3000
-│       └── app.example.com/api   → api:4000  (or api.example.com)
+│   └── nginx    (ports 80/443)
+│       ├── /            → static files (Vite build from apps/web)
+│       └── /api/*       → proxy to api:4000
 ├── Certbot / Let's Encrypt (HTTPS)
 ├── GitHub Actions (CI/CD — build, test, deploy via SSH)
 └── Automated backups (pg_dump cron + DO Spaces or similar)
 ```
 
-> Nginx routes `/api/*` requests to the Fastify container and everything
-> else to the Next.js container. Alternatively, the API can live on a
-> subdomain (`api.example.com`). Both services share the same Docker
-> network and connect to Postgres internally.
+> **Only two processes** — Fastify and PostgreSQL. The web frontend is static
+> files copied into the Nginx container (or a shared volume) at build time.
+> No Node.js process for the frontend, which significantly reduces memory
+> usage compared to running Next.js. A 1GB droplet ($6/mo) is likely enough
+> for the MVP.
 
 ### 4.3 CI/CD
 
@@ -309,12 +340,12 @@ SavingsGoal (target allocation)
 
 - [ ] Initialize monorepo (Turborepo + pnpm)
 - [ ] Set up Fastify API server (`apps/api`) with tRPC
-- [ ] Set up Next.js frontend (`apps/web`) with tRPC client
+- [ ] Set up React + Vite SPA (`apps/web`) with TanStack Router + tRPC client
 - [ ] Create shared packages (`packages/db`, `packages/trpc`, `packages/shared`)
 - [ ] Configure Prisma + PostgreSQL schema
 - [ ] Implement authentication (Better Auth on Fastify)
 - [ ] Seed database from existing CSV data
-- [ ] Set up Docker Compose for local development (API + Web + Postgres)
+- [ ] Set up Docker Compose for local development (API + Postgres + Nginx)
 - [ ] Basic CI with GitHub Actions (lint, type-check, build)
 
 ### Phase 2 — Core Features (Weeks 3–5)
@@ -364,7 +395,8 @@ This is the recommended "default" stack based on the analysis above. Alternative
 | Layer | Choice | Reasoning |
 |---|---|---|
 | **Monorepo** | Turborepo + pnpm | Simple, fast, purpose-built for JS/TS |
-| **Frontend** | Next.js 15 (App Router) | SSR shell, file-based routing, largest ecosystem |
+| **Frontend** | React + Vite (SPA) | Static output, fastest builds, no server needed, TanStack Router for file-based routing |
+| **Routing** | TanStack Router | Type-safe, file-based routes, deep TanStack Query integration |
 | **UI** | shadcn/ui + Tailwind CSS v4 | Beautiful, accessible, full ownership |
 | **API Server** | Fastify | Fastest Node.js framework, great plugin system, mature |
 | **API Protocol** | tRPC v11 (on Fastify) | End-to-end type safety, no codegen, serves web + mobile |
@@ -372,9 +404,9 @@ This is the recommended "default" stack based on the analysis above. Alternative
 | **ORM** | Prisma | Best DX, auto-generated types, great migrations |
 | **Validation** | Zod | Standard with tRPC, runtime + static types |
 | **Auth** | Better Auth | Framework-agnostic, TS-first, works with standalone API |
-| **State** | TanStack Query | Server state caching, pairs with tRPC |
+| **State** | TanStack Query | Server state caching, built-in tRPC integration |
 | **Charts** | Recharts or Tremor | Simple, declarative, Tailwind-compatible |
-| **Deployment** | Docker Compose on DO VPS | Reproducible, manages Postgres + API + web |
+| **Deployment** | Docker Compose on DO VPS | API + Postgres in containers, static frontend in Nginx |
 | **CI/CD** | GitHub Actions | Free, great ecosystem |
 | **Mobile (future)** | Expo | Shared tRPC client + logic via monorepo |
 
