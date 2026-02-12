@@ -442,14 +442,19 @@ BankLink                (id, userId, provider[belvo|syncfy], externalLinkId, sta
 
 ### Phase 6 — Bank & SAT Integration (Automation)
 
-- [ ] Belvo Connect Widget integration (bank account linking)
+> See [detailed research](docs/BANK_SAT_INTEGRATION_RESEARCH.md) for full
+> platform comparison, API analysis, and integration strategies.
+
+- [ ] Contact Belvo + Syncfy sales — get actual pricing for ~6 links
+- [ ] Test Belvo sandbox — validate coverage for HSBC, Nu, Uala, Stori
+- [ ] Build typed Belvo API wrapper (fetch + Zod, skip stale SDK)
+- [ ] Belvo Connect Widget integration (bank + SAT account linking)
 - [ ] Automated bank transaction sync (daily / webhook-triggered)
+- [ ] Automated CFDI/invoice sync via Belvo `/api/invoices/`
+- [ ] Import Belvo enrichment data (`/api/recurring-expenses/`, `/api/incomes/`)
 - [ ] Transaction → expense matching and deduplication
-- [ ] Smart categorization (learn from user corrections)
-- [ ] e.firma certificate upload and secure storage
-- [ ] SAT WS Descarga Masiva integration (`@nodecfdi/sat-ws-descarga-masiva`)
-- [ ] Automated CFDI download, parsing, and expense creation
 - [ ] Cross-reference CFDIs with bank transactions for reconciliation
+- [ ] Fallback: @nodecfdi SAT integration if Belvo fiscal pricing is prohibitive
 
 ### Phase 7 — Multi-User, Notifications & Intelligence
 
@@ -590,8 +595,8 @@ This is the recommended "default" stack based on the analysis above. Alternative
 | **Deployment** | Docker Compose on DO VPS | **Decided** | API + Postgres in containers, static frontend in Nginx |
 | **CI/CD** | GitHub Actions | Confirmed | Free, great ecosystem |
 | **Mobile** | Expo (Phase 5) | **Decided** | After solid MVP, before performance work |
-| **Bank sync** | Belvo (Phase 6) | **Decided** | Leading open banking platform for Mexico |
-| **Fiscal data** | @nodecfdi (Phase 6) | **Decided** | SAT CFDI integration via community TS toolkit |
+| **Bank + Fiscal sync** | Belvo (Phase 6) | **Decided** | Single provider for banking + SAT/CFDI. [Full research](docs/BANK_SAT_INTEGRATION_RESEARCH.md) |
+| **Fiscal fallback** | @nodecfdi | Backup | Free OSS alternative for SAT CFDI if Belvo pricing is prohibitive |
 
 ---
 
@@ -659,174 +664,74 @@ effort. Push notifications belong in Phase 7+.
 
 ## 9. Bank & SAT Integration Research
 
-This section documents the available options for automatic transaction import
-from Mexican banks and the SAT (tax authority). This is a high-value feature
-that could eliminate most manual expense entry.
+> **Detailed research document:** [docs/BANK_SAT_INTEGRATION_RESEARCH.md](docs/BANK_SAT_INTEGRATION_RESEARCH.md)
+>
+> The document above contains the full comparative analysis of Belvo vs Syncfy
+> vs DIY (@nodecfdi), including API capabilities, SDK comparison, pricing
+> models, integration effort estimates, security considerations, and code
+> samples.
 
-### 9.1 Bank Account Aggregation (Transaction Sync)
+### 9.1 Summary of Findings
 
-#### Option A: Belvo (Recommended for MVP)
+Both **Belvo** and **Syncfy** support banking AND fiscal (SAT/CFDI) data in a
+single platform. This was the key finding — the original plan only attributed
+fiscal capabilities to Syncfy, but Belvo has a **dedicated Fiscal Mexico
+product** with purpose-built API endpoints.
 
-[Belvo](https://belvo.com) is the leading open banking platform for Latin
-America. It connects to Mexican bank APIs and provides normalized transaction
-data.
-
-| Aspect | Details |
-|---|---|
-| **What it does** | Connects to bank accounts (HSBC, BBVA, Banorte, Santander, Nu, etc.), retrieves transactions, balances, and account details via REST API |
-| **Supported banks** | 30+ Mexican institutions including HSBC, Nu, and most major banks |
-| **How it works** | User authenticates via Belvo's Connect Widget (embeddable iframe/popup). Belvo handles bank login, 2FA, and session management. Your API receives a `link_id` to fetch data. |
-| **SDK** | Official Node.js SDK (`belvo-node`), REST API, Python SDK |
-| **Pricing** | Free sandbox (test data). Production: pay-per-link model. Startup-friendly pricing. Contact for exact rates. |
-| **Data provided** | Transactions (amount, description, date, category, merchant), account balances, account owner identity |
-| **Refresh** | On-demand or scheduled. Can set up webhooks for new transaction notifications. |
-| **Compliance** | Aligned with Mexico's Ley Fintech open banking regulations |
-
-**Integration architecture:**
-
-```
-User clicks "Connect Bank"
-        │
-        ▼
-┌──────────────────┐
-│  Belvo Connect   │  (embedded widget in web/mobile app)
-│  Widget          │
-└────────┬─────────┘
-         │ returns link_id
-         ▼
-┌──────────────────┐     ┌──────────────┐
-│  Fastify API     │────▶│  Belvo API   │
-│  (apps/api)      │◀────│              │
-└────────┬─────────┘     └──────────────┘
-         │ normalized transactions
-         ▼
-┌──────────────────┐
-│  PostgreSQL      │  (matched/categorized expenses)
-└──────────────────┘
-```
-
-**Implementation tasks:**
-- [ ] Embed Belvo Connect Widget in web app (account linking flow)
-- [ ] Store `link_id` per user account in database
-- [ ] Build sync endpoint: fetch transactions from Belvo → match to accounts
-- [ ] Transaction matching: auto-categorize based on merchant/description
-- [ ] Deduplication: prevent importing the same transaction twice
-- [ ] Scheduled sync (cron job or webhook-triggered)
-
-#### Option B: Syncfy (formerly Paybook)
-
-[Syncfy](https://syncfy.com) is a Mexican fintech specializing in bank data
-aggregation.
-
-| Aspect | Details |
-|---|---|
-| **What it does** | Similar to Belvo — connects to Mexican banks, retrieves transactions |
-| **Supported banks** | 30+ Mexican institutions |
-| **Differentiator** | Also supports SAT (fiscal data), IMSS, utility providers |
-| **SDK** | REST API, no official Node.js SDK (use `fetch`/`axios`) |
-| **Pricing** | Contact for pricing. Generally competitive with Belvo. |
-
-**When to prefer over Belvo:** If the SAT integration (see 9.2) is important
-and you want a single provider for both bank and fiscal data.
-
-#### Option C: Finerio Connect
-
-Smaller player in the Mexican open banking space. Less documentation,
-fewer integrations. Only consider if Belvo and Syncfy don't meet needs.
-
-#### Option D: Direct Bank APIs (Open Banking Mexico)
-
-Mexico's Ley Fintech (2018) mandates that banks expose APIs for:
-- Open data (branch locations, product info — already available)
-- Aggregated data (anonymized statistics — partially available)
-- Transactional data (account transactions — still being rolled out)
-
-**Current state (2026):** The CNBV (banking regulator) has published standards,
-but most banks are still in compliance phases for transactional APIs. Direct
-bank-by-bank integration is impractical for an MVP. Belvo/Syncfy abstract
-this complexity away.
-
-### 9.2 SAT Integration (Fiscal Data / CFDI)
-
-The SAT (Servicio de Administración Tributaria) is Mexico's tax authority.
-Every formal purchase generates a CFDI (Comprobante Fiscal Digital por
-Internet) — an XML invoice. Importing these gives you a verified record of
-every invoiced expense.
-
-#### How CFDI Works
-
-1. Every purchase with a formal receipt generates a CFDI XML file
-2. CFDIs are stored on the SAT's servers and accessible via web services
-3. Each CFDI contains: date, amount, vendor name/RFC, tax breakdown (IVA,
-   ISR, IEPS), payment method, and item descriptions
-4. Authentication requires either e.firma (electronic signature) or CIEC
-   (simplified password)
-
-#### Integration Options
-
-| Option | Pros | Cons | Recommendation |
+| Capability | Belvo | Syncfy | @nodecfdi (DIY) |
 |---|---|---|---|
-| **SAT WS Descarga Masiva** | Official SOAP web service for bulk CFDI download. Gives you ALL invoices (emitted and received). Free, no third-party dependency. | Complex SOAP protocol, requires e.firma certificate handling, XML parsing, must handle SAT's unreliable uptime | **Recommended for long-term** — gives full control and zero ongoing cost |
-| **Syncfy SAT module** | Syncfy handles SAT authentication and CFDI retrieval. Returns normalized JSON. | Adds cost (Syncfy pricing), third-party dependency | Good alternative if you want faster integration |
-| **Facturapi** | SaaS for CFDI management. Has APIs to retrieve and parse invoices. | Primarily designed for invoice *creation*, not bulk import | Only if you also need to *emit* invoices |
-| **Manual XML upload** | User downloads CFDIs from SAT portal and uploads them to the app. App parses the XML. | Manual process, user friction | Good interim solution before automated sync |
+| **Banking sync** | `/api/transactions/` — rich data with merchant info, auto-category | `/transactions` — standard data | Not available |
+| **CFDI retrieval** | `/api/invoices/` — dedicated endpoint, typed JSON objects | `/attachments` + `/extra` — attachment model, less structured | `sat-ws-descarga-masiva` — full control, XML parsing required |
+| **Tax returns** | `/api/tax-returns/` — personal/business, monthly/yearly schemas | Available via attachments | Not available |
+| **Tax status** | `/api/tax-status/` — RFC, regime, obligations | Available but less structured | Not available |
+| **Tax compliance** | `/api/tax-compliance-status/` | Not clearly documented | Not available |
+| **Tax retentions** | `/api/tax-retentions/` | Not clearly documented | Not available |
+| **Income detection** | `/api/incomes/` — auto-detected salary deposits | Not available (build yourself) | Not available |
+| **Recurring expense detection** | `/api/recurring-expenses/` — auto-detected subscriptions | Not available (build yourself) | Not available |
+| **Node.js SDK** | `belvo` v0.28.0 (stale but functional) | `@paybook/sync-js` v2.0.2 (no TS types) | `@nodecfdi/*` (TypeScript, active) |
+| **Connect Widget** | Belvo Connect Widget | `@syncfy/authentication-widget` v1.6.0 | N/A |
+| **Pricing** | Contact sales (~$3–30/mo est. for personal use) | Contact sales (~$3–30/mo est.) | Free (OSS) |
+| **Integration effort** | ~30–45 hours (banking + fiscal) | ~35–50 hours | ~25–37 hours (SAT only) |
 
-#### SAT WS Descarga Masiva — Technical Details
+### 9.2 Recommendation
 
-The official bulk download service works as follows:
+**Primary: Belvo** as the single provider for both banking and fiscal data.
 
-1. **Authentication** — Sign a SOAP request with the user's e.firma
-   (`.cer` + `.key` + password). This generates a token.
-2. **Request** — Submit a download request specifying date range and type
-   (emitted/received). SAT queues the request.
-3. **Verify** — Poll until SAT confirms the request is ready (can take
-   minutes to hours depending on volume).
-4. **Download** — Download ZIP packages containing CFDI XML files.
-5. **Parse** — Extract XML, parse CFDI fields, map to app's expense model.
+1. **One integration, two data sources** — cleanest path to both bank sync and CFDI import
+2. **Best fiscal API** — dedicated `/api/invoices/` with typed JSON vs. Syncfy's attachment model
+3. **Enrichment APIs are gold** — `/api/recurring-expenses/` and `/api/incomes/` directly feed our core features (saves weeks of building detection algorithms)
+4. **Better documentation** — English + Spanish, interactive API reference, OpenAPI spec
+5. **TypeScript-friendly** — REST API clean enough to wrap with `fetch` + Zod in ~4 hours (skip stale SDK)
 
-**Available libraries:**
-- `@nodecfdi/sat-ws-descarga-masiva` — Node.js/TypeScript implementation
-  of the SAT bulk download protocol. Active community, well-maintained.
-- `@nodecfdi/cfdi-to-json` — Parses CFDI XML into JSON.
-- `@nodecfdi/credentials` — Handles e.firma certificate reading and signing.
+**Fallback: @nodecfdi** for SAT data if Belvo's fiscal pricing is too high.
 
-The `@nodecfdi` ecosystem is the most mature TypeScript toolkit for Mexican
-fiscal operations. It's community-maintained and actively developed.
+**Not recommended as primary: Syncfy** — the attachment-based SAT model adds complexity, no enrichment APIs, weaker documentation. Only prefer if Belvo pricing is prohibitive or a specific bank isn't supported.
 
-#### CFDI → Expense Mapping
+### 9.3 Implementation Phases
 
-| CFDI Field | Maps To |
-|---|---|
-| `Fecha` (date) | Expense date |
-| `Total` | Expense amount |
-| `Moneda` (currency) | Expense currency (MXN/USD) |
-| `Receptor.Nombre` (vendor name) | Expense description / merchant |
-| `Receptor.Rfc` | Vendor identifier (for auto-categorization) |
-| `Conceptos` (line items) | Detailed expense breakdown |
-| `MetodoPago` | Payment method hint (card, transfer, cash) |
-| `FormaPago` | Can help identify which account was used |
-
-#### Implementation Roadmap for Bank + SAT
-
-**Phase A — Manual import (included in Phase 3):**
+**Phase 3 — Manual import:**
 - [ ] CSV/OFX file upload for bank statements
 - [ ] CFDI XML file upload with parsing (`@nodecfdi/cfdi-to-json`)
 - [ ] Basic auto-categorization (rule-based on merchant name/RFC)
 
-**Phase B — Belvo bank sync (Phase 6):**
-- [ ] Belvo Connect Widget integration
+**Phase 6 — Automated sync (Belvo):**
+- [ ] Contact Belvo + Syncfy sales for actual pricing
+- [ ] Belvo Connect Widget integration (bank + SAT linking)
 - [ ] Automated transaction sync (daily or webhook-triggered)
+- [ ] Automated CFDI/invoice sync via `/api/invoices/`
 - [ ] Transaction → expense matching and deduplication
-- [ ] Smart categorization (learn from user corrections)
-
-**Phase C — SAT automated sync (Phase 6):**
-- [ ] e.firma certificate upload and secure storage
-- [ ] SAT WS Descarga Masiva integration (`@nodecfdi`)
-- [ ] Automated CFDI download and parsing
 - [ ] Cross-reference CFDIs with bank transactions for reconciliation
+- [ ] Import Belvo enrichment data (recurring expenses, incomes)
 
-**Phase D — Intelligence (Phase 7+):**
-- [ ] Auto-categorization based on RFC directory (build a local vendor database)
-- [ ] Duplicate detection across bank + SAT data
+**Phase 7 — Intelligence:**
+- [ ] Auto-categorization based on RFC vendor directory
+- [ ] Duplicate detection across bank + SAT data sources
 - [ ] Anomaly detection (unusual charges, missing invoices)
 - [ ] Tax deduction suggestions based on CFDI data
+
+### 9.4 Action Items Before Phase 6
+
+1. **Contact Belvo sales** — get pricing for personal use (~6 links: 5 banks + 1 SAT)
+2. **Contact Syncfy sales** — get competing quote
+3. **Test both sandboxes** — validate bank coverage (especially HSBC, Nu, Uala, Stori)
+4. **Decide** based on actual pricing + bank coverage + sandbox experience
