@@ -355,7 +355,11 @@ DigitalOcean Droplet (1GB RAM is sufficient, 2GB comfortable)
 > **Full ER diagram:** [docs/SCHEMA_VISUALIZATION.md](docs/SCHEMA_VISUALIZATION.md)
 > — includes Mermaid diagram, all entity definitions with field types, and
 > detailed logic for MSI, recurring expenses, shared objectives, data source
-> tracking, and currency handling.
+> tracking, reconciliation, and currency handling.
+>
+> **Deduplication & reconciliation:** [docs/DEDUPLICATION_RECONCILIATION.md](docs/DEDUPLICATION_RECONCILIATION.md)
+> — how the system handles the same expense arriving from manual entry, Belvo
+> bank sync, and SAT CFDI sync without creating duplicates.
 
 ### 5.1 Key Enhancements Over Original Schema
 
@@ -366,10 +370,12 @@ DigitalOcean Droplet (1GB RAM is sufficient, 2GB comfortable)
 5. **Monthly Budgets** — Budget period is monthly (matching how most charges work)
 6. **Currency** — `MXN` and `USD` enum. All amounts as integers (centavos/cents)
 7. **Multi-user ready** — `userId` FK on all entities from day one
-8. **Data source tracking** — `source` + `externalId` on Expense for deduplication
-9. **Shared Objectives** — Cross-budget savings goals between users (see [design doc](docs/SHARED_OBJECTIVES_DESIGN.md))
+8. **Data source tracking** — `source` + `belvoTransactionId` + `cfdiUuid` on Expense for multi-source reconciliation
+9. **Staging pipeline** — `StagedTransaction` table + matching algorithm for deduplication (see [reconciliation doc](docs/DEDUPLICATION_RECONCILIATION.md))
+10. **Auto-categorization** — `CategoryMapping` for learned merchant→category rules
+11. **Shared Objectives** — Cross-budget savings goals between users (see [design doc](docs/SHARED_OBJECTIVES_DESIGN.md))
 
-### 5.2 Entities (14 total)
+### 5.2 Entities (16 total)
 
 ```
 ── Core ──
@@ -389,6 +395,10 @@ SavingsGoal             (id, userId, accountId, name, targetPercentage?, targetA
 SharedObjective         (id, createdByUserId, accountId, name, description?, targetAmount, currentAmount, currency, targetDate?, status)
 ObjectiveMember         (id, objectiveId, userId, budgetId?, categoryId?, accountId?, role)
 ObjectiveContribution   (id, objectiveId, memberId, expenseId?, amount, currency, date, notes?)
+
+── Reconciliation ──
+StagedTransaction       (id, userId, source, externalId, amount, amountPreTax?, taxAmount?, currency, date, description, accountId?, rawData, status, matchedExpenseId?, matchConfidence?, matchReason?)
+CategoryMapping         (id, userId, matchType[rfc|merchant_name|belvo_category], matchValue, categoryId, confidence)
 
 ── Collaboration & Integration ──
 BudgetCollaborator      (id, budgetId, userId, role[owner|editor|viewer])

@@ -29,6 +29,8 @@ erDiagram
     USER ||--o{ BUDGET_COLLABORATOR : participates_in
     USER ||--o{ BANK_LINK : connects
     USER ||--o{ OBJECTIVE_MEMBER : joins
+    USER ||--o{ STAGED_TRANSACTION : receives
+    USER ||--o{ CATEGORY_MAPPING : configures
 
     %% ── Budget structure ──
     BUDGET ||--o{ EXPENSE : contains
@@ -51,6 +53,10 @@ erDiagram
 
     %% ── Installment plans ──
     INSTALLMENT_PLAN ||--o{ EXPENSE : generates
+
+    %% ── Reconciliation ──
+    STAGED_TRANSACTION }o--o| EXPENSE : "matched_to"
+    CATEGORY ||--o{ CATEGORY_MAPPING : "auto_assigns"
 
     %% ── Shared Objectives ──
     SHARED_OBJECTIVE ||--o{ OBJECTIVE_MEMBER : has_members
@@ -134,8 +140,12 @@ erDiagram
         string currency "MXN | USD"
         datetime date
         int installmentNumber "nullable — e.g. 3 of 12"
-        string source "manual | belvo | cfdi | csv"
-        string externalId "nullable — Belvo txn ID or CFDI UUID"
+        string source "manual | belvo | cfdi | csv | recurring | installment | objective"
+        string belvoTransactionId UK "nullable — Belvo unique txn ID"
+        string cfdiUuid UK "nullable — SAT CFDI UUID"
+        json cfdiData "nullable — parsed CFDI: RFC, tax, items"
+        string reconciliationStatus "unmatched | partial | full"
+        boolean isVerified "true if 2+ sources confirm"
         datetime createdAt
         datetime updatedAt
     }
@@ -237,6 +247,39 @@ erDiagram
         datetime date
         string notes "nullable"
         datetime createdAt
+    }
+
+    STAGED_TRANSACTION {
+        string id PK
+        string userId FK
+        string source "belvo | cfdi | csv"
+        string externalId "Belvo txn ID or CFDI UUID"
+        int amount "centavos — total incl tax"
+        int amountPreTax "nullable — CFDI subtotal"
+        int taxAmount "nullable — CFDI IVA/ISR"
+        string currency "MXN | USD"
+        datetime date
+        string description "raw from provider"
+        string accountId FK "nullable — inferred"
+        json rawData "full provider payload"
+        string status "pending | matched | created | rejected | review"
+        string matchedExpenseId FK "nullable"
+        float matchConfidence "0.0 to 1.0"
+        string matchReason "nullable"
+        datetime processedAt "nullable"
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    CATEGORY_MAPPING {
+        string id PK
+        string userId FK
+        string matchType "rfc | merchant_name | belvo_category"
+        string matchValue "the RFC or merchant name"
+        string categoryId FK
+        float confidence "1.0 = user-set"
+        datetime createdAt
+        datetime updatedAt
     }
 ```
 
@@ -348,22 +391,39 @@ User A (Budget: "Alfredo Jan 2026")     User B (Budget: "Dalia Jan 2026")
 
 ---
 
-## 5. Data Source Tracking
+## 5. Data Source Tracking & Reconciliation
 
-The `source` field on `Expense` tracks how each expense was created:
+> **Full reconciliation design:** [DEDUPLICATION_RECONCILIATION.md](DEDUPLICATION_RECONCILIATION.md)
+> — includes matching algorithm, confidence scoring, review queue design,
+> scenario walkthroughs, and implementation plan.
+
+The `source` field on `Expense` tracks how each expense was **originally created**:
 
 | Source | Meaning |
 |---|---|
 | `manual` | User entered it by hand |
-| `belvo` | Imported from Belvo bank transaction sync |
-| `cfdi` | Imported from SAT CFDI (invoice) |
-| `csv` | Imported from uploaded CSV/OFX file |
+| `belvo` | Auto-created from Belvo bank transaction sync |
+| `cfdi` | Auto-created from SAT CFDI (invoice) |
+| `csv` | Auto-created from uploaded CSV/OFX file |
 | `recurring` | Auto-generated from a RecurringExpense template |
 | `installment` | Auto-generated from an InstallmentPlan |
 | `objective` | Auto-generated from an ObjectiveContribution |
 
-The `externalId` field stores the provider's unique identifier (Belvo
-transaction ID, CFDI UUID, etc.) for deduplication.
+An expense can be **verified by multiple sources**. The dedicated fields
+`belvoTransactionId` and `cfdiUuid` track which external sources have confirmed
+the expense, independent of how it was originally created.
+
+| Field | Purpose |
+|---|---|
+| `belvoTransactionId` | Belvo's unique transaction ID — confirms the bank saw this charge |
+| `cfdiUuid` | SAT CFDI UUID — confirms the tax authority has an invoice for this |
+| `cfdiData` | Parsed CFDI details (RFC, tax breakdown, line items) |
+| `reconciliationStatus` | `unmatched` (1 source), `partial` (2 sources), `full` (3 sources) |
+| `isVerified` | `true` when 2+ independent sources confirm the expense |
+
+External data (Belvo webhooks, CFDI sync, CSV uploads) flows through the
+`StagedTransaction` table first, where the reconciliation engine matches it
+against existing expenses before deciding to enrich or create new records.
 
 ---
 
