@@ -1,0 +1,19 @@
+{
+  "name": "@expense-management/trpc",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "build": "tsc",
+    "lint": "echo no lint yet",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@trpc/server": "^11.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0"
+  }
+}
