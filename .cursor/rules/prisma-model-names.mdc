@@ -1,0 +1,25 @@
+---
+description: Prisma schema model naming — do not use leading underscores
+globs: **/*.prisma
+alwaysApply: false
+---
+
+# Prisma model names
+
+Do **not** use model names that start with an underscore in Prisma schemas. Prisma schema validation rejects them (P1012: "This line is invalid. It does not start with any known Prisma schema keyword").
+
+**Bad:**
+```prisma
+model _Placeholder {
+  id String @id @default(cuid())
+}
+```
+
+**Good:**
+```prisma
+model Placeholder {
+  id String @id @default(cuid())
+}
+```
+
+Use PascalCase for model names (e.g. `User`, `RecurringExpense`, `StagedTransaction`). Use a normal name like `Placeholder` for temporary/scratch models instead of `_Placeholder`.

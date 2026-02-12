@@ -67,7 +67,7 @@
 ### 3.7 Intelligence — auto-categorization (RFC)
 
 - [ ] Use RFC vendor directory or SAT data to map RFC → category (or merchant name → category). Store in CategoryMapping (matchType = 'rfc', matchValue, categoryId).
-- [ ] Apply on import and on Belvo sync: suggest or assign category for new transactions based on RFC/merchant.
+- [ ] Apply on import and on banking API sync: suggest or assign category for new transactions based on RFC/merchant.
 
 ### 3.8 Intelligence — duplicate detection
 

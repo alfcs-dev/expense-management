@@ -17,8 +17,8 @@ card, and ask for a factura (CFDI).
 Channel 1 — Manual (immediate)
   User enters: "Liverpool shoes" / $2,500 / Feb 10 / HSBC WE / Category: Misc
 
-Channel 2 — Belvo bank sync (hours later, via webhook)
-  Belvo returns: "LIVERPOOL INSURGENTES SUR" / $2,500.00 / Feb 10 / txn_bel_abc123
+Channel 2 — Banking API sync (hours later, via webhook)
+  Banking API returns: "LIVERPOOL INSURGENTES SUR" / $2,500.00 / Feb 10 / txn_bel_abc123
 
 Channel 3 — SAT CFDI sync (days later, via cron)
   CFDI contains: "EL PUERTO DE LIVERPOOL SA DE CV" / RFC: PLI861117PA7
@@ -30,17 +30,17 @@ $7,500. The user only spent $2,500.
 
 ### 1.1 Why This Is Hard
 
-| Aspect | Manual | Belvo | CFDI |
+| Aspect | Manual | Banking API | CFDI |
 |---|---|---|---|
 | **Description** | "Liverpool shoes" | "LIVERPOOL INSURGENTES SUR" | "EL PUERTO DE LIVERPOOL SA DE CV" |
 | **Amount** | $2,500.00 | $2,500.00 | $2,155.17 + $344.83 IVA |
 | **Date** | Feb 10 | Feb 10 (or Feb 11 if bank processes next day) | Feb 10 |
 | **Unique ID** | None | `txn_bel_abc123` | `UUID: 8a3f-...-e91b` |
-| **Account** | HSBC WE (user selected) | HSBC WE (from Belvo link) | Unknown (CFDI has `FormaPago` hint) |
+| **Account** | HSBC WE (user selected) | HSBC WE (from banking API link) | Unknown (CFDI has `FormaPago` hint) |
 | **Arrives** | Immediately | Hours later | Days later |
 
 The descriptions never match exactly. The dates can be off by 1-2 days. The
-CFDI shows pre-tax amount while others show total. Only Belvo and CFDI have
+CFDI shows pre-tax amount while others show total. Only banking API and CFDI have
 stable unique identifiers.
 
 ---
@@ -57,7 +57,7 @@ a **staging pipeline** with three stages:
                        │ match against
                        ▼
 ┌──────────┐    ┌──────────────┐    ┌─────────┐
-│  Belvo   │───▶│   STAGED     │───▶│ EXPENSE │  (matched → enrich)
+│ Banking API │───▶│   STAGED     │───▶│ EXPENSE │  (matched → enrich)
 │  webhook │    │ TRANSACTION  │    │         │  (unmatched → create)
 └──────────┘    └──────────────┘    └─────────┘
                        ▲
@@ -82,16 +82,16 @@ A holding table for incoming external data that hasn't been reconciled yet.
 StagedTransaction
 ├── id                  (string, PK)
 ├── userId              (string, FK → User)
-├── source              (enum — belvo | cfdi | csv)
-├── externalId          (string — Belvo txn ID or CFDI UUID, unique per source)
+├── source              (enum — banking_api | cfdi | csv)
+├── externalId          (string — banking API txn ID or CFDI UUID, unique per source)
 ├── amount              (int — centavos, total including tax)
 ├── amountPreTax        (int — nullable, centavos, CFDI subtotal)
 ├── taxAmount           (int — nullable, centavos, CFDI IVA/ISR/IEPS)
 ├── currency            (enum — MXN | USD)
 ├── date                (datetime — transaction date)
 ├── description         (string — raw description from provider)
-├── accountId           (string, FK → Account, nullable — inferred from Belvo link or CFDI)
-├── rawData             (json — full Belvo transaction or CFDI payload)
+├── accountId           (string, FK → Account, nullable — inferred from banking API link or CFDI)
+├── rawData             (json — full banking API transaction or CFDI payload)
 │
 ├── status              (enum — pending | matched | created | rejected | review)
 ├── matchedExpenseId    (string, FK → Expense, nullable)
@@ -104,21 +104,21 @@ StagedTransaction
 ```
 
 **Unique constraint:** `(userId, source, externalId)` — prevents importing
-the same Belvo transaction or CFDI twice at the staging level.
+the same banking API transaction or CFDI twice at the staging level.
 
 ---
 
 ## 4. Enhanced Expense Entity
 
 The `Expense` table needs to support multiple source references (a single
-expense can be confirmed by manual entry + Belvo + CFDI):
+expense can be confirmed by manual entry + banking API + CFDI):
 
 ```
 Expense (additions to existing schema)
 ├── ...existing fields...
-├── source              (enum — manual | belvo | cfdi | csv | recurring | installment | objective)
+├── source              (enum — manual | banking_api | cfdi | csv | recurring | installment | objective)
 │                       ↑ the ORIGINAL source that created this expense
-├── belvoTransactionId  (string, nullable — Belvo's unique transaction ID)
+├── bankingApiTransactionId  (string, nullable — banking API unique transaction ID)
 ├── cfdiUuid            (string, nullable — SAT CFDI UUID)
 ├── cfdiData            (json, nullable — parsed CFDI: RFC, tax breakdown, line items)
 ├── reconciliationStatus (enum — unmatched | partial | full)
@@ -131,7 +131,7 @@ Expense (additions to existing schema)
 
 **Key change:** Instead of a single `externalId`, the expense now has
 **dedicated fields** for each external source. A single expense can
-simultaneously have a `belvoTransactionId` AND a `cfdiUuid`, meaning
+simultaneously have a `bankingApiTransactionId` AND a `cfdiUuid`, meaning
 it's been verified by both the bank and the tax authority.
 
 ---
@@ -147,7 +147,7 @@ cron completion, or file upload).
 For each StagedTransaction:
 
 1. EXACT EXTERNAL ID MATCH (confidence: 1.0)
-   └─ Does an Expense already have this belvoTransactionId or cfdiUuid?
+   └─ Does an Expense already have this bankingApiTransactionId or cfdiUuid?
       → Yes: skip (already processed)
 
 2. EXACT AMOUNT + DATE + ACCOUNT (confidence: 0.95)
@@ -171,8 +171,8 @@ For each StagedTransaction:
       • accountId == staged.accountId
       → Match found: enrich but flag for user review
 
-5. CFDI → BELVO CROSS-MATCH (confidence: 0.80)
-   └─ If staged is CFDI, find a Belvo-sourced Expense where:
+5. CFDI → BANKING_API CROSS-MATCH (confidence: 0.80)
+   └─ If staged is CFDI, find a banking_api-sourced Expense where:
       • amount == cfdi.total
       • date within ±3 days
       • CFDI FormaPago hints match account type
@@ -207,14 +207,14 @@ StagedTransaction arrives
 │     └─ Already exists in staging? → SKIP (duplicate import)
 │
 ├─ 2. Check if Expense already has this external ID
-│     └─ Expense.belvoTransactionId == staged.externalId? → SKIP
+│     └─ Expense.bankingApiTransactionId == staged.externalId? → SKIP
 │     └─ Expense.cfdiUuid == staged.externalId? → SKIP
 │
 ├─ 3. Run match algorithm (steps 1-6 above)
 │     │
 │     ├─ HIGH confidence match found
 │     │   └─ ENRICH existing Expense:
-│     │       • Add belvoTransactionId or cfdiUuid
+│     │       • Add bankingApiTransactionId or cfdiUuid
 │     │       • Add cfdiData (tax breakdown, RFC, line items)
 │     │       • Update reconciliationStatus
 │     │       • Set isVerified = true if 2+ sources
@@ -228,7 +228,7 @@ StagedTransaction arrives
 │     └─ NO match found
 │         └─ Create NEW Expense:
 │             • source = staged.source
-│             • belvoTransactionId or cfdiUuid = staged.externalId
+│             • bankingApiTransactionId or cfdiUuid = staged.externalId
 │             • category = auto-categorize (or "Uncategorized")
 │             • Update staged.status = 'created'
 │             • Add to REVIEW QUEUE (user should categorize)
@@ -255,20 +255,20 @@ Expense created:
   accountId: acc_hsbc_we
   categoryId: cat_misc
   source: manual
-  belvoTransactionId: null
+  bankingApiTransactionId: null
   cfdiUuid: null
   reconciliationStatus: unmatched
   isVerified: false
 ```
 
-### Step 2: Belvo Webhook (Feb 10, 11:00 PM)
+### Step 2: Banking API Webhook (Feb 10, 11:00 PM)
 
-Belvo sends a webhook with the new bank transaction:
+The banking API (e.g. Belvo) sends a webhook with the new bank transaction:
 
 ```
 StagedTransaction created:
   id: stg_001
-  source: belvo
+  source: banking_api
   externalId: txn_bel_abc123
   amount: 250000
   date: 2026-02-10
@@ -278,14 +278,14 @@ StagedTransaction created:
 ```
 
 **Reconciliation engine runs:**
-1. Check: does any Expense have `belvoTransactionId = txn_bel_abc123`? → No
+1. Check: does any Expense have `bankingApiTransactionId = txn_bel_abc123`? → No
 2. Match: amount=250000 AND date=Feb 10 AND accountId=acc_hsbc_we → **exp_001 found!**
 3. Confidence: 0.95 (exact amount + exact date + same account)
 4. Action: **ENRICH exp_001**
 
 ```
 Expense updated (exp_001):
-  belvoTransactionId: txn_bel_abc123    ← NEW
+  bankingApiTransactionId: txn_bel_abc123    ← NEW
   reconciliationStatus: partial          ← was: unmatched
   isVerified: true                       ← confirmed by bank
   (description stays "Liverpool shoes" — user's description wins)
@@ -323,7 +323,7 @@ StagedTransaction created:
    (account is null on CFDI, so we match on amount + date only, slightly
    lower confidence)
 3. Confidence: 0.85 (exact amount + exact date, no account confirmation)
-4. But exp_001 already has `belvoTransactionId` set AND the Belvo-matched
+4. But exp_001 already has `bankingApiTransactionId` set AND the banking API-matched
    account is a credit card (matches CFDI's `FormaPago: 04` = credit card)
    → boost confidence to 0.90
 5. Action: **ENRICH exp_001**
@@ -354,7 +354,7 @@ exp_001:
   accountId: acc_hsbc_we
   categoryId: cat_misc
   source: manual                              ← original source
-  belvoTransactionId: txn_bel_abc123         ← bank confirmation
+  bankingApiTransactionId: txn_bel_abc123         ← bank confirmation
   cfdiUuid: 8a3f-...-e91b                    ← tax authority confirmation
   cfdiData: { rfc, vendor, subtotal, iva, conceptos }
   reconciliationStatus: full                  ← all three sources agree
@@ -365,39 +365,39 @@ exp_001:
 
 ## 7. Alternate Scenarios
 
-### 7.1 Belvo Arrives First, Then Manual, Then CFDI
+### 7.1 Banking API Arrives First, Then Manual, Then CFDI
 
-If the user didn't enter it manually but Belvo caught it:
+If the user didn't enter it manually but the banking API caught it:
 
-1. Belvo → staged → no match → **auto-create** Expense with `source: belvo`
+1. Banking API → staged → no match → **auto-create** Expense with `source: banking_api`
    (goes to review queue for categorization)
 2. User sees it in review queue, categorizes it, edits description
-   (this is now the same as having a manual + belvo expense)
+   (this is now the same as having a manual + banking_api expense)
 3. CFDI → staged → matches existing expense → enriches with fiscal data
 
 ### 7.2 CFDI Arrives First (User Uploads XML)
 
 1. User uploads CFDI XML → staged → no match → auto-create Expense
    with `source: cfdi`, enriched with tax data
-2. Belvo sync → staged → matches by amount + date → enriches with bank ID
+2. Banking API sync → staged → matches by amount + date → enriches with bank ID
 3. User never needs to enter it manually at all
 
 ### 7.3 Only Two Sources Match
 
 Not every expense has all three:
-- Cash purchases have no Belvo transaction (no bank)
+- Cash purchases have no banking API transaction (no bank)
 - Informal purchases have no CFDI (no invoice)
 - Some expenses are only manual
 
 The system handles all combinations gracefully:
 
-| Manual | Belvo | CFDI | reconciliationStatus |
+| Manual | Banking API | CFDI | reconciliationStatus |
 |---|---|---|---|
 | ✓ | ✗ | ✗ | `unmatched` |
 | ✓ | ✓ | ✗ | `partial` |
 | ✓ | ✗ | ✓ | `partial` |
 | ✓ | ✓ | ✓ | `full` |
-| ✗ | ✓ | ✗ | `unmatched` (auto-created from Belvo) |
+| ✗ | ✓ | ✗ | `unmatched` (auto-created from banking API) |
 | ✗ | ✓ | ✓ | `partial` (auto-created, verified) |
 | ✗ | ✗ | ✓ | `unmatched` (auto-created from CFDI) |
 
@@ -409,28 +409,28 @@ on the same day.
 **How the matcher handles it:**
 1. First staged transaction matches the first expense (one-to-one)
 2. Second staged transaction finds the first expense already has a
-   `belvoTransactionId` → skip it
+   `bankingApiTransactionId` → skip it
 3. Looks for another expense with same amount/date/account without a
-   `belvoTransactionId` → finds the second one → match
+   `bankingApiTransactionId` → finds the second one → match
 4. If no second expense exists → create new (this is a legitimate
    separate purchase the user didn't enter manually)
 
 **Rule:** An expense can only be matched to ONE staged transaction per
-source. If `belvoTransactionId` is already set, that expense is excluded
-from Belvo matching.
+source. If `bankingApiTransactionId` is already set, that expense is excluded
+from banking API matching.
 
 ### 7.5 Amount Discrepancy Between Sources
 
 Sometimes amounts don't match exactly:
-- Belvo shows $2,500.00 (total charge)
+- Banking API shows $2,500.00 (total charge)
 - CFDI shows subtotal $2,155.17 + IVA $344.83 = $2,500.00
 - Manual entry was $2,490 (user rounded or misremembered)
 
 **Strategy:**
-- Belvo vs CFDI: compare against CFDI `total`, not `subtotal`. They should match.
+- Banking API vs CFDI: compare against CFDI `total`, not `subtotal`. They should match.
 - Manual vs external: allow ±1% tolerance. Flag the discrepancy for review.
 - When enriching, **don't change the amount.** Keep the user's amount (or
-  Belvo's if auto-created) and store the CFDI breakdown in `cfdiData`.
+  Banking API's if auto-created) and store the CFDI breakdown in `cfdiData`.
 - Show a "discrepancy" badge in the UI if manual amount ≠ verified amount.
 
 ---
@@ -444,7 +444,7 @@ Expenses that need user attention are surfaced in a **Review Queue**:
 | Trigger | Reason |
 |---|---|
 | Medium-confidence auto-match | System is 70-89% sure — user should confirm |
-| New expense from external source | Auto-created from Belvo/CFDI — needs categorization |
+| New expense from external source | Auto-created from banking API/CFDI — needs categorization |
 | Amount discrepancy | Manual amount ≠ bank/CFDI amount |
 | Unmatched staged transaction | No match found — is this a new expense or did user forget to enter it? |
 | Multiple potential matches | System found 2+ expenses that could match — user picks |
@@ -497,8 +497,8 @@ to assign a category. Strategy:
 
 ```
 1. BELVO CATEGORY (if available)
-   └─ Belvo auto-categorizes transactions (food, transport, etc.)
-   └─ Map Belvo categories to user's categories
+   └─ Banking API auto-categorizes transactions (food, transport, etc.)
+   └─ Map banking API categories to user's categories
 
 2. CFDI RFC LOOKUP
    └─ Maintain a local RFC → Category mapping
@@ -536,7 +536,7 @@ Add to Prisma schema:
 model StagedTransaction {
   id                String   @id @default(cuid())
   userId            String
-  source            String   // belvo | cfdi | csv
+  source            String   // banking_api | cfdi | csv
   externalId        String   // unique per source
   amount            Int      // centavos, total
   amountPreTax      Int?     // centavos, CFDI subtotal
@@ -563,7 +563,7 @@ model StagedTransaction {
 }
 
 // Add to Expense model:
-// belvoTransactionId    String?   @unique
+// bankingApiTransactionId    String?   @unique
 // cfdiUuid              String?   @unique
 // cfdiData              Json?
 // reconciliationStatus  String    @default("unmatched")
@@ -572,8 +572,8 @@ model StagedTransaction {
 model CategoryMapping {
   id         String @id @default(cuid())
   userId     String
-  matchType  String // rfc | merchant_name | belvo_category
-  matchValue String // the RFC, merchant name, or Belvo category
+  matchType  String // rfc | merchant_name | banking_api_category
+  matchValue String // the RFC, merchant name, or banking API category
   categoryId String
   confidence Float  @default(1.0) // 1.0 = user-set, lower = inferred
   createdAt  DateTime @default(now())
@@ -609,9 +609,9 @@ reconciliationRouter = router({
 
 | Job | Trigger | What It Does |
 |---|---|---|
-| `processBelvoWebhook` | Belvo webhook POST | Write to StagedTransaction, run matcher |
-| `syncBelvoTransactions` | Scheduled (daily) | Fetch new transactions, stage them, run matcher |
-| `syncSatCfdis` | Scheduled (daily/weekly) | Download new CFDIs via Belvo or @nodecfdi, stage them, run matcher |
+| `processBankingApiWebhook` | Banking API webhook POST | Write to StagedTransaction, run matcher |
+| `syncBankingApiTransactions` | Scheduled (daily) | Fetch new transactions from banking API, stage them, run matcher |
+| `syncSatCfdis` | Scheduled (daily/weekly) | Download new CFDIs via banking API or @nodecfdi, stage them, run matcher |
 | `processCSVUpload` | User uploads file | Parse CSV/OFX, stage transactions, run matcher |
 | `runReconciliation` | After any staging | Run match algorithm on all pending staged transactions |
 | `updateCategoryMappings` | User re-categorizes expense | Update CategoryMapping table for future auto-categorization |
@@ -625,8 +625,8 @@ reconciliationRouter = router({
 - [ ] Simple review queue UI
 
 **Phase 6 — Automated Reconciliation:**
-- [ ] Belvo webhook handler → staging pipeline
-- [ ] Belvo scheduled sync → staging pipeline
+- [ ] Banking API webhook handler → staging pipeline
+- [ ] Banking API scheduled sync → staging pipeline
 - [ ] CFDI automated sync → staging pipeline
 - [ ] Full matching algorithm (all 6 priority levels)
 - [ ] Confidence thresholds (configurable in settings)
@@ -647,8 +647,8 @@ reconciliationRouter = router({
 
 | Concern | Solution |
 |---|---|
-| **Matching query speed** | Index on `(userId, amount, date)` and `(userId, belvoTransactionId)` and `(userId, cfdiUuid)`. Most matches resolve on first index lookup. |
+| **Matching query speed** | Index on `(userId, amount, date)` and `(userId, bankingApiTransactionId)` and `(userId, cfdiUuid)`. Most matches resolve on first index lookup. |
 | **Large staging backlog** | Process staged transactions in batches (100 at a time). Use database transactions to ensure atomicity. |
-| **Webhook bursts** | Queue Belvo webhooks (e.g., BullMQ or simple Postgres-based queue) and process sequentially per user to avoid race conditions. |
+| **Webhook bursts** | Queue banking API webhooks (e.g., BullMQ or simple Postgres-based queue) and process sequentially per user to avoid race conditions. |
 | **CFDI bulk download** | SAT bulk download can return thousands of CFDIs. Process in chunks, with progress tracking. |
 | **Concurrent matching** | Acquire a per-user advisory lock before running reconciliation to prevent two jobs matching the same expense simultaneously. |

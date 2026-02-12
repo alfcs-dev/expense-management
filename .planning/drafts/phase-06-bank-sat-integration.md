@@ -50,7 +50,7 @@
 ### 3.4 Automated bank transaction sync
 
 - [ ] Job (cron or scheduler): for each active BankLink, fetch transactions since last sync (or last N days).
-- [ ] Write to StagedTransaction (source = 'belvo', externalId = Belvo txn ID, amount, date, description, accountId if mapped).
+- [ ] Write to StagedTransaction (source = 'banking_api', externalId = banking API txn ID, amount, date, description, accountId if mapped).
 - [ ] Run matching algorithm (see DEDUPLICATION_RECONCILIATION): match staged → existing Expense (by amount, date, account, fuzzy description); if matched, update expense or link; if not, create new Expense or leave staged for user review.
 - [ ] Update lastSyncAt on BankLink.
 
@@ -68,7 +68,7 @@
 
 - [ ] Implement matching algorithm from DEDUPLICATION_RECONCILIATION: confidence score, match reason, manual review queue for low-confidence.
 - [ ] UI: list StagedTransaction (pending, matched, rejected); user can confirm match, link to expense, or create new expense from staged.
-- [ ] Deduplication: never create duplicate Expense for same externalId (belvo txn id or CFDI UUID).
+- [ ] Deduplication: never create duplicate Expense for same externalId (banking API txn id or CFDI UUID).
 
 ### 3.8 Fallback: @nodecfdi for SAT
 
@@ -99,7 +99,7 @@
 ### 4.3 Technical notes
 
 - **Security:** Store Belvo (and SAT) credentials securely; never log full responses with PII. Use env for API keys.
-- **Idempotency:** Use externalId (Belvo txn id, CFDI UUID) as unique key; upsert StagedTransaction and avoid duplicate Expense.
+- **Idempotency:** Use externalId (banking API txn id, CFDI UUID) as unique key; upsert StagedTransaction and avoid duplicate Expense.
 
 ---
 

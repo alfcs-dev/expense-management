@@ -1,0 +1,19 @@
+---
+description: At session start, check in_progress plans for current phase and context
+alwaysApply: true
+---
+
+# Check in-progress plans at session start
+
+When starting a new session or when the user has not yet given a specific task:
+
+1. **Read the in-progress folder.** Look at `.planning/in_progress/` for any phase plan files (e.g. `phase-01-foundation.md`). These are phases currently being worked on; drafts live in `.planning/drafts/` until a phase is started, then the plan is moved to `in_progress`.
+
+2. **Use the plan for context.** The in-progress plan file contains:
+   - Goals and task breakdown (with checkboxes)
+   - Achievements, decisions, and roadblocks logged at the bottom
+   - Suggested order and definition of done
+
+3. **Respect current phase.** If the user asks to continue work or to "start" or "build" without specifying what, assume they mean the phase(s) in `in_progress`. Propose or continue from the next uncompleted step and update the plan’s "In progress" section when you make progress.
+
+4. **Do not ignore in_progress.** Do not start a different phase from `drafts/` unless the user explicitly asks for it. Prefer continuing or completing the in-progress phase first.
