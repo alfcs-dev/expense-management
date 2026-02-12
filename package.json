@@ -1,0 +1,18 @@
+{
+  "name": "expense-management",
+  "private": true,
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "dev:all": "docker compose up -d postgres && turbo run dev"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.0"
+  },
+  "packageManager": "pnpm@9.14.2",
+  "engines": {
+    "node": ">=20"
+  }
+}
