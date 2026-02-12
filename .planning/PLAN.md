@@ -352,33 +352,47 @@ DigitalOcean Droplet (1GB RAM is sufficient, 2GB comfortable)
 
 ## 5. Refined Database Schema
 
-Building on the existing schema visualization, here's an enhanced version addressing the patterns found in the CSV:
+> **Full ER diagram:** [docs/SCHEMA_VISUALIZATION.md](docs/SCHEMA_VISUALIZATION.md)
+> — includes Mermaid diagram, all entity definitions with field types, and
+> detailed logic for MSI, recurring expenses, shared objectives, data source
+> tracking, and currency handling.
 
-### 5.1 Key Enhancements Over Current Schema
+### 5.1 Key Enhancements Over Original Schema
 
-1. **Recurring Expenses** — Add a `RecurringExpense` entity to model budget templates (the rows in the CSV)
+1. **Recurring Expenses** — `RecurringExpense` entity to model budget templates (the CSV rows)
 2. **Frequency Handling** — Support monthly, biweekly, annual, bimonthly frequencies
-3. **Account Routing** — Each recurring expense maps source account → destination account
+3. **Account Routing** — Each recurring expense maps source → destination account
 4. **Savings Goals** — First-class entity with target percentages
 5. **Monthly Budgets** — Budget period is monthly (matching how most charges work)
-6. **Tags/Labels** — Flexible tagging for cross-cutting concerns
-7. **Currency** — `MXN` and `USD` enum on Account and Expense. Amounts stored as integers (centavos/cents)
-8. **Multi-user ready** — `userId` FK on all entities from day one. `BudgetCollaborator` table in schema (UI built later)
+6. **Currency** — `MXN` and `USD` enum. All amounts as integers (centavos/cents)
+7. **Multi-user ready** — `userId` FK on all entities from day one
+8. **Data source tracking** — `source` + `externalId` on Expense for deduplication
+9. **Shared Objectives** — Cross-budget savings goals between users (see [design doc](docs/SHARED_OBJECTIVES_DESIGN.md))
 
-### 5.2 Proposed Entities
+### 5.2 Entities (14 total)
 
 ```
-User                    (id, email, name, createdAt)
-Account                 (id, userId, name, type[debit|credit|investment|cash], currency[MXN|USD], CLABE, balance)
+── Core ──
+User                    (id, email, name, avatarUrl, createdAt, updatedAt)
+Account                 (id, userId, name, type, currency, clabe, balance, institution, bankLinkId)
 Budget                  (id, userId, name, month, year)
 Category                (id, userId, name, icon, color, sortOrder)
-RecurringExpense        (id, userId, categoryId, sourceAccountId, destAccountId, description, amount, currency, frequency[monthly|biweekly|annual|bimonthly], isAnnual, annualCost, notes)
-Expense                 (id, userId, budgetId, categoryId, accountId, installmentPlanId?, description, amount, currency, date, installmentNumber?)
-InstallmentPlan         (id, userId, accountId, categoryId, description, totalAmount, months, interestRate, startDate, status[active|completed|cancelled])
-Transfer                (id, userId, amount, currency, sourceAccountId, destAccountId, date, notes)
-SavingsGoal             (id, userId, accountId, name, targetPercentage, targetAmount?, notes)
-BudgetCollaborator      (id, budgetId, userId, role[owner|editor|viewer]) — schema only for MVP
-BankLink                (id, userId, provider[belvo|syncfy], externalLinkId, status, lastSyncAt) — for Phase 6
+
+── Expense Tracking ──
+Expense                 (id, userId, budgetId, categoryId, accountId, installmentPlanId?, objectiveContributionId?, description, amount, currency, date, installmentNumber?, source, externalId?)
+RecurringExpense        (id, userId, categoryId, sourceAccountId, destAccountId, description, amount, currency, frequency, isAnnual, annualCost, notes, isActive)
+InstallmentPlan         (id, userId, accountId, categoryId, description, totalAmount, currency, months, interestRate, startDate, status)
+Transfer                (id, userId, sourceAccountId, destAccountId, amount, currency, date, notes)
+
+── Goals & Objectives ──
+SavingsGoal             (id, userId, accountId, name, targetPercentage?, targetAmount?, currency, notes)
+SharedObjective         (id, createdByUserId, accountId, name, description?, targetAmount, currentAmount, currency, targetDate?, status)
+ObjectiveMember         (id, objectiveId, userId, budgetId?, categoryId?, accountId?, role)
+ObjectiveContribution   (id, objectiveId, memberId, expenseId?, amount, currency, date, notes?)
+
+── Collaboration & Integration ──
+BudgetCollaborator      (id, budgetId, userId, role[owner|editor|viewer])
+BankLink                (id, userId, accountId?, provider[belvo|syncfy], externalLinkId, status, lastSyncAt)
 ```
 
 ---
@@ -456,12 +470,30 @@ BankLink                (id, userId, provider[belvo|syncfy], externalLinkId, sta
 - [ ] Cross-reference CFDIs with bank transactions for reconciliation
 - [ ] Fallback: @nodecfdi SAT integration if Belvo fiscal pricing is prohibitive
 
-### Phase 7 — Multi-User, Notifications & Intelligence
+### Phase 7 — Multi-User, Shared Objectives, Notifications & Intelligence
 
-- [ ] Multi-user support: invite collaborators to budgets
-- [ ] Role-based access (owner, editor, viewer)
+> See [Shared Objectives design doc](docs/SHARED_OBJECTIVES_DESIGN.md) for
+> full feature specification.
+
+**Multi-user & Collaboration:**
+- [ ] Multi-user support: user registration, invite system
+- [ ] Budget sharing: invite collaborators via `BudgetCollaborator`
+- [ ] Role-based access (owner, editor, viewer) for shared budgets
+
+**Shared Objectives (cross-budget savings goals):**
+- [ ] Create shared objective (name, target, account, deadline)
+- [ ] Invite members (email-based invite + accept flow)
+- [ ] Member configuration (each user picks their budget/category/account)
+- [ ] Contribution flow with auto-expense creation in contributor's budget
+- [ ] Objective dashboard widget (progress bar, per-member breakdown)
+- [ ] Contribution history with monthly trends
+- [ ] Projected completion date calculation
+
+**Notifications:**
 - [ ] Push notifications (web: Web Push API + Service Worker; mobile: Expo Push)
 - [ ] Notification preferences UI (what to notify, quiet hours, batching)
+
+**Intelligence:**
 - [ ] Auto-categorization based on RFC vendor directory
 - [ ] Duplicate detection across bank + SAT data sources
 - [ ] Anomaly detection (unusual charges, missing invoices)
