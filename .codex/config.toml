@@ -1,0 +1,6 @@
+# Codex MCP configuration (converted from mcp.json)
+# Project-scoped: used when Codex runs in this repo.
+# To use globally, copy to ~/.codex/config.toml
+
+[mcp_servers.better-auth]
+url = "https://mcp.inkeep.com/better-auth/mcp"
