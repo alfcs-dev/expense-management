@@ -6,10 +6,15 @@
     "build": "turbo run build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
-    "dev:all": "docker compose up -d postgres && turbo run dev"
+    "dev:all": "docker compose up -d postgres && turbo run dev",
+    "db:migrate": "dotenv -e .env -- pnpm --filter @expense-management/db exec prisma migrate dev",
+    "db:generate": "pnpm --filter @expense-management/db exec prisma generate",
+    "db:studio": "dotenv -e .env -- pnpm --filter @expense-management/db exec prisma studio"
   },
   "devDependencies": {
-    "turbo": "^2.3.0"
+    "dotenv-cli": "^7.4.2",
+    "turbo": "^2.3.0",
+    "typescript": "^5.7.0"
   },
   "packageManager": "pnpm@9.14.2",
   "engines": {
