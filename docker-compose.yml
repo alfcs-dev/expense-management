@@ -1,5 +1,6 @@
-# Postgres for local dev. Use: docker compose up -d postgres
-# Then run: pnpm --filter @expense-management/db migrate
+# Local development compose.
+# Default use: postgres only.
+# Full stack use: docker compose --profile fullstack up -d --build
 services:
   postgres:
     image: postgres:16-alpine
@@ -9,9 +10,68 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: expense_management
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d expense_management"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  migrate:
+    profiles: ["fullstack"]
+    build:
+      context: .
+      dockerfile: docker/api/Dockerfile
+    restart: "no"
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/expense_management?schema=public"
+      BETTER_AUTH_SECRET: "local-dev-only-secret-at-least-32-characters"
+      BETTER_AUTH_URL: "http://localhost"
+      CORS_ORIGINS: "http://localhost"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["pnpm", "--filter", "@expense-management/db", "exec", "prisma", "migrate", "deploy"]
+
+  api:
+    profiles: ["fullstack"]
+    build:
+      context: .
+      dockerfile: docker/api/Dockerfile
+    container_name: expense-management-api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/expense_management?schema=public"
+      BETTER_AUTH_SECRET: "local-dev-only-secret-at-least-32-characters"
+      BETTER_AUTH_URL: "http://localhost"
+      CORS_ORIGINS: "http://localhost"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    expose:
+      - "4000"
+
+  nginx:
+    profiles: ["fullstack"]
+    build:
+      context: .
+      dockerfile: docker/nginx/Dockerfile
+      args:
+        VITE_API_URL: ""
+    container_name: expense-management-nginx
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "80:80"
 
 volumes:
   postgres_data:

@@ -7,14 +7,27 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "dev:all": "docker compose up -d postgres && turbo run dev",
+    "dev:docker": "docker compose --profile fullstack up -d --build",
+    "dev:docker:down": "docker compose --profile fullstack down",
     "db:migrate": "dotenv -e .env -- pnpm --filter @expense-management/db exec prisma migrate dev",
     "db:generate": "pnpm --filter @expense-management/db exec prisma generate",
-    "db:studio": "dotenv -e .env -- pnpm --filter @expense-management/db exec prisma studio"
+    "db:studio": "dotenv -e .env -- pnpm --filter @expense-management/db exec prisma studio",
+    "db:seed:preview": "dotenv -e .env -- pnpm --filter @expense-management/db seed -- --preview",
+    "db:seed": "dotenv -e .env -- pnpm --filter @expense-management/db seed -- --apply",
+    "prod:config": "docker compose --env-file .env.production -f docker-compose.prod.yml config",
+    "prod:build": "docker compose --env-file .env.production -f docker-compose.prod.yml build",
+    "prod:up": "docker compose --env-file .env.production -f docker-compose.prod.yml up -d",
+    "prod:down": "docker compose --env-file .env.production -f docker-compose.prod.yml down",
+    "prod:logs": "docker compose --env-file .env.production -f docker-compose.prod.yml logs -f"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.2",
     "dotenv-cli": "^7.4.2",
+    "eslint": "^9.39.2",
+    "globals": "^17.3.0",
     "turbo": "^2.3.0",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "typescript-eslint": "^8.55.0"
   },
   "packageManager": "pnpm@9.14.2",
   "engines": {
