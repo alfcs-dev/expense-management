@@ -19,7 +19,7 @@
     "seed": "tsx seed.ts",
     "seed:preview": "tsx seed.ts --preview",
     "lint": "echo no lint yet",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "prisma generate && tsc --noEmit"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
