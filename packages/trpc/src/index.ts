@@ -1,6 +1,3 @@
-import { initTRPC } from "@trpc/server";
-
-const t = initTRPC.create();
-
-export const router = t.router;
-export const publicProcedure = t.procedure;
+export { createContext, type Context, type User } from "./context.js";
+export { appRouter, type AppRouter } from "./root.js";
+export { router, publicProcedure, protectedProcedure } from "./trpc.js";
