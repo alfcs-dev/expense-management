@@ -3,6 +3,9 @@
 > This document evaluates third-party services that could simplify development for
 > the Budget Manager app—especially authentication, user management, and
 > infrastructure. Referenced from [PLAN.md](../PLAN.md) (stack, Phase 7 multi-user/invites).
+>
+> **Last verified:** 2026-02-13  
+> **Re-validation cadence:** Before starting Phase 7 and whenever auth/vendor assumptions impact implementation choices.
 
 ---
 

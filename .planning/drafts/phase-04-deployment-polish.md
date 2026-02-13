@@ -3,6 +3,16 @@
 > **Source:** [PLAN.md](../PLAN.md) Section 6, Phase 4.  
 > **When starting this phase:** move this file to `../in_progress/` and use the "In progress" section at the bottom to log achievements, decisions, and roadblocks.
 
+**Planning Metadata**
+- Status: draft
+- Owner: @alfcs
+- Target start: Week 9
+- Target end: Week 10
+- Actual start: TBD
+- Actual end: TBD
+- Dependencies: Phase 3 MVP stable
+- Linked PRs/issues: TBD
+
 ---
 
 ## 1. Goals
@@ -65,6 +75,15 @@
 - [ ] Data: from RecurringExpense and InstallmentPlan, compute "next" due dates and amounts in the current or next month.
 - [ ] tRPC procedure: e.g. `dashboard.upcomingPayments({ month, year })` returning list of { description, amount, dueDate, type: 'recurring' | 'installment' }.
 - [ ] Dashboard widget: list of upcoming payments (e.g. next 30 days); in-app only (no push). Link to relevant expense or plan.
+
+---
+
+## Definition of Ready (DoR)
+
+- [ ] Required schema/docs for this phase are finalized.
+- [ ] External vendor/provider decisions are finalized (if applicable).
+- [ ] Required environment variables and secrets are confirmed.
+- [ ] Validation plan is agreed (`pnpm lint`, `pnpm typecheck`, smoke checks, and any relevant performance checks).
 
 ---
 

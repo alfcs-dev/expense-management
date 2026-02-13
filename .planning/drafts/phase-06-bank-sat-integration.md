@@ -4,6 +4,16 @@
 > **Detailed research:** [BANK_SAT_INTEGRATION_RESEARCH.md](../research/BANK_SAT_INTEGRATION_RESEARCH.md).  
 > **When starting this phase:** move this file to `../in_progress/` and use the "In progress" section at the bottom to log achievements, decisions, and roadblocks.
 
+**Planning Metadata**
+- Status: draft
+- Owner: @alfcs
+- Target start: Post-MVP milestone
+- Target end: Post-MVP milestone
+- Actual start: TBD
+- Actual end: TBD
+- Dependencies: Phase 3 complete; vendor selection finalized; dedup design approved
+- Linked PRs/issues: TBD
+
 ---
 
 ## 1. Goals
@@ -73,6 +83,15 @@
 ### 3.8 Fallback: @nodecfdi for SAT
 
 - [ ] If Belvo fiscal is dropped: use @nodecfdi for SAT CFDI retrieval (e.g. sat-ws-descarga-masiva); parse XML; same staging and matching flow. Document in research.
+
+---
+
+## Definition of Ready (DoR)
+
+- [ ] Required schema/docs for this phase are finalized.
+- [ ] External vendor/provider decisions are finalized (if applicable).
+- [ ] Required environment variables and secrets are confirmed.
+- [ ] Validation plan is agreed (`pnpm lint`, `pnpm typecheck`, smoke checks, and any relevant performance checks).
 
 ---
 

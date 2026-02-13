@@ -3,6 +3,9 @@
 > This document compares the available options for automating bank transaction
 > import and SAT fiscal data (CFDI) retrieval for the Budget Manager app.
 > Referenced from [PLAN.md Section 9](../PLAN.md#9-bank--sat-integration-research).
+>
+> **Last verified:** 2026-02-13  
+> **Re-validation cadence:** Before starting Phase 6 and whenever vendor pricing/coverage assumptions are used for implementation decisions.
 
 ---
 

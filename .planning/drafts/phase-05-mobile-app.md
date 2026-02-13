@@ -3,6 +3,16 @@
 > **Source:** [PLAN.md](../PLAN.md) Section 6, Phase 5.  
 > **When starting this phase:** move this file to `../in_progress/` and use the "In progress" section at the bottom to log achievements, decisions, and roadblocks.
 
+**Planning Metadata**
+- Status: draft
+- Owner: @alfcs
+- Target start: Post-MVP milestone
+- Target end: Post-MVP milestone
+- Actual start: TBD
+- Actual end: TBD
+- Dependencies: Phase 4 complete (production baseline)
+- Linked PRs/issues: TBD
+
 ---
 
 ## 1. Goals
@@ -55,6 +65,15 @@
 - [ ] Expo Push: register device token with Expo Push API; store token in backend (e.g. new table `DevicePushToken`: userId, token, platform, createdAt).
 - [ ] tRPC or API: `push.registerToken({ token, platform })`, `push.unregisterToken({ token })`.
 - [ ] No actual notification sending in Phase 5; only registration so Phase 7 can send (e.g. upcoming payments, shared objective updates).
+
+---
+
+## Definition of Ready (DoR)
+
+- [ ] Required schema/docs for this phase are finalized.
+- [ ] External vendor/provider decisions are finalized (if applicable).
+- [ ] Required environment variables and secrets are confirmed.
+- [ ] Validation plan is agreed (`pnpm lint`, `pnpm typecheck`, smoke checks, and any relevant performance checks).
 
 ---
 

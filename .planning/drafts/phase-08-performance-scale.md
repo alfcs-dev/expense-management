@@ -3,6 +3,16 @@
 > **Source:** [PLAN.md](../PLAN.md) Section 6, Phase 8 (Sections 8.1–8.7).  
 > **When starting this phase:** move this file to `../in_progress/` and use the "In progress" section at the bottom to log achievements, decisions, and roadblocks.
 
+**Planning Metadata**
+- Status: draft
+- Owner: @alfcs
+- Target start: Continuous after production launch (as needed)
+- Target end: Ongoing
+- Actual start: TBD
+- Actual end: TBD
+- Dependencies: Production usage data and measured bottlenecks
+- Linked PRs/issues: TBD
+
 ---
 
 ## 1. Goals
@@ -73,6 +83,15 @@ Address performance and scale when the dashboard has years of data, thousands of
 - [ ] **When:** Only when Start is stable (v1.0) and initial load is a real complaint.
 - [ ] **What:** Add server entry, keep router/query/tRPC; deploy with Node process for SSR.
 - [ ] **Document:** Migration steps and rollback; measure before/after LCP and TTFB.
+
+---
+
+## Definition of Ready (DoR)
+
+- [ ] Required schema/docs for this phase are finalized.
+- [ ] External vendor/provider decisions are finalized (if applicable).
+- [ ] Required environment variables and secrets are confirmed.
+- [ ] Validation plan is agreed (`pnpm lint`, `pnpm typecheck`, smoke checks, and any relevant performance checks).
 
 ---
 

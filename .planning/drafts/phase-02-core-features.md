@@ -3,6 +3,16 @@
 > **Source:** [PLAN.md](../PLAN.md) Section 6, Phase 2.  
 > **When starting this phase:** move this file to `../in_progress/` and use the "In progress" section at the bottom to log achievements, decisions, and roadblocks.
 
+**Planning Metadata**
+- Status: draft
+- Owner: @alfcs
+- Target start: Week 3
+- Target end: Week 5
+- Actual start: TBD
+- Actual end: TBD
+- Dependencies: Phase 1 complete
+- Linked PRs/issues: TBD
+
 ---
 
 ## 1. Goals
@@ -65,6 +75,15 @@
 
 - [ ] Add `es.json` with all keys from `en.json` translated.
 - [ ] Ensure language switcher (if present) and locale detection work; currency/date formatting use `es-MX` when Spanish is selected.
+
+---
+
+## Definition of Ready (DoR)
+
+- [ ] Required schema/docs for this phase are finalized.
+- [ ] External vendor/provider decisions are finalized (if applicable).
+- [ ] Required environment variables and secrets are confirmed.
+- [ ] Validation plan is agreed (`pnpm lint`, `pnpm typecheck`, smoke checks, and any relevant performance checks).
 
 ---
 

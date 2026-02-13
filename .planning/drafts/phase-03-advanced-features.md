@@ -3,6 +3,16 @@
 > **Source:** [PLAN.md](../PLAN.md) Section 6, Phase 3.  
 > **When starting this phase:** move this file to `../in_progress/` and use the "In progress" section at the bottom to log achievements, decisions, and roadblocks.
 
+**Planning Metadata**
+- Status: draft
+- Owner: @alfcs
+- Target start: Week 6
+- Target end: Week 8
+- Actual start: TBD
+- Actual end: TBD
+- Dependencies: Phase 2 complete
+- Linked PRs/issues: TBD
+
 ---
 
 ## 1. Goals
@@ -78,6 +88,15 @@
 
 - [ ] tRPC procedure or endpoint: export expenses (and optionally transfers) for a date range in CSV format. Include category, account, amount, date, description.
 - [ ] Web: "Export" button on reports or dashboard; download CSV.
+
+---
+
+## Definition of Ready (DoR)
+
+- [ ] Required schema/docs for this phase are finalized.
+- [ ] External vendor/provider decisions are finalized (if applicable).
+- [ ] Required environment variables and secrets are confirmed.
+- [ ] Validation plan is agreed (`pnpm lint`, `pnpm typecheck`, smoke checks, and any relevant performance checks).
 
 ---
 

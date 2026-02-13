@@ -5,6 +5,16 @@
 > **Auth/collab:** [DEV_SERVICES_RESEARCH.md](../research/DEV_SERVICES_RESEARCH.md) (Better Auth organization plugin).  
 > **When starting this phase:** move this file to `../in_progress/` and use the "In progress" section at the bottom to log achievements, decisions, and roadblocks.
 
+**Planning Metadata**
+- Status: draft
+- Owner: @alfcs
+- Target start: Post-Phase 6 milestone
+- Target end: Post-Phase 6 milestone
+- Actual start: TBD
+- Actual end: TBD
+- Dependencies: Phase 6 complete (or Phase 3+4 baseline for partial rollout)
+- Linked PRs/issues: TBD
+
 ---
 
 ## 1. Goals
@@ -77,6 +87,15 @@
 
 - [ ] Anomaly: unusual amount or frequency (e.g. 2x average); surface in dashboard or report.
 - [ ] Tax deductions: from CFDI data (deducible expenses); suggest or tag for tax report. Optional report "deducibles by period".
+
+---
+
+## Definition of Ready (DoR)
+
+- [ ] Required schema/docs for this phase are finalized.
+- [ ] External vendor/provider decisions are finalized (if applicable).
+- [ ] Required environment variables and secrets are confirmed.
+- [ ] Validation plan is agreed (`pnpm lint`, `pnpm typecheck`, smoke checks, and any relevant performance checks).
 
 ---
 
