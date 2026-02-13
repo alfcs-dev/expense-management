@@ -26,6 +26,7 @@ Useful commands:
 
 - `pnpm dev` - API + web
 - `pnpm dev:all` - postgres + API + web
+- `pnpm dev:docker` - full Docker stack (postgres + API + Nginx web)
 - `pnpm db:studio` - Prisma Studio
 - `pnpm typecheck`
 - `pnpm build`
@@ -49,3 +50,4 @@ Planning and docs:
 
 - `.planning/in_progress/phase-01-foundation.md` - active phase tracker
 - `docs/LOCAL_DEVELOPMENT.md` - full local setup and troubleshooting
+- `docs/DEPLOYMENT_DO.md` - production deployment runbook for DigitalOcean

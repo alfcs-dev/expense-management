@@ -93,6 +93,7 @@
 
 - [PLAN.md](../PLAN.md) — Section 4 (Infrastructure & Deployment): VPS stack, CI/CD, domain & SSL.
 - PLAN Section 4.2: DigitalOcean Droplet, Docker Compose, Certbot, GitHub Actions, backups.
+- [docs/DEPLOYMENT_DO.md](../../docs/DEPLOYMENT_DO.md) — Deployment runbook and operational checklist (prepared during foundation; execute fully in this phase).
 
 ### 4.2 Suggested order
 

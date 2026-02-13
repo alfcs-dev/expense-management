@@ -30,9 +30,34 @@ docker compose up -d postgres
 # 4. Run migrations (creates DB schema)
 pnpm db:migrate
 
-# 5. Start API + web (one terminal)
+# 5. (Optional) Preview seed mapping from CSV (no DB writes)
+pnpm db:seed:preview
+
+# 6. Start API + web (one terminal)
 pnpm dev
 ```
+
+Alternative full Docker stack (Postgres + API + Nginx static web):
+
+```bash
+# 1. Install dependencies (needed for builds/tests in this repo)
+pnpm install
+
+# 2. Start full stack (builds api/nginx images)
+pnpm dev:docker
+```
+
+If port `5432` is already in use on your host:
+
+```bash
+POSTGRES_PORT=5433 pnpm dev:docker
+```
+
+Then open:
+
+- **Web app (via Nginx):** http://localhost
+- **API health (via Nginx):** http://localhost/health
+- **Auth endpoint check (via Nginx):** http://localhost/api/auth/ok
 
 - **Web app:** http://localhost:5173  
 - **API (e.g. health):** http://localhost:4000/health  
@@ -49,6 +74,12 @@ After starting the stack, you can confirm everything works:
 3. **Web + auth:** Open http://localhost:5173, create an account on Home, then open `/dashboard` and confirm it loads as an authenticated page.
 4. **Seed (optional):** After running seed, you can verify data in the DB or via the app when those features exist.
 
+If running full Docker stack instead:
+
+1. `curl http://localhost/health` returns `{"status":"ok"}`.
+2. Open `http://localhost` and confirm the app loads.
+3. `curl http://localhost/api/auth/ok` returns `{"ok":true}`.
+
 ---
 
 ## Environment variables
@@ -56,11 +87,19 @@ After starting the stack, you can confirm everything works:
 `.env` is required at the repository root. The committed `.env.example` already contains local defaults for:
 
 - `DATABASE_URL`
+- `POSTGRES_PORT` (optional, Docker-only host mapping; default `5432`)
 - `PORT`
 - `CORS_ORIGINS`
 - `BETTER_AUTH_SECRET`
 - `BETTER_AUTH_URL`
 - `VITE_API_URL`
+- `SEED_BUDGET_CSV_PATH` (optional)
+- `SEED_DEBT_CSV_PATH` (optional)
+- `SEED_ACCOUNTS_CSV_PATH` (optional)
+- `SEED_CSV_PATH` (optional legacy alias for budget CSV path)
+- `SEED_USER_EMAIL` (optional)
+- `SEED_USER_NAME` (optional)
+- `SEED_DEBT_START_DATE` (optional, `YYYY-MM-DD` for seeded installment plan start date)
 
 For local development, you can usually just copy `.env.example` to `.env` without edits.
 
@@ -105,12 +144,16 @@ Keep a single `.env` at the repo root and use **`pnpm db:migrate`** for migratio
 | `pnpm install` | Install all workspace dependencies |
 | `pnpm dev` | Start API and web in parallel (Turborepo) |
 | `pnpm dev:all` | Start Postgres, then API + web (one command) |
+| `pnpm dev:docker` | Start full Docker stack (postgres + api + nginx) |
+| `pnpm dev:docker:down` | Stop full Docker stack |
 | `pnpm build` | Build all apps and packages |
 | `pnpm lint` | Lint |
 | `pnpm typecheck` | Type-check |
 | `pnpm db:migrate` | Run DB migrations (from root; loads root `.env`) |
 | `pnpm db:generate` | Regenerate Prisma client |
 | `pnpm db:studio` | Open Prisma Studio using root `.env` |
+| `pnpm db:seed:preview` | Parse CSV and print seed representation only (no DB writes) |
+| `pnpm db:seed` | Apply CSV seed to DB (idempotent reset/recreate for seed user) |
 | `docker compose up -d postgres` | Start Postgres only (for local dev) |
 
 ---
@@ -141,7 +184,14 @@ Keep a single `.env` at the repo root and use **`pnpm db:migrate`** for migratio
 
 ### Port 5432 already in use
 
-- Another Postgres (or service) is using 5432. Stop it or change the port in `docker-compose.yml` and in `.env` (e.g. `localhost:5433`).
+- Another Postgres (or service) is using 5432. Stop it, or run with `POSTGRES_PORT=5433`:
+  - `POSTGRES_PORT=5433 docker compose up -d postgres`
+  - `POSTGRES_PORT=5433 pnpm dev:docker`
+- If you change the DB host port for host-run API (`pnpm dev`), update `DATABASE_URL` accordingly.
+
+### Port 80 already in use (full Docker stack)
+
+- Another web server is bound to 80. Stop it, or change nginx published port in `docker-compose.yml` from `80:80` to another value (for example `8080:80`) and use that URL.
 
 ### Migrations out of date
 

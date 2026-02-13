@@ -16,7 +16,6 @@
 ---
 
 ## 1. Goals
-
 - Working monorepo with API, web app, and shared packages.
 - Auth-gated SPA talking to Fastify + tRPC; data in PostgreSQL via Prisma.
 - i18n in place (English); all user-facing strings wrapped in `t()`.
@@ -96,15 +95,15 @@ Set this up right after API and web exist so you can test as you add code.
 
 ### 3.8 Seed and CSV import
 
-- [ ] `packages/db/seed.ts`: read CSV (path from env or default), parse rows.
-- [ ] Map CSV columns to Prisma: accounts, categories, recurring expenses (and any budgets/expenses if CSV has them). Handle currency (MXN/USD) and amounts as integers (centavos).
-- [ ] Idempotent seed where possible (e.g. clear seed data or skip if already present).
-- [ ] Document how to run seed (`pnpm --filter db seed` or similar).
+- [x] `packages/db/seed.ts`: read CSV (path from env or default), parse rows.
+- [x] Map CSV columns to Prisma: accounts, categories, recurring expenses (and any budgets/expenses if CSV has them). Handle currency (MXN/USD) and amounts as integers (centavos).
+- [x] Idempotent seed where possible (e.g. clear seed data or skip if already present).
+- [x] Document how to run seed (`pnpm --filter db seed` or similar).
 
 ### 3.9 Docker and local dev
 
 - [x] `docker/` or repo root: `docker-compose.yml` with services: `postgres` (PostgreSQL 16), and optionally `api` + `nginx` for a production-like full stack. For day-to-day dev, postgres-only compose (or the same file with only postgres) is enough if you use `pnpm dev` for API + web (see 3.3).
-- [ ] Nginx: serve static files from a volume or built `apps/web` output; proxy `/api` (or your API prefix) to `api`. (Only needed when testing full Docker stack.)
+- [x] Nginx: serve static files from a volume or built `apps/web` output; proxy `/api` (or your API prefix) to `api`. (Only needed when testing full Docker stack.)
 - [x] `.env.example` with `DATABASE_URL`, `API_URL` (or equivalent), Better Auth secrets.
 
 ### 3.10 Local env: test everything locally and document it
@@ -129,18 +128,18 @@ Set this up right after API and web exist so you can test as you add code.
 
 ### 3.11 CI (GitHub Actions)
 
-- [ ] Workflow: on push/PR, install deps (pnpm), lint, typecheck, build all apps and packages.
-- [ ] No deploy in Phase 1; only validate that the monorepo builds and passes checks.
-- [ ] CI order should reflect feedback speed: run `lint` + `typecheck` before `build` (or in parallel), not as a byproduct of build dependencies.
+- [x] Workflow: on push/PR, install deps (pnpm), lint, typecheck, build all apps and packages.
+- [x] No deploy in Phase 1; only validate that the monorepo builds and passes checks.
+- [x] CI order should reflect feedback speed: run `lint` + `typecheck` before `build` (or in parallel), not as a byproduct of build dependencies.
 
 ---
 
 ## Definition of Ready (DoR)
 
-- [ ] Required schema/docs for this phase are finalized.
-- [ ] External vendor/provider decisions are finalized (if applicable).
-- [ ] Required environment variables and secrets are confirmed.
-- [ ] Validation plan is agreed (`pnpm lint`, `pnpm typecheck`, smoke checks, and any relevant performance checks).
+- [x] Required schema/docs for this phase are finalized.
+- [x] External vendor/provider decisions are finalized (if applicable).
+- [x] Required environment variables and secrets are confirmed.
+- [x] Validation plan is agreed (`pnpm lint`, `pnpm typecheck`, smoke checks, and any relevant performance checks).
 
 ---
 
@@ -168,20 +167,20 @@ Set this up right after API and web exist so you can test as you add code.
 
 ## 7. Definition of done
 
-- [ ] `pnpm install && pnpm build` succeeds at root.
-- [ ] `pnpm dev` (or equivalent) runs API and web; login and one protected route work.
-- [ ] Seed runs and creates accounts, categories, recurring expenses (and optionally budgets/expenses) from CSV.
-- [ ] Docker Compose brings up Postgres, API, Nginx; web build is served and API is reachable.
-- [ ] **Local env:** One clear path to start and test everything locally; smoke test (DB, API health, web, login, seed) passes.
-- [ ] **Documentation:** A local development guide exists (e.g. `docs/LOCAL_DEVELOPMENT.md` or README section) with prerequisites, clone/install, start commands, useful commands, URLs, and troubleshooting. A new person (or you later) can get the app running by following it.
+- [x] `pnpm install && pnpm build` succeeds at root.
+- [x] `pnpm dev` (or equivalent) runs API and web; login and one protected route work.
+- [x] Seed runs and creates accounts, categories, recurring expenses (and optionally budgets/expenses) from CSV.
+- [x] Docker Compose brings up Postgres, API, Nginx; web build is served and API is reachable.
+- [x] **Local env:** One clear path to start and test everything locally; smoke test (DB, API health, web, login, seed) passes.
+- [x] **Documentation:** A local development guide exists (e.g. `docs/LOCAL_DEVELOPMENT.md` or README section) with prerequisites, clone/install, start commands, useful commands, URLs, and troubleshooting. A new person (or you later) can get the app running by following it.
 - [ ] CI runs on push/PR and passes (lint, typecheck, build).
-- [ ] All user-facing strings in the web app use i18n keys (English only).
-- [ ] Server-side auth boundary is real: tRPC context resolves session/JWT and protected procedures enforce authorization.
-- [ ] Shared Prisma client layer exists in `packages/db` and is used by API code.
-- [ ] CORS and runtime config are environment-specific and validated via typed env parsing.
-- [ ] Workspace packages use stable `dist` entrypoints and explicit exports metadata.
-- [ ] Web app uses router-driven single entrypoint (no stale/unused parallel app entry path).
-- [ ] Generated artifacts are not tracked in git (`dist`, `.turbo` logs, `*.tsbuildinfo`).
+- [x] All user-facing strings in the web app use i18n keys (English only).
+- [x] Server-side auth boundary is real: tRPC context resolves session/JWT and protected procedures enforce authorization.
+- [x] Shared Prisma client layer exists in `packages/db` and is used by API code.
+- [x] CORS and runtime config are environment-specific and validated via typed env parsing.
+- [x] Workspace packages use stable `dist` entrypoints and explicit exports metadata.
+- [x] Web app uses router-driven single entrypoint (no stale/unused parallel app entry path).
+- [x] Generated artifacts are not tracked in git (`dist`, `.turbo` logs, `*.tsbuildinfo`).
 
 ---
 
@@ -232,5 +231,52 @@ Set this up right after API and web exist so you can test as you add code.
 - Replaced every user-facing string with `t('key')` in `__root.tsx`, `index.tsx`, and `dashboard.tsx`; set `document.title` from `t('app.title')` in the root layout.
 - Added language switcher placeholder in nav: `language.label` and `language.en` with a comment for Phase 2 Spanish. Root `pnpm build` and typecheck pass.
 
+**Achievements (3.8 seed + CSV import):**
+- Added `packages/db/seed.ts` to parse budget and debt CSVs (`Estimated expenses Mexico - September.csv` + `Estimated expenses Mexico - Deuda.csv`) using `SEED_BUDGET_CSV_PATH` / `SEED_DEBT_CSV_PATH` (with `SEED_CSV_PATH` as legacy alias).
+- Mapping handles MXN currency and integer cent amounts (`Costo Mensual` fallback `Mensual`), annual flags/cost, optional notes, and source/destination account linkage.
+- Added debt installment parsing (`Concepto`, `Cantidad`, `# Mensualidades`, `Mensualidades Pagadas`, `Mensualidad`, `Restante`, `Tarjeta`) and mapping into `InstallmentPlan` seeds under category `Deuda MSI`.
+- Seed is idempotent for the seed user (`SEED_USER_EMAIL`/`SEED_USER_NAME`): it clears existing seeded expenses/installment plans/recurring expenses/categories/accounts/budgets, then recreates current CSV state.
+- Added preview mode (`--preview`) to print a JSON representation plus an ASCII visualization without DB writes; apply mode (`--apply`) performs inserts.
+- Added root commands `pnpm db:seed:preview` and `pnpm db:seed`, and documented usage in `docs/LOCAL_DEVELOPMENT.md`.
+
+**Achievements (3.8 seed enhancement - account catalog):**
+- Extended seed to parse account catalog CSV `Estimated expenses Mexico - Cuentas.csv` via `SEED_ACCOUNTS_CSV_PATH` (default path under `.planning/docs`).
+- Added account metadata mapping for name, type, CLABE, and account/card identifiers; merged these records with budget/debt referenced accounts so the seed now includes accounts not yet referenced by expense rows.
+- Added CLABE de-duplication guard during account creation to satisfy schema-level `Account.clabe` uniqueness (duplicate CLABEs are seeded as `null` to avoid failures).
+- Updated seed preview output to include `accountsCsvPath`, account catalog summary (`rowsParsed`, `totalSeedAccounts`), and sample mapped account entries.
+- Updated `.env.example` and local development docs to include `SEED_ACCOUNTS_CSV_PATH`.
+- Validation complete: `pnpm db:migrate`, `pnpm db:seed:preview`, and `pnpm db:seed` all pass; DB verification for `seed@local.dev` confirms `accounts=27`, `categories=8`, `recurringExpenses=47`, `installmentPlans=30`.
+
+**Achievements (3.11 CI + validation closure):**
+- Added root ESLint tooling (`eslint.config.mjs` + workspace dev dependencies) so `pnpm lint` now succeeds across API/Web plus workspace tasks.
+- Added GitHub Actions workflow at `.github/workflows/ci.yml` for push/PR with explicit order: `lint` and `typecheck` before `build` (no deploy job).
+- Validation complete: `pnpm lint`, `pnpm typecheck`, `pnpm build` all pass at repository root.
+- Smoke validation complete:
+  - `GET /health` returns `{"status":"ok"}`.
+  - `GET /api/auth/ok` returns `{"ok":true}`.
+  - `http://localhost:5173/` and `/dashboard` respond (`200`).
+  - Unauthenticated `user.me` returns `401 UNAUTHORIZED`; authenticated session via Better Auth sign-up returns `200` with user payload.
+
+**Achievements (deployment readiness prep for DO):**
+- Added production deployment artifacts: `docker-compose.prod.yml`, `docker/api/Dockerfile`, `docker/nginx/Dockerfile`, and `docker/nginx/default.conf` to run `postgres + api + nginx` with web static serving and `/api` proxying.
+- Added production env template `.env.production.example` with required deployment variables (`DATABASE_URL`, Postgres credentials, Better Auth URLs/secrets, CORS, `VITE_API_URL`).
+- Added DigitalOcean deployment runbook `docs/DEPLOYMENT_DO.md` covering provisioning, Docker install, env setup, deploy commands, verification, HTTPS tasks, updates, backups/restore, and go-live checklist.
+- Linked deployment runbook from `README.md` for discoverability.
+
+**Achievements (3.9 full Docker stack closure):**
+- Extended root `docker-compose.yml` with optional `fullstack` profile services: `migrate`, `api`, and `nginx` in addition to `postgres`.
+- Added root scripts: `pnpm dev:docker` and `pnpm dev:docker:down`.
+- Added docs for host and Docker-full-stack modes in `docs/LOCAL_DEVELOPMENT.md`, including `POSTGRES_PORT` override flow when `5432` is already occupied.
+- Validation complete (full stack):
+  - `POSTGRES_PORT=5433 docker compose --profile fullstack up -d --build`
+  - `curl http://localhost/health` => `{"status":"ok"}`
+  - `curl http://localhost/api/auth/ok` => `{"ok":true}`
+  - `http://localhost/` and `/dashboard` return `200`
+  - `POSTGRES_PORT=5433 docker compose --profile fullstack down`
+
+**Decisions (DoR closure):**
+- Phase 1 schema/docs considered finalized for implementation scope (foundation + auth + i18n + seed + local/dev + CI baseline).
+- External vendor/provider decisions for Phase 1 are finalized as N/A (no additional provider commitments required beyond already-selected stack and local Docker workflow).
+
 **Roadblocks:**
-- None. Lint fails with "eslint: not found" when run via turbo (scripts use `eslint`; may need `pnpm exec eslint` or root-level eslint).
+- None blocking implementation. Local Docker Postgres may fail to bind port `5432` when another host/local Postgres process is already running.
