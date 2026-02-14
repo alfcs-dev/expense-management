@@ -50,9 +50,9 @@
 
 ### 3.2 Category management
 
-- [ ] tRPC procedures: `category.list`, `category.create`, `category.update`, `category.delete`, `category.reorder` (sortOrder).
-- [ ] Verify seeded default categories from PLAN (Kids, Subscriptions, Telecom, Savings, Auto, Home/Zuhause, Miscellaneous) and add any missing ones via migration/seed if needed.
-- [ ] Web: category list, create/edit (name, icon, color, sortOrder), reorder UI.
+- [x] tRPC procedures: `category.list`, `category.create`, `category.update`, `category.delete`, `category.reorder` (sortOrder).
+- [x] Verify seeded default categories from PLAN (Kids, Subscriptions, Telecom, Savings, Auto, Home/Zuhause, Miscellaneous) and add any missing ones via migration/seed if needed.
+- [x] Web: category list, create/edit (name, icon, color, sortOrder), reorder UI.
 
 ### 3.3 Recurring expense templates
 
@@ -169,6 +169,11 @@
   - New backend endpoint `account.institutions` added so the web account form reads live institution options from DB instead of hardcoded constants.
   - Banxico sync script implemented at `packages/db/scripts/sync-institutions.ts` and exposed as `pnpm db:sync:institutions`.
   - Documentation updated for operations: initial sync in local setup and weekly sync schedule in DigitalOcean deployment runbook.
+- 3.2 category management implemented end-to-end:
+  - tRPC `category` router added with `list/create/update/delete/reorder`, fully scoped by authenticated user.
+  - Web route `/categories` added with category list, create/edit/delete flow, and move up/down reorder controls.
+  - Navigation updated to include Categories and i18n strings added to `en.json`.
+  - Seed process updated to guarantee PLAN default categories are present (`Kids`, `Subscriptions`, `Telecom`, `Savings`, `Auto`, `Home/Zuhause`, `Miscellaneous`) while preserving CSV-derived categories.
 
 **Decisions:**
 - Replaced static, code-embedded institution lists with a synced catalog from Banxico as source of truth.

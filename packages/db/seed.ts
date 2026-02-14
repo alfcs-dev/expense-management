@@ -84,6 +84,16 @@ const defaultAccountsCsvPath = path.resolve(
   "../../.planning/docs/Estimated expenses Mexico - Cuentas.csv",
 );
 
+const PLAN_DEFAULT_CATEGORIES = [
+  "Kids",
+  "Subscriptions",
+  "Telecom",
+  "Savings",
+  "Auto",
+  "Home/Zuhause",
+  "Miscellaneous",
+] as const;
+
 function parseArgs() {
   const args = new Set(process.argv.slice(2));
   return {
@@ -578,7 +588,9 @@ async function applySeed(
 
   const categoryByName = new Map<string, string>();
   const recurringCategories = Array.from(new Set(budgetRows.map((row) => row.section)));
-  const allCategories = [...recurringCategories, "Deuda MSI"];
+  const allCategories = Array.from(
+    new Set([...recurringCategories, ...PLAN_DEFAULT_CATEGORIES, "Deuda MSI"]),
+  );
 
   for (const [index, categoryName] of allCategories.entries()) {
     const created = await prisma.category.create({

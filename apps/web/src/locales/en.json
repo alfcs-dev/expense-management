@@ -2,7 +2,8 @@
   "nav": {
     "home": "Home",
     "dashboard": "Dashboard",
-    "accounts": "Accounts"
+    "accounts": "Accounts",
+    "categories": "Categories"
   },
   "session": {
     "loading": "Session: loading...",
@@ -83,6 +84,29 @@
       "credit": "Credit",
       "investment": "Investment",
       "cash": "Cash"
+    }
+  },
+  "categories": {
+    "title": "Categories",
+    "description": "Manage category names, icons, colors, and order.",
+    "loading": "Loading categories...",
+    "saving": "Saving...",
+    "create": "Create category",
+    "update": "Update category",
+    "cancelEdit": "Cancel edit",
+    "edit": "Edit",
+    "delete": "Delete",
+    "deleteConfirm": "Delete this category?",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
+    "error": "Error: {{message}}",
+    "listTitle": "Your categories",
+    "empty": "No categories yet.",
+    "colorLabel": "Color",
+    "fields": {
+      "name": "Name",
+      "icon": "Icon",
+      "color": "Color"
     }
   },
   "app": {
