@@ -152,6 +152,8 @@
     "listTitle": "Tus gastos recurrentes",
     "empty": "Aún no hay gastos recurrentes.",
     "inactive": "Inactivo",
+    "annualCostLabel": "Costo anual",
+    "monthlyEquivalentLabel": "Equivalente mensual",
     "fields": {
       "description": "Descripción",
       "category": "Categoría",

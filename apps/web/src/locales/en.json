@@ -152,6 +152,8 @@
     "listTitle": "Your recurring expenses",
     "empty": "No recurring expenses yet.",
     "inactive": "Inactive",
+    "annualCostLabel": "Annual cost",
+    "monthlyEquivalentLabel": "Monthly equivalent",
     "fields": {
       "description": "Description",
       "category": "Category",

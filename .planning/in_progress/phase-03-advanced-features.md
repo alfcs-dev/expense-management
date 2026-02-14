@@ -58,8 +58,8 @@
 
 ### 3.4 Annual expense proration
 
-- [ ] In dashboard or reports: for recurring expenses with isAnnual/annualCost, show monthly equivalent (annualCost/12) in summaries and in "planned" views.
-- [ ] Ensure RecurringExpense list and budget view show prorated monthly amount for annual items.
+- [x] In dashboard or reports: for recurring expenses with isAnnual/annualCost, show monthly equivalent (annualCost/12) in summaries and in "planned" views.
+- [x] Ensure RecurringExpense list and budget view show prorated monthly amount for annual items.
 
 ### 3.5 Reports and charts
 
@@ -178,6 +178,11 @@
   - Added `/savings-goals` web route with create/edit/delete flow and progress display.
   - Navigation and i18n resources updated in EN/ES.
   - Validation complete: `pnpm lint` and `pnpm typecheck` pass.
+- 3.4 annual expense proration implemented on 2026-02-14:
+  - Confirmed planned-budget aggregation already applies annual monthly-equivalent math (`annualCost/12` fallback to `amount/12`) in `budget.getPlannedByCategory`.
+  - Recurring templates UI now displays annual cost and monthly-equivalent values for annual items.
+  - Added EN/ES labels for annual-cost and monthly-equivalent presentation.
+  - Validation complete: `pnpm lint` and `pnpm typecheck` pass.
 
 **Decisions:**
 - Start with 3.1 Installment plans (MSI) to unlock auto-generated future expenses early.
@@ -186,6 +191,7 @@
 - 2026-02-14: canceling a plan removes generated installment expenses and sets plan status to `cancelled` to prevent stale future obligations.
 - 2026-02-14: transfer operations enforce distinct source/destination accounts in API validation to prevent no-op or misleading transfer records.
 - 2026-02-14: savings-goal progress uses linked account balance as the first implementation source (no separate contribution ledger yet) to avoid introducing additional schema complexity in this phase.
+- 2026-02-14: annual-proration display is surfaced in recurring-template UI while keeping canonical proration logic in budget aggregation APIs to avoid duplicated business logic.
 
 **Roadblocks:**
 - None yet.
