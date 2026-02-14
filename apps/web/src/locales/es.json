@@ -7,6 +7,7 @@
     "expenses": "Gastos",
     "installments": "MSI",
     "transfers": "Transferencias",
+    "savingsGoals": "Metas de ahorro",
     "recurringExpenses": "Recurrentes"
   },
   "session": {
@@ -268,6 +269,34 @@
     "placeholders": {
       "selectSource": "Selecciona cuenta origen",
       "selectDest": "Selecciona cuenta destino"
+    }
+  },
+  "savingsGoals": {
+    "title": "Metas de ahorro",
+    "description": "Define y da seguimiento a tus metas de ahorro por cuenta.",
+    "loading": "Cargando metas de ahorro...",
+    "saving": "Guardando...",
+    "create": "Crear meta",
+    "update": "Actualizar meta",
+    "cancelEdit": "Cancelar edición",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "deleteConfirm": "¿Eliminar esta meta de ahorro?",
+    "error": "Error: {{message}}",
+    "listTitle": "Tus metas de ahorro",
+    "empty": "Aún no hay metas de ahorro.",
+    "progressLabel": "Progreso",
+    "noTarget": "Sin meta",
+    "fields": {
+      "name": "Nombre",
+      "account": "Cuenta",
+      "targetPercentage": "Porcentaje objetivo (%)",
+      "targetAmount": "Monto objetivo",
+      "currency": "Moneda",
+      "notes": "Notas"
+    },
+    "placeholders": {
+      "selectAccount": "Selecciona cuenta"
     }
   },
   "app": {

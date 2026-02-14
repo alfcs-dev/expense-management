@@ -51,10 +51,10 @@
 
 ### 3.3 Savings goals
 
-- [ ] tRPC: `savingsGoal.list`, `savingsGoal.create`, `savingsGoal.update`, `savingsGoal.delete`.
-- [ ] Model: accountId, name, targetPercentage (e.g. 11%), targetAmount (optional), currency, notes.
-- [ ] Progress: compute current balance or sum of contributions toward goal (if you track contributions explicitly) vs target. Display progress bar; percentage-based allocation from income if desired.
-- [ ] Web: list goals, create/edit, progress display.
+- [x] tRPC: `savingsGoal.list`, `savingsGoal.create`, `savingsGoal.update`, `savingsGoal.delete`.
+- [x] Model: accountId, name, targetPercentage (e.g. 11%), targetAmount (optional), currency, notes.
+- [x] Progress: compute current balance or sum of contributions toward goal (if you track contributions explicitly) vs target. Display progress bar; percentage-based allocation from income if desired.
+- [x] Web: list goals, create/edit, progress display.
 
 ### 3.4 Annual expense proration
 
@@ -172,6 +172,12 @@
   - Added `/transfers` web route with create/edit/delete workflow and transfer list.
   - Navigation and i18n resources updated in EN/ES.
   - Validation complete: `pnpm lint` and `pnpm typecheck` pass.
+- 3.3 savings goals implemented end-to-end on 2026-02-14:
+  - tRPC `savingsGoal` router added with `list/create/update/delete`, fully user-scoped with owned-account validation.
+  - Goal list returns derived progress (`currentAmount`, `targetAmount`, ratio) based on linked account balance.
+  - Added `/savings-goals` web route with create/edit/delete flow and progress display.
+  - Navigation and i18n resources updated in EN/ES.
+  - Validation complete: `pnpm lint` and `pnpm typecheck` pass.
 
 **Decisions:**
 - Start with 3.1 Installment plans (MSI) to unlock auto-generated future expenses early.
@@ -179,6 +185,7 @@
 - 2026-02-14: regenerate installment-generated expenses on plan updates to keep schedule/amounts consistent with plan source-of-truth.
 - 2026-02-14: canceling a plan removes generated installment expenses and sets plan status to `cancelled` to prevent stale future obligations.
 - 2026-02-14: transfer operations enforce distinct source/destination accounts in API validation to prevent no-op or misleading transfer records.
+- 2026-02-14: savings-goal progress uses linked account balance as the first implementation source (no separate contribution ledger yet) to avoid introducing additional schema complexity in this phase.
 
 **Roadblocks:**
 - None yet.

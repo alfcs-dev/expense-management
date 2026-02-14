@@ -7,6 +7,7 @@
     "expenses": "Expenses",
     "installments": "Installments",
     "transfers": "Transfers",
+    "savingsGoals": "Savings goals",
     "recurringExpenses": "Recurring"
   },
   "session": {
@@ -268,6 +269,34 @@
     "placeholders": {
       "selectSource": "Select source account",
       "selectDest": "Select destination account"
+    }
+  },
+  "savingsGoals": {
+    "title": "Savings goals",
+    "description": "Set and track your savings goals by account.",
+    "loading": "Loading savings goals...",
+    "saving": "Saving...",
+    "create": "Create goal",
+    "update": "Update goal",
+    "cancelEdit": "Cancel edit",
+    "edit": "Edit",
+    "delete": "Delete",
+    "deleteConfirm": "Delete this savings goal?",
+    "error": "Error: {{message}}",
+    "listTitle": "Your savings goals",
+    "empty": "No savings goals yet.",
+    "progressLabel": "Progress",
+    "noTarget": "No target",
+    "fields": {
+      "name": "Name",
+      "account": "Account",
+      "targetPercentage": "Target percentage (%)",
+      "targetAmount": "Target amount",
+      "currency": "Currency",
+      "notes": "Notes"
+    },
+    "placeholders": {
+      "selectAccount": "Select account"
     }
   },
   "app": {
