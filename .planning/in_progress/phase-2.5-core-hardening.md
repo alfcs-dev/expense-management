@@ -78,16 +78,16 @@ This phase also introduces direct API testing assets and a minimal automated API
 
 ### Slice B — Direct API Testing (Postman)
 
-- [ ] Add Postman assets:
-  - [ ] `tools/postman/ExpenseManager.postman_collection.json`
-  - [ ] `tools/postman/ExpenseManager.local.postman_environment.json`
-- [ ] Add docs:
-  - [ ] `docs/API_TESTING.md`
-- [ ] Include requests for:
-  - [ ] `/health`
-  - [ ] auth signup/signin/signout/session
-  - [ ] account/category/recurring/budget/expense core procedures
-- [ ] Add cookie/session script handling to collection where needed
+- [x] Add Postman assets:
+  - [x] `tools/postman/ExpenseManager.postman_collection.json`
+  - [x] `tools/postman/ExpenseManager.local.postman_environment.json`
+- [x] Add docs:
+  - [x] `docs/API_TESTING.md`
+- [x] Include requests for:
+  - [x] `/health`
+  - [x] auth signup/signin/signout/session
+  - [x] account/category/recurring/budget/expense core procedures
+- [x] Add cookie/session script handling to collection where needed
 
 **Slice B done when**
 - A developer can run the complete core lifecycle from Postman against localhost.
@@ -196,6 +196,10 @@ Each reintroduced feature must ship as vertical slice with:
   - Updated nav + EN/ES i18n for budgets.
   - Added month/year URL query parsing in `/expenses` and `/dashboard` for budget-context navigation.
   - Validation complete: `pnpm lint`, `pnpm typecheck`, and `pnpm build` pass.
+- 2026-02-14: Slice B completed on branch `phase-2.5-core-hardening`.
+  - Added Postman collection and local environment for core auth + API lifecycle.
+  - Added `docs/API_TESTING.md` with exact execution order and troubleshooting notes.
+  - Added cookie/session handling scripts to collection requests to simplify authenticated tRPC testing.
 
 **Decisions**
 - 2026-02-14: Keep `shadcn/ui` direction for this phase; do not migrate component library.
