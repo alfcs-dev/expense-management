@@ -15,6 +15,13 @@ export {
   type AccountType,
 } from "./account.js";
 
+// CLABE
+export {
+  clabeSchema,
+  isValidClabe,
+  normalizeClabe,
+} from "./clabe.js";
+
 // Recurring
 export {
   RECURRING_FREQUENCIES,

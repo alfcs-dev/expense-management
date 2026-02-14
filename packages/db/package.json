@@ -18,6 +18,7 @@
     "migrate:deploy": "prisma migrate deploy",
     "seed": "tsx seed.ts",
     "seed:preview": "tsx seed.ts --preview",
+    "sync:institutions": "tsx scripts/sync-institutions.ts",
     "lint": "echo no lint yet",
     "typecheck": "prisma generate && tsc --noEmit"
   },
@@ -28,6 +29,7 @@
     "typescript": "^5.7.0"
   },
   "dependencies": {
-    "@prisma/client": "6.19.2"
+    "@prisma/client": "6.19.2",
+    "better-auth": "^1.4.18"
   }
 }

@@ -30,10 +30,16 @@ docker compose up -d postgres
 # 4. Run migrations (creates DB schema)
 pnpm db:migrate
 
-# 5. (Optional) Preview seed mapping from CSV (no DB writes)
+# 5. Sync institution catalog from Banxico (required for account institution dropdown + CLABE inference)
+pnpm db:sync:institutions
+
+# 6. (Optional) Preview seed mapping from CSV (no DB writes)
 pnpm db:seed:preview
 
-# 6. Start API + web (one terminal)
+# 7. (Optional) Apply seed data and local test credentials
+pnpm db:seed
+
+# 8. Start API + web (one terminal)
 pnpm dev
 ```
 
@@ -72,7 +78,7 @@ After starting the stack, you can confirm everything works:
 1. **DB:** `docker compose ps` shows `postgres` (or `expense-management-db`) running.
 2. **API health:** Open http://localhost:4000/health in a browser or run `curl http://localhost:4000/health` — response should be `{"status":"ok"}`.
 3. **Web + auth:** Open http://localhost:5173, create an account on Home, then open `/dashboard` and confirm it loads as an authenticated page.
-4. **Seed (optional):** After running seed, you can verify data in the DB or via the app when those features exist.
+4. **Seed (optional):** After running seed, sign in with `SEED_USER_EMAIL` / `SEED_USER_PASSWORD` from `.env` to use preloaded data.
 
 If running full Docker stack instead:
 
@@ -99,7 +105,9 @@ If running full Docker stack instead:
 - `SEED_CSV_PATH` (optional legacy alias for budget CSV path)
 - `SEED_USER_EMAIL` (optional)
 - `SEED_USER_NAME` (optional)
+- `SEED_USER_PASSWORD` (optional)
 - `SEED_DEBT_START_DATE` (optional, `YYYY-MM-DD` for seeded installment plan start date)
+- `ALLOW_PROD_SEED` (optional safety override; default `false`)
 
 For local development, you can usually just copy `.env.example` to `.env` without edits.
 
@@ -152,6 +160,7 @@ Keep a single `.env` at the repo root and use **`pnpm db:migrate`** for migratio
 | `pnpm db:migrate` | Run DB migrations (from root; loads root `.env`) |
 | `pnpm db:generate` | Regenerate Prisma client |
 | `pnpm db:studio` | Open Prisma Studio using root `.env` |
+| `pnpm db:sync:institutions` | Sync institution catalog from Banxico into DB |
 | `pnpm db:seed:preview` | Parse CSV and print seed representation only (no DB writes) |
 | `pnpm db:seed` | Apply CSV seed to DB (idempotent reset/recreate for seed user) |
 | `docker compose up -d postgres` | Start Postgres only (for local dev) |

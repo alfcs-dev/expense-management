@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { hashPassword } from "better-auth/crypto";
 import {
   PrismaClient,
   type AccountType,
@@ -83,6 +84,16 @@ const defaultAccountsCsvPath = path.resolve(
   currentDir,
   "../../.planning/docs/Estimated expenses Mexico - Cuentas.csv",
 );
+
+const PLAN_DEFAULT_CATEGORIES = [
+  "Kids",
+  "Subscriptions",
+  "Telecom",
+  "Savings",
+  "Auto",
+  "Home/Zuhause",
+  "Miscellaneous",
+] as const;
 
 function parseArgs() {
   const args = new Set(process.argv.slice(2));
@@ -527,8 +538,15 @@ async function applySeed(
   debtRows: DebtCsvRow[],
   accountRows: AccountCsvRow[],
 ) {
+  if (process.env.NODE_ENV === "production" && process.env.ALLOW_PROD_SEED !== "true") {
+    throw new Error(
+      "Refusing to run seed in production. Set ALLOW_PROD_SEED=true to override explicitly.",
+    );
+  }
+
   const seedUserEmail = process.env.SEED_USER_EMAIL ?? "seed@local.dev";
   const seedUserName = process.env.SEED_USER_NAME ?? "Seed User";
+  const seedUserPassword = process.env.SEED_USER_PASSWORD ?? "SeedPass123!";
 
   const user = await prisma.user.upsert({
     where: { email: seedUserEmail },
@@ -540,6 +558,27 @@ async function applySeed(
     },
   });
 
+  const passwordHash = await hashPassword(seedUserPassword);
+
+  await prisma.authAccount.upsert({
+    where: {
+      providerId_accountId: {
+        providerId: "credential",
+        accountId: user.id,
+      },
+    },
+    update: {
+      userId: user.id,
+      password: passwordHash,
+    },
+    create: {
+      userId: user.id,
+      accountId: user.id,
+      providerId: "credential",
+      password: passwordHash,
+    },
+  });
+
   await prisma.expense.deleteMany({ where: { userId: user.id } });
   await prisma.installmentPlan.deleteMany({ where: { userId: user.id } });
   await prisma.recurringExpense.deleteMany({ where: { userId: user.id } });
@@ -548,8 +587,18 @@ async function applySeed(
   await prisma.budget.deleteMany({ where: { userId: user.id } });
 
   const seedAccounts = buildSeedAccounts(budgetRows, debtRows, accountRows);
+  const debtByCardKey = new Map<string, number>();
+  for (const row of debtRows) {
+    const key = toAccountKey(row.cardName);
+    debtByCardKey.set(
+      key,
+      (debtByCardKey.get(key) ?? 0) + row.remainingAmountCents,
+    );
+  }
   const accountByKey = new Map<string, string>();
   for (const account of seedAccounts) {
+    const accountKey = toAccountKey(account.name);
+    const isCredit = account.type === "credit";
     const created = await prisma.account.create({
       data: {
         userId: user.id,
@@ -559,14 +608,18 @@ async function applySeed(
         clabe: account.clabe,
         institution: account.institution,
         balance: 0,
+        creditLimit: null,
+        currentDebt: isCredit ? debtByCardKey.get(accountKey) ?? 0 : null,
       },
     });
-    accountByKey.set(toAccountKey(account.name), created.id);
+    accountByKey.set(accountKey, created.id);
   }
 
   const categoryByName = new Map<string, string>();
   const recurringCategories = Array.from(new Set(budgetRows.map((row) => row.section)));
-  const allCategories = [...recurringCategories, "Deuda MSI"];
+  const allCategories = Array.from(
+    new Set([...recurringCategories, ...PLAN_DEFAULT_CATEGORIES, "Deuda MSI"]),
+  );
 
   for (const [index, categoryName] of allCategories.entries()) {
     const created = await prisma.category.create({
@@ -639,6 +692,7 @@ async function applySeed(
   return {
     userId: user.id,
     email: user.email,
+    password: seedUserPassword,
     accountsCreated: accountByKey.size,
     categoriesCreated: categoryByName.size,
     recurringExpensesCreated: budgetRows.filter((row) => row.sourceAccountName).length,

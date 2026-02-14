@@ -10,6 +10,7 @@
     "typecheck": "tsc -b --noEmit"
   },
   "dependencies": {
+    "@expense-management/shared": "workspace:*",
     "@expense-management/trpc": "workspace:*",
     "@tanstack/react-query": "^5.60.0",
     "@tanstack/react-router": "^1.96.0",
@@ -19,7 +20,8 @@
     "i18next": "^25.8.6",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-i18next": "^16.5.4"
+    "react-i18next": "^16.5.4",
+    "recharts": "^3.7.0"
   },
   "devDependencies": {
     "@types/react": "^19.0.0",

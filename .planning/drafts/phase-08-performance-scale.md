@@ -56,6 +56,7 @@ Address performance and scale when the dashboard has years of data, thousands of
 - [ ] **Dynamic imports:** Charts, export dialog, heavy modals via React.lazy + Suspense. Apply when bundle analyzer shows large chunks.
 - [ ] **Tree-shaking audit:** Named imports for date-fns, lodash-es, Recharts; avoid barrel exports that prevent tree-shake.
 - [ ] **React Compiler:** When stable, enable for automatic memoization. Apply when released.
+- [ ] **Phase 2 follow-up (build warning):** Address current web build chunk warning (`~900kB` in `dist/assets/index-*.js`) by introducing route-level lazy loading and deferring dashboard/chart code (Recharts) behind dynamic imports; record before/after bundle sizes.
 
 ### 3.4 Initial load (PLAN 8.4)
 

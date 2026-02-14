@@ -173,7 +173,7 @@ Set this up right after API and web exist so you can test as you add code.
 - [x] Docker Compose brings up Postgres, API, Nginx; web build is served and API is reachable.
 - [x] **Local env:** One clear path to start and test everything locally; smoke test (DB, API health, web, login, seed) passes.
 - [x] **Documentation:** A local development guide exists (e.g. `docs/LOCAL_DEVELOPMENT.md` or README section) with prerequisites, clone/install, start commands, useful commands, URLs, and troubleshooting. A new person (or you later) can get the app running by following it.
-- [ ] CI runs on push/PR and passes (lint, typecheck, build).
+- [x] CI runs on push/PR and passes (lint, typecheck, build).
 - [x] All user-facing strings in the web app use i18n keys (English only).
 - [x] Server-side auth boundary is real: tRPC context resolves session/JWT and protected procedures enforce authorization.
 - [x] Shared Prisma client layer exists in `packages/db` and is used by API code.

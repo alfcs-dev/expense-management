@@ -1,7 +1,11 @@
 {
   "nav": {
     "home": "Home",
-    "dashboard": "Dashboard"
+    "dashboard": "Dashboard",
+    "accounts": "Accounts",
+    "categories": "Categories",
+    "expenses": "Expenses",
+    "recurringExpenses": "Recurring"
   },
   "session": {
     "loading": "Session: loading...",
@@ -32,13 +36,180 @@
     "title": "Dashboard",
     "loading": "Loading…",
     "error": "Error: {{message}}",
-    "protectedMessage": "Protected route. Signed in as: {{email}}"
+    "description": "Monthly overview with planned vs actual amounts by category.",
+    "overviewTitle": "Monthly overview",
+    "plannedIncome": "Planned income",
+    "actualIncome": "Actual income",
+    "plannedExpense": "Planned expenses",
+    "actualExpense": "Actual expenses",
+    "budgetVsActualTitle": "Budget vs actual by category",
+    "chartTitle": "Category chart",
+    "chartPlannedMXN": "Planned (MXN)",
+    "chartActualMXN": "Actual (MXN)",
+    "empty": "No data for selected month.",
+    "fields": {
+      "month": "Month",
+      "year": "Year"
+    },
+    "table": {
+      "category": "Category",
+      "plannedMXN": "Planned MXN",
+      "actualMXN": "Actual MXN",
+      "varianceMXN": "Variance MXN",
+      "plannedUSD": "Planned USD",
+      "actualUSD": "Actual USD",
+      "varianceUSD": "Variance USD"
+    }
+  },
+  "accounts": {
+    "title": "Accounts",
+    "description": "Manage your accounts and starting balances.",
+    "loading": "Loading accounts...",
+    "saving": "Saving...",
+    "create": "Create account",
+    "update": "Update account",
+    "cancelEdit": "Cancel edit",
+    "edit": "Edit",
+    "delete": "Delete",
+    "deleteConfirm": "Delete this account?",
+    "error": "Error: {{message}}",
+    "listTitle": "Your accounts",
+    "empty": "No accounts yet.",
+    "balanceLabel": "Balance",
+    "creditLimitLabel": "Credit limit",
+    "currentDebtLabel": "Current debt",
+    "availableCreditLabel": "Available credit",
+    "institutionLabel": "Institution",
+    "clabeLabel": "CLABE",
+    "fields": {
+      "name": "Name",
+      "type": "Type",
+      "currency": "Currency",
+      "balance": "Balance",
+      "creditLimit": "Credit limit",
+      "currentDebt": "Current debt",
+      "institution": "Institution",
+      "clabe": "CLABE"
+    },
+    "placeholders": {
+      "selectType": "Select account type",
+      "selectInstitution": "Select institution"
+    },
+    "hints": {
+      "debitClabe": "Required. Institution is inferred from CLABE.",
+      "creditClabe": "Optional. If valid, institution is inferred and locked."
+    },
+    "errors": {
+      "typeRequired": "Account type is required.",
+      "debitClabeRequired": "Debit accounts require a valid CLABE to infer institution.",
+      "creditInstitutionRequired": "Credit accounts require an institution or a valid CLABE."
+    },
+    "types": {
+      "debit": "Debit",
+      "credit": "Credit",
+      "investment": "Investment",
+      "cash": "Cash"
+    }
+  },
+  "categories": {
+    "title": "Categories",
+    "description": "Manage category names, icons, colors, and order.",
+    "loading": "Loading categories...",
+    "saving": "Saving...",
+    "create": "Create category",
+    "update": "Update category",
+    "cancelEdit": "Cancel edit",
+    "edit": "Edit",
+    "delete": "Delete",
+    "deleteConfirm": "Delete this category?",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
+    "error": "Error: {{message}}",
+    "listTitle": "Your categories",
+    "empty": "No categories yet.",
+    "colorLabel": "Color",
+    "fields": {
+      "name": "Name",
+      "icon": "Icon",
+      "color": "Color"
+    }
+  },
+  "recurringExpenses": {
+    "title": "Recurring expenses",
+    "description": "Manage recurring expense templates for your monthly plan.",
+    "loading": "Loading recurring expenses...",
+    "saving": "Saving...",
+    "create": "Create recurring expense",
+    "update": "Update recurring expense",
+    "cancelEdit": "Cancel edit",
+    "edit": "Edit",
+    "delete": "Delete",
+    "deleteConfirm": "Delete this recurring expense?",
+    "error": "Error: {{message}}",
+    "listTitle": "Your recurring expenses",
+    "empty": "No recurring expenses yet.",
+    "inactive": "Inactive",
+    "fields": {
+      "description": "Description",
+      "category": "Category",
+      "sourceAccount": "Source account",
+      "destAccount": "Destination account",
+      "amount": "Amount",
+      "currency": "Currency",
+      "frequency": "Frequency",
+      "isAnnual": "Annual charge",
+      "annualCost": "Annual cost",
+      "notes": "Notes",
+      "isActive": "Active"
+    },
+    "placeholders": {
+      "selectCategory": "Select category",
+      "selectSourceAccount": "Select source account",
+      "none": "None"
+    },
+    "frequency": {
+      "monthly": "Monthly",
+      "biweekly": "Biweekly",
+      "annual": "Annual",
+      "bimonthly": "Every two months"
+    }
+  },
+  "expenses": {
+    "title": "Expenses",
+    "description": "Log manual expenses for a selected month budget.",
+    "loading": "Loading expense setup...",
+    "loadingList": "Loading expenses...",
+    "saving": "Saving...",
+    "create": "Create expense",
+    "update": "Update expense",
+    "cancelEdit": "Cancel edit",
+    "edit": "Edit",
+    "delete": "Delete",
+    "deleteConfirm": "Delete this expense?",
+    "error": "Error: {{message}}",
+    "listTitle": "Expenses in selected budget",
+    "empty": "No expenses yet.",
+    "fields": {
+      "month": "Month",
+      "year": "Year",
+      "description": "Description",
+      "category": "Category",
+      "account": "Account",
+      "amount": "Amount",
+      "currency": "Currency",
+      "date": "Date"
+    },
+    "placeholders": {
+      "selectCategory": "Select category",
+      "selectAccount": "Select account"
+    }
   },
   "app": {
     "title": "Budget Manager"
   },
   "language": {
     "label": "Language",
-    "en": "English"
+    "en": "English",
+    "es": "Spanish"
   }
 }
