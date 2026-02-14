@@ -1,0 +1,11 @@
+---
+description: Planning and research file locations
+alwaysApply: true
+---
+
+# Planning directory structure
+
+- **All planning** goes into the `.planning` directory.
+- **All research files** go inside `.planning/research/` (a `research` directory inside the planning folder).
+
+When creating or moving planning docs, research, or phase drafts, use this structure. Check planning progress and limitations in `.planning/` before making changes.

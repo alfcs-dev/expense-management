@@ -1,4 +1,4 @@
-# Budget Manager App — Project Plan
+`# Budget Manager App — Project Plan
 
 ## 1. Project Overview
 
@@ -370,7 +370,7 @@ DigitalOcean Droplet (1GB RAM is sufficient, 2GB comfortable)
 5. **Monthly Budgets** — Budget period is monthly (matching how most charges work)
 6. **Currency** — `MXN` and `USD` enum. All amounts as integers (centavos/cents)
 7. **Multi-user ready** — `userId` FK on all entities from day one
-8. **Data source tracking** — `source` + `belvoTransactionId` + `cfdiUuid` on Expense for multi-source reconciliation
+8. **Data source tracking** — `source` + `bankingApiTransactionId` + `cfdiUuid` on Expense for multi-source reconciliation
 9. **Staging pipeline** — `StagedTransaction` table + matching algorithm for deduplication (see [reconciliation doc](docs/DEDUPLICATION_RECONCILIATION.md))
 10. **Auto-categorization** — `CategoryMapping` for learned merchant→category rules
 11. **Shared Objectives** — Cross-budget savings goals between users (see [design doc](docs/SHARED_OBJECTIVES_DESIGN.md))
@@ -398,11 +398,11 @@ ObjectiveContribution   (id, objectiveId, memberId, expenseId?, amount, currency
 
 ── Reconciliation ──
 StagedTransaction       (id, userId, source, externalId, amount, amountPreTax?, taxAmount?, currency, date, description, accountId?, rawData, status, matchedExpenseId?, matchConfidence?, matchReason?)
-CategoryMapping         (id, userId, matchType[rfc|merchant_name|belvo_category], matchValue, categoryId, confidence)
+CategoryMapping         (id, userId, matchType[rfc|merchant_name|banking_api_category], matchValue, categoryId, confidence)
 
 ── Collaboration & Integration ──
 BudgetCollaborator      (id, budgetId, userId, role[owner|editor|viewer])
-BankLink                (id, userId, accountId?, provider[belvo|syncfy], externalLinkId, status, lastSyncAt)
+BankLink                (id, userId, accountId?, provider[banking API vendor, e.g. belvo|syncfy], externalLinkId, status, lastSyncAt)
 ```
 
 ---

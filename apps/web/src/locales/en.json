@@ -1,0 +1,44 @@
+{
+  "nav": {
+    "home": "Home",
+    "dashboard": "Dashboard"
+  },
+  "session": {
+    "loading": "Session: loading...",
+    "signedInAs": "Session: {{email}}",
+    "notSignedIn": "Session: not signed in",
+    "signOut": "Sign out"
+  },
+  "home": {
+    "title": "Budget Manager",
+    "phase": "Phase 1 — foundation",
+    "publicMessage": "Public home. Sign in to open the dashboard.",
+    "checkingSession": "Checking session...",
+    "signedInAs": "Signed in as",
+    "signIn": "Sign in",
+    "signUp": "Sign up",
+    "signingIn": "Signing in...",
+    "creatingAccount": "Creating account...",
+    "createAccount": "Create account",
+    "name": "Name",
+    "email": "Email",
+    "password": "Password",
+    "signInFailed": "Sign-in failed.",
+    "signUpFailed": "Sign-up failed.",
+    "signedInSuccess": "Signed in.",
+    "accountCreatedSuccess": "Account created and signed in."
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "loading": "Loading…",
+    "error": "Error: {{message}}",
+    "protectedMessage": "Protected route. Signed in as: {{email}}"
+  },
+  "app": {
+    "title": "Budget Manager"
+  },
+  "language": {
+    "label": "Language",
+    "en": "English"
+  }
+}

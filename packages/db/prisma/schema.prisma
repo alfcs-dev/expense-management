@@ -1,0 +1,327 @@
+// Phase 1 schema: User + core entities. StagedTransaction, CategoryMapping,
+// SharedObjective, ObjectiveMember, ObjectiveContribution deferred to later phases.
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ─────────────────────────────────────────────────────────────
+enum Currency {
+  MXN
+  USD
+}
+
+enum AccountType {
+  debit
+  credit
+  investment
+  cash
+}
+
+enum ExpenseSource {
+  manual
+  banking_api
+  cfdi
+  csv
+  recurring
+  installment
+  objective
+}
+
+enum RecurringFrequency {
+  monthly
+  biweekly
+  annual
+  bimonthly
+}
+
+enum InstallmentPlanStatus {
+  active
+  completed
+  cancelled
+}
+
+enum BudgetCollaboratorRole {
+  owner
+  editor
+  viewer
+}
+
+enum BankLinkStatus {
+  active
+  inactive
+  error
+}
+
+enum ReconciliationStatus {
+  unmatched
+  partial
+  full
+}
+
+// ─── User (Better Auth–compatible; session/account tables added when integrating) ───
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  emailVerified Boolean  @default(false)
+  name          String?
+  image         String?
+  avatarUrl     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  accounts            Account[]
+  budgets             Budget[]
+  categories          Category[]
+  recurringExpenses   RecurringExpense[]
+  expenses            Expense[]
+  transfers           Transfer[]
+  installmentPlans    InstallmentPlan[]
+  savingsGoals        SavingsGoal[]
+  budgetCollaborators BudgetCollaborator[]
+  bankLinks           BankLink[]
+  authSessions        AuthSession[] @relation("AuthUserSessions")
+  authAccounts        AuthAccount[] @relation("AuthUserAccounts")
+}
+
+model AuthSession {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation("AuthUserSessions", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model AuthAccount {
+  id                    String   @id @default(cuid())
+  userId                String
+  accountId             String
+  providerId            String
+  accessToken           String?
+  refreshToken          String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  idToken               String?
+  password              String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  user User @relation("AuthUserAccounts", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@unique([providerId, accountId])
+}
+
+model AuthVerification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([identifier, value])
+}
+
+// ─── Core ───────────────────────────────────────────────────────────────
+model Account {
+  id           String      @id @default(cuid())
+  userId       String
+  name         String
+  type         AccountType
+  currency     Currency
+  clabe        String?     @unique
+  balance      Int         @default(0) // centavos/cents
+  institution  String?
+  bankLinkId   String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expenses          Expense[]          @relation("ExpenseAccount")
+  recurringExpensesSource RecurringExpense[] @relation("RecurringSourceAccount")
+  recurringExpensesDest   RecurringExpense[] @relation("RecurringDestAccount")
+  transfersFrom     Transfer[]         @relation("TransferSource")
+  transfersTo       Transfer[]         @relation("TransferDest")
+  installmentPlans  InstallmentPlan[]
+  savingsGoals      SavingsGoal[]
+  bankLink          BankLink?     @relation(fields: [bankLinkId], references: [id], onDelete: SetNull)
+}
+
+model Budget {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String?
+  month     Int      // 1-12
+  year      Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user       User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expenses   Expense[]
+  collaborators BudgetCollaborator[]
+
+  @@unique([userId, month, year])
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  icon      String?
+  color     String?
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expenses          Expense[]
+  recurringExpenses RecurringExpense[]
+  installmentPlans  InstallmentPlan[]
+}
+
+// ─── Expense tracking ────────────────────────────────────────────────────
+model RecurringExpense {
+  id               String            @id @default(cuid())
+  userId           String
+  categoryId       String
+  sourceAccountId  String
+  destAccountId    String?
+  description      String
+  amount           Int               // centavos, monthly equivalent
+  currency         Currency
+  frequency        RecurringFrequency
+  isAnnual         Boolean           @default(false)
+  annualCost       Int?              // centavos
+  notes            String?
+  isActive         Boolean           @default(true)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category      Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  sourceAccount Account  @relation("RecurringSourceAccount", fields: [sourceAccountId], references: [id], onDelete: Cascade)
+  destAccount   Account? @relation("RecurringDestAccount", fields: [destAccountId], references: [id], onDelete: SetNull)
+}
+
+model Expense {
+  id                      String              @id @default(cuid())
+  userId                  String
+  budgetId                String
+  categoryId              String
+  accountId               String
+  installmentPlanId       String?
+  objectiveContributionId String?             // FK added in Phase 7 when ObjectiveContribution exists
+  description             String
+  amount                  Int                 // centavos/cents
+  currency                Currency
+  date                    DateTime
+  installmentNumber       Int?
+  source                  ExpenseSource       @default(manual)
+  bankingApiTransactionId String?             @unique
+  cfdiUuid                String?             @unique
+  cfdiData                Json?
+  reconciliationStatus    ReconciliationStatus? @default(unmatched)
+  isVerified              Boolean             @default(false)
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @updatedAt
+
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  budget           Budget           @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  category         Category         @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  account          Account          @relation("ExpenseAccount", fields: [accountId], references: [id], onDelete: Cascade)
+  installmentPlan  InstallmentPlan? @relation(fields: [installmentPlanId], references: [id], onDelete: SetNull)
+}
+
+model InstallmentPlan {
+  id           String                @id @default(cuid())
+  userId       String
+  accountId    String
+  categoryId   String
+  description  String
+  totalAmount  Int                   // centavos
+  currency     Currency
+  months       Int
+  interestRate Float                 @default(0)
+  startDate    DateTime
+  status       InstallmentPlanStatus @default(active)
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account  Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  category Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  expenses Expense[]
+}
+
+model Transfer {
+  id                 String   @id @default(cuid())
+  userId             String
+  sourceAccountId    String
+  destAccountId      String
+  amount             Int      // centavos
+  currency           Currency
+  date               DateTime
+  notes              String?
+  createdAt          DateTime @default(now())
+
+  user          User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourceAccount Account @relation("TransferSource", fields: [sourceAccountId], references: [id], onDelete: Cascade)
+  destAccount   Account @relation("TransferDest", fields: [destAccountId], references: [id], onDelete: Cascade)
+}
+
+// ─── Goals ──────────────────────────────────────────────────────────────
+model SavingsGoal {
+  id               String   @id @default(cuid())
+  userId           String
+  accountId        String
+  name             String
+  targetPercentage Float?
+  targetAmount     Int?     // centavos
+  currency         Currency
+  notes            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+}
+
+// ─── Collaboration & integration ─────────────────────────────────────────
+model BudgetCollaborator {
+  id        String                 @id @default(cuid())
+  budgetId  String
+  userId    String
+  role      BudgetCollaboratorRole
+  createdAt DateTime              @default(now())
+
+  budget Budget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([budgetId, userId])
+}
+
+model BankLink {
+  id              String         @id @default(cuid())
+  userId          String
+  provider        String         // e.g. belvo, syncfy
+  externalLinkId  String
+  status          BankLinkStatus @default(active)
+  lastSyncAt      DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accounts Account[]
+}

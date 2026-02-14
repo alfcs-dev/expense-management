@@ -84,7 +84,7 @@ erDiagram
         string clabe UK "nullable"
         int balance "centavos/cents"
         string institution "nullable — HSBC, Nu, etc."
-        string bankLinkId FK "nullable — Belvo link"
+        string bankLinkId FK "nullable — banking API link"
         datetime createdAt
         datetime updatedAt
     }
@@ -140,8 +140,8 @@ erDiagram
         string currency "MXN | USD"
         datetime date
         int installmentNumber "nullable — e.g. 3 of 12"
-        string source "manual | belvo | cfdi | csv | recurring | installment | objective"
-        string belvoTransactionId UK "nullable — Belvo unique txn ID"
+        string source "manual | banking_api | cfdi | csv | recurring | installment | objective"
+        string bankingApiTransactionId UK "nullable — banking API unique txn ID"
         string cfdiUuid UK "nullable — SAT CFDI UUID"
         json cfdiData "nullable — parsed CFDI: RFC, tax, items"
         string reconciliationStatus "unmatched | partial | full"
@@ -203,7 +203,7 @@ erDiagram
         string id PK
         string userId FK
         string accountId FK "nullable — linked account"
-        string provider "belvo | syncfy"
+        string provider "banking API vendor — e.g. belvo | syncfy"
         string externalLinkId "provider's link ID"
         string status "active | inactive | error"
         datetime lastSyncAt "nullable"
@@ -252,8 +252,8 @@ erDiagram
     STAGED_TRANSACTION {
         string id PK
         string userId FK
-        string source "belvo | cfdi | csv"
-        string externalId "Belvo txn ID or CFDI UUID"
+        string source "banking_api | cfdi | csv"
+        string externalId "banking API txn ID or CFDI UUID"
         int amount "centavos — total incl tax"
         int amountPreTax "nullable — CFDI subtotal"
         int taxAmount "nullable — CFDI IVA/ISR"
@@ -274,7 +274,7 @@ erDiagram
     CATEGORY_MAPPING {
         string id PK
         string userId FK
-        string matchType "rfc | merchant_name | belvo_category"
+        string matchType "rfc | merchant_name | banking_api_category"
         string matchValue "the RFC or merchant name"
         string categoryId FK
         float confidence "1.0 = user-set"
@@ -402,7 +402,7 @@ The `source` field on `Expense` tracks how each expense was **originally created
 | Source | Meaning |
 |---|---|
 | `manual` | User entered it by hand |
-| `belvo` | Auto-created from Belvo bank transaction sync |
+| `banking_api` | Auto-created from banking API (e.g. Belvo) transaction sync |
 | `cfdi` | Auto-created from SAT CFDI (invoice) |
 | `csv` | Auto-created from uploaded CSV/OFX file |
 | `recurring` | Auto-generated from a RecurringExpense template |
@@ -410,18 +410,18 @@ The `source` field on `Expense` tracks how each expense was **originally created
 | `objective` | Auto-generated from an ObjectiveContribution |
 
 An expense can be **verified by multiple sources**. The dedicated fields
-`belvoTransactionId` and `cfdiUuid` track which external sources have confirmed
+`bankingApiTransactionId` and `cfdiUuid` track which external sources have confirmed
 the expense, independent of how it was originally created.
 
 | Field | Purpose |
 |---|---|
-| `belvoTransactionId` | Belvo's unique transaction ID — confirms the bank saw this charge |
+| `bankingApiTransactionId` | Banking API unique transaction ID — confirms the bank saw this charge |
 | `cfdiUuid` | SAT CFDI UUID — confirms the tax authority has an invoice for this |
 | `cfdiData` | Parsed CFDI details (RFC, tax breakdown, line items) |
 | `reconciliationStatus` | `unmatched` (1 source), `partial` (2 sources), `full` (3 sources) |
 | `isVerified` | `true` when 2+ independent sources confirm the expense |
 
-External data (Belvo webhooks, CFDI sync, CSV uploads) flows through the
+External data (banking API webhooks, CFDI sync, CSV uploads) flows through the
 `StagedTransaction` table first, where the reconciliation engine matches it
 against existing expenses before deciding to enrich or create new records.
 
