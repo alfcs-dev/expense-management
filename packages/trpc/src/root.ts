@@ -4,6 +4,7 @@ import { budgetRouter } from "./routers/budget.js";
 import { categoryRouter } from "./routers/category.js";
 import { expenseRouter } from "./routers/expense.js";
 import { installmentPlanRouter } from "./routers/installment-plan.js";
+import { importRouter } from "./routers/import.js";
 import { recurringExpenseRouter } from "./routers/recurring-expense.js";
 import { reportRouter } from "./routers/report.js";
 import { savingsGoalRouter } from "./routers/savings-goal.js";
@@ -18,6 +19,7 @@ export const appRouter = router({
   budget: budgetRouter,
   expense: expenseRouter,
   installmentPlan: installmentPlanRouter,
+  import: importRouter,
   transfer: transferRouter,
   savingsGoal: savingsGoalRouter,
   report: reportRouter,

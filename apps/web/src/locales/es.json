@@ -9,6 +9,7 @@
     "transfers": "Transferencias",
     "savingsGoals": "Metas de ahorro",
     "reports": "Reportes",
+    "imports": "Importar",
     "recurringExpenses": "Recurrentes"
   },
   "session": {
@@ -318,6 +319,31 @@
       "fromYear": "Año inicial",
       "toMonth": "Mes final",
       "toYear": "Año final"
+    }
+  },
+  "imports": {
+    "title": "Importar transacciones",
+    "description": "Sube contenido CSV/OFX, previsualiza filas parseadas e impórtalas a gastos.",
+    "loading": "Cargando herramientas de importación...",
+    "previewLoading": "Parseando previsualización...",
+    "applying": "Importando...",
+    "apply": "Aplicar importación",
+    "previewTitle": "Previsualización",
+    "empty": "Pega contenido o sube un archivo para previsualizar.",
+    "previewEmpty": "No se parsearon filas válidas.",
+    "error": "Error: {{message}}",
+    "result": "Parseadas: {{parsed}} filas, creadas: {{created}} gastos.",
+    "fields": {
+      "format": "Formato",
+      "file": "Archivo",
+      "rawContent": "Contenido",
+      "account": "Cuenta",
+      "category": "Categoría",
+      "currency": "Moneda"
+    },
+    "placeholders": {
+      "selectAccount": "Selecciona cuenta",
+      "selectCategory": "Selecciona categoría"
     }
   },
   "app": {

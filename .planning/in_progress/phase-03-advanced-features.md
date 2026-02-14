@@ -68,9 +68,9 @@
 
 ### 3.6 Data import — CSV/OFX
 
-- [ ] Upload endpoint or tRPC procedure: accept file (CSV or OFX), parse transactions (date, amount, description, account hint).
-- [ ] Map to StagedTransaction or directly to Expense with source = 'csv'/'ofx'. If using staging, keep Phase 6 design in mind; for Phase 3, simple direct import may be enough (document that Phase 6 will add deduplication).
-- [ ] Web: upload UI, preview parsed rows, map columns to account/category, confirm import.
+- [x] Upload endpoint or tRPC procedure: accept file (CSV or OFX), parse transactions (date, amount, description, account hint).
+- [x] Map to StagedTransaction or directly to Expense with source = 'csv'/'ofx'. If using staging, keep Phase 6 design in mind; for Phase 3, simple direct import may be enough (document that Phase 6 will add deduplication).
+- [x] Web: upload UI, preview parsed rows, map columns to account/category, confirm import.
 
 ### 3.7 Data import — CFDI XML
 
@@ -188,6 +188,12 @@
   - Added `/reports` route with range selectors and Recharts visuals (monthly bar chart, category pie chart) plus annual summary blocks.
   - Navigation and i18n resources updated in EN/ES.
   - Validation complete: `pnpm lint` and `pnpm typecheck` pass.
+- 3.6 CSV/OFX import implemented on 2026-02-14:
+  - tRPC `import` router added with `previewTransactions` and `applyTransactions` for CSV/OFX payloads.
+  - Added parsers for CSV headers and basic OFX `<STMTTRN>` blocks (`DTPOSTED`, `TRNAMT`, `NAME`/`MEMO`).
+  - Added `/imports` route with file/text input, parsed preview, account/category mapping, and import apply action.
+  - Imports create budget-linked expenses for each transaction date.
+  - Validation complete: `pnpm lint` and `pnpm typecheck` pass.
 
 **Decisions:**
 - Start with 3.1 Installment plans (MSI) to unlock auto-generated future expenses early.
@@ -198,6 +204,7 @@
 - 2026-02-14: savings-goal progress uses linked account balance as the first implementation source (no separate contribution ledger yet) to avoid introducing additional schema complexity in this phase.
 - 2026-02-14: annual-proration display is surfaced in recurring-template UI while keeping canonical proration logic in budget aggregation APIs to avoid duplicated business logic.
 - 2026-02-14: kept reports aggregation in API (grouping/normalization server-side) while rendering charts client-side for faster iteration and clearer separation of concerns.
+- 2026-02-14: kept schema unchanged for OFX source in Phase 3 (using `Expense.source=csv` for OFX imports and `[OFX]` description prefix) to avoid a migration mid-phase; alternative is adding `ExpenseSource.ofx` in a later schema revision.
 
 **Roadblocks:**
 - None yet.

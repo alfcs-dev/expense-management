@@ -9,6 +9,7 @@
     "transfers": "Transfers",
     "savingsGoals": "Savings goals",
     "reports": "Reports",
+    "imports": "Imports",
     "recurringExpenses": "Recurring"
   },
   "session": {
@@ -318,6 +319,31 @@
       "fromYear": "From year",
       "toMonth": "To month",
       "toYear": "To year"
+    }
+  },
+  "imports": {
+    "title": "Import transactions",
+    "description": "Upload CSV/OFX content, preview parsed rows, and import into expenses.",
+    "loading": "Loading import tools...",
+    "previewLoading": "Parsing preview...",
+    "applying": "Importing...",
+    "apply": "Apply import",
+    "previewTitle": "Preview",
+    "empty": "Paste content or upload a file to preview.",
+    "previewEmpty": "No valid rows parsed.",
+    "error": "Error: {{message}}",
+    "result": "Parsed: {{parsed}} rows, created: {{created}} expenses.",
+    "fields": {
+      "format": "Format",
+      "file": "File",
+      "rawContent": "Raw content",
+      "account": "Account",
+      "category": "Category",
+      "currency": "Currency"
+    },
+    "placeholders": {
+      "selectAccount": "Select account",
+      "selectCategory": "Select category"
     }
   },
   "app": {
