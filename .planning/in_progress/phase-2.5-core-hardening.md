@@ -39,6 +39,7 @@ This phase also introduces direct API testing assets and a minimal automated API
 - Postman-first direct API testing support.
 - Basic automated API smoke tests for core lifecycle.
 - Core UI consistency pass and deployment gate checklist.
+- Tailwind + shadcn-style design foundation from the start (not deferred).
 
 ### Out of scope (deferred)
 - Installments (MSI).
@@ -60,6 +61,16 @@ This phase also introduces direct API testing assets and a minimal automated API
 ---
 
 ## 4. Delivery Plan (Vertical Slices)
+
+### Slice 0 — UI Design Foundation
+
+- [x] Tailwind setup in `apps/web` (PostCSS + global styles + config).
+- [x] Shared UI primitives added (`Button`, `Input`, `Label`, `Card`, `Select`, `Textarea`, `Alert`).
+- [x] Shared page/layout primitives added for route-level consistency.
+- [x] Route shell/navigation restyled to establish baseline visual language.
+
+**Slice 0 done when**
+- Core routes can reuse a consistent styled system and do not rely on default browser styling.
 
 ### Slice A — Budget Visibility + Core Flow Completion
 
@@ -106,20 +117,20 @@ This phase also introduces direct API testing assets and a minimal automated API
 
 ### Slice D — Core UI Quality Pass
 
-- [ ] Core routes quality pass:
-  - [ ] `/accounts`
-  - [ ] `/categories`
-  - [ ] `/budgets`
-  - [ ] `/recurring-expenses`
-  - [ ] `/expenses`
-  - [ ] `/dashboard`
-- [ ] For each route ensure:
-  - [ ] loading/empty/error/success states
-  - [ ] consistent spacing/labels/form affordances
-  - [ ] locale-consistent money/date formatting
-  - [ ] mobile baseline usability
-- [ ] Add checklist doc:
-  - [ ] `docs/UI_ACCEPTANCE_CHECKLIST.md`
+- [x] Core routes quality pass:
+  - [x] `/accounts`
+  - [x] `/categories`
+  - [x] `/budgets`
+  - [x] `/recurring-expenses`
+  - [x] `/expenses`
+  - [x] `/dashboard`
+- [x] For each route ensure:
+  - [x] loading/empty/error/success states
+  - [x] consistent spacing/labels/form affordances
+  - [x] locale-consistent money/date formatting
+  - [x] mobile baseline usability
+- [x] Add checklist doc:
+  - [x] `docs/UI_ACCEPTANCE_CHECKLIST.md`
 
 **Slice D done when**
 - Core route checklist is complete and QAable by any developer.
@@ -206,11 +217,20 @@ Each reintroduced feature must ship as vertical slice with:
   - Added `pnpm test:api` root script and API package test script.
   - Updated CI workflow with `api_smoke` job backed by Postgres service and migration deploy step.
   - Validation complete: `pnpm test:api`, `pnpm lint`, `pnpm typecheck`, and `pnpm build` pass.
+- 2026-02-14: Slice 0 completed on branch `phase-2.5-core-hardening`.
+  - Added Tailwind tooling and global style foundation in `apps/web`.
+  - Added reusable UI primitives and layout wrappers for consistent page composition.
+  - Restyled root shell/navigation/session controls to match new baseline.
+- 2026-02-14: Slice D completed on branch `phase-2.5-core-hardening`.
+  - Applied shared styling baseline across `/accounts`, `/categories`, `/budgets`, `/recurring-expenses`, `/expenses`, `/dashboard`, and `/` (auth entry).
+  - Standardized state presentation (loading/error/empty) and action button hierarchy.
+  - Added route QA checklist in `docs/UI_ACCEPTANCE_CHECKLIST.md`.
 
 **Decisions**
 - 2026-02-14: Keep `shadcn/ui` direction for this phase; do not migrate component library.
 - 2026-02-14: Postman-first API testing selected over Swagger-first for immediate execution speed.
 - 2026-02-14: Vertical-slice delivery selected over backend-first or dual-track mock divergence.
+- 2026-02-14: UI styling quality is an equal priority with backend functionality in Phase 2.5.
 
 **Roadblocks**
 - None yet.

@@ -5,6 +5,9 @@ import { useTranslation } from "react-i18next";
 import { rootRoute } from "./__root";
 import { formatCurrencyByLanguage } from "../utils/locale";
 import { trpc } from "../utils/trpc";
+import { PageShell, PageHeader, Section } from "../components/layout/page";
+import { Alert } from "../components/ui/alert";
+import { Button } from "../components/ui/button";
 
 type RecurringExpenseFormValues = {
   categoryId: string;
@@ -176,7 +179,7 @@ function RecurringExpensesPage() {
   };
 
   if (recurringQuery.isLoading || accountsQuery.isLoading || categoriesQuery.isLoading) {
-    return <p>{t("recurringExpenses.loading")}</p>;
+    return <PageShell><p className="empty-text">{t("recurringExpenses.loading")}</p></PageShell>;
   }
 
   if (recurringQuery.error?.data?.code === "UNAUTHORIZED") return null;
@@ -184,11 +187,10 @@ function RecurringExpensesPage() {
   if (categoriesQuery.error?.data?.code === "UNAUTHORIZED") return null;
 
   return (
-    <div>
-      <h1>{t("recurringExpenses.title")}</h1>
-      <p>{t("recurringExpenses.description")}</p>
-
-      <form onSubmit={onSubmit}>
+    <PageShell>
+      <PageHeader title={t("recurringExpenses.title")} description={t("recurringExpenses.description")} />
+      <Section>
+      <form className="section-stack" onSubmit={onSubmit}>
         <p>
           <label>
             {t("recurringExpenses.fields.description")}{" "}
@@ -373,29 +375,31 @@ function RecurringExpensesPage() {
           </label>
         </p>
 
-        <p>
-          <button type="submit" disabled={isSubmitting}>
+        <div className="form-actions">
+          <Button type="submit" disabled={isSubmitting}>
             {submitLabel}
-          </button>{" "}
+          </Button>{" "}
           {editingId ? (
-            <button type="button" onClick={onCancelEdit}>
+            <Button type="button" variant="secondary" onClick={onCancelEdit}>
               {t("recurringExpenses.cancelEdit")}
-            </button>
+            </Button>
           ) : null}
-        </p>
+        </div>
       </form>
+      </Section>
 
       {activeError ? (
-        <p>{t("recurringExpenses.error", { message: activeError.message })}</p>
+        <Alert className="border-red-200 bg-red-50 text-red-700">{t("recurringExpenses.error", { message: activeError.message })}</Alert>
       ) : null}
 
+      <Section>
       <h2>{t("recurringExpenses.listTitle")}</h2>
       {!recurringQuery.data?.length ? (
-        <p>{t("recurringExpenses.empty")}</p>
+        <p className="empty-text">{t("recurringExpenses.empty")}</p>
       ) : (
-        <ul>
+        <ul className="space-y-2">
           {recurringQuery.data.map((item) => (
-            <li key={item.id}>
+            <li key={item.id} className="rounded-md border border-slate-200 bg-slate-50 p-3">
               <strong>{item.description}</strong> -{" "}
               {formatCurrencyByLanguage(
                 item.amount,
@@ -405,16 +409,17 @@ function RecurringExpensesPage() {
               {item.category.name} -{" "}
               {t(`recurringExpenses.frequency.${item.frequency}`)}{" "}
               {!item.isActive ? `(${t("recurringExpenses.inactive")})` : ""}{" "}
-              <button type="button" onClick={() => onEdit(item)}>
+              <Button size="sm" type="button" variant="secondary" onClick={() => onEdit(item)}>
                 {t("recurringExpenses.edit")}
-              </button>{" "}
-              <button type="button" onClick={() => onDelete(item.id)}>
+              </Button>{" "}
+              <Button size="sm" type="button" variant="danger" onClick={() => onDelete(item.id)}>
                 {t("recurringExpenses.delete")}
-              </button>
+              </Button>
             </li>
           ))}
         </ul>
       )}
-    </div>
+      </Section>
+    </PageShell>
   );
 }

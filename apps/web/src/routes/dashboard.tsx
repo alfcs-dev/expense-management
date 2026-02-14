@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { rootRoute } from "./__root";
 import { formatCurrencyByLanguage } from "../utils/locale";
 import { trpc } from "../utils/trpc";
+import { PageShell, PageHeader, Section } from "../components/layout/page";
 
 type DashboardCategoryRow = {
   categoryId: string;
@@ -158,16 +159,16 @@ function DashboardPage() {
     [rows],
   );
 
-  if (isLoading) return <p>{t("dashboard.loading")}</p>;
+  if (isLoading) return <PageShell><p className="empty-text">{t("dashboard.loading")}</p></PageShell>;
   if (activeError?.data?.code === "UNAUTHORIZED") return null;
-  if (activeError) return <p>{t("dashboard.error", { message: activeError.message })}</p>;
+  if (activeError) return <PageShell><p className="error-text">{t("dashboard.error", { message: activeError.message })}</p></PageShell>;
 
   return (
-    <div>
-      <h1>{t("dashboard.title")}</h1>
-      <p>{t("dashboard.description")}</p>
+    <PageShell>
+      <PageHeader title={t("dashboard.title")} description={t("dashboard.description")} />
 
-      <p>
+      <Section>
+      <div className="inline-row">
         <label>
           {t("dashboard.fields.month")}{" "}
           <input
@@ -188,8 +189,10 @@ function DashboardPage() {
             onChange={(event) => setYear(Number(event.target.value))}
           />
         </label>
-      </p>
+      </div>
+      </Section>
 
+      <Section>
       <h2>{t("dashboard.overviewTitle")}</h2>
       <ul>
         <li>
@@ -221,10 +224,12 @@ function DashboardPage() {
           {formatCurrencyByLanguage(totals.actualExpense.USD, "USD", i18n.language)}
         </li>
       </ul>
+      </Section>
 
+      <Section>
       <h2>{t("dashboard.chartTitle")}</h2>
       {!chartData.length ? (
-        <p>{t("dashboard.empty")}</p>
+        <p className="empty-text">{t("dashboard.empty")}</p>
       ) : (
         <div style={{ width: "100%", height: 320 }}>
           <ResponsiveContainer>
@@ -240,38 +245,43 @@ function DashboardPage() {
           </ResponsiveContainer>
         </div>
       )}
+      </Section>
 
+      <Section>
       <h2>{t("dashboard.budgetVsActualTitle")}</h2>
       {!rows.length ? (
-        <p>{t("dashboard.empty")}</p>
+        <p className="empty-text">{t("dashboard.empty")}</p>
       ) : (
-        <table>
+        <div className="overflow-x-auto">
+        <table className="min-w-full border-collapse text-sm">
           <thead>
             <tr>
-              <th>{t("dashboard.table.category")}</th>
-              <th>{t("dashboard.table.plannedMXN")}</th>
-              <th>{t("dashboard.table.actualMXN")}</th>
-              <th>{t("dashboard.table.varianceMXN")}</th>
-              <th>{t("dashboard.table.plannedUSD")}</th>
-              <th>{t("dashboard.table.actualUSD")}</th>
-              <th>{t("dashboard.table.varianceUSD")}</th>
+              <th className="border-b px-3 py-2 text-left">{t("dashboard.table.category")}</th>
+              <th className="border-b px-3 py-2 text-left">{t("dashboard.table.plannedMXN")}</th>
+              <th className="border-b px-3 py-2 text-left">{t("dashboard.table.actualMXN")}</th>
+              <th className="border-b px-3 py-2 text-left">{t("dashboard.table.varianceMXN")}</th>
+              <th className="border-b px-3 py-2 text-left">{t("dashboard.table.plannedUSD")}</th>
+              <th className="border-b px-3 py-2 text-left">{t("dashboard.table.actualUSD")}</th>
+              <th className="border-b px-3 py-2 text-left">{t("dashboard.table.varianceUSD")}</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((row) => (
               <tr key={row.categoryId}>
-                <td>{row.categoryName}</td>
-                <td>{formatCurrencyByLanguage(row.planned.MXN, "MXN", i18n.language)}</td>
-                <td>{formatCurrencyByLanguage(row.actual.MXN, "MXN", i18n.language)}</td>
-                <td>{formatCurrencyByLanguage(row.variance.MXN, "MXN", i18n.language)}</td>
-                <td>{formatCurrencyByLanguage(row.planned.USD, "USD", i18n.language)}</td>
-                <td>{formatCurrencyByLanguage(row.actual.USD, "USD", i18n.language)}</td>
-                <td>{formatCurrencyByLanguage(row.variance.USD, "USD", i18n.language)}</td>
+                <td className="border-b px-3 py-2">{row.categoryName}</td>
+                <td className="border-b px-3 py-2">{formatCurrencyByLanguage(row.planned.MXN, "MXN", i18n.language)}</td>
+                <td className="border-b px-3 py-2">{formatCurrencyByLanguage(row.actual.MXN, "MXN", i18n.language)}</td>
+                <td className="border-b px-3 py-2">{formatCurrencyByLanguage(row.variance.MXN, "MXN", i18n.language)}</td>
+                <td className="border-b px-3 py-2">{formatCurrencyByLanguage(row.planned.USD, "USD", i18n.language)}</td>
+                <td className="border-b px-3 py-2">{formatCurrencyByLanguage(row.actual.USD, "USD", i18n.language)}</td>
+                <td className="border-b px-3 py-2">{formatCurrencyByLanguage(row.variance.USD, "USD", i18n.language)}</td>
               </tr>
             ))}
           </tbody>
         </table>
+        </div>
       )}
-    </div>
+      </Section>
+    </PageShell>
   );
 }

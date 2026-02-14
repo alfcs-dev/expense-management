@@ -3,6 +3,9 @@ import { createRoute, useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { rootRoute } from "./__root";
 import { trpc } from "../utils/trpc";
+import { PageShell, PageHeader, Section } from "../components/layout/page";
+import { Alert } from "../components/ui/alert";
+import { Button } from "../components/ui/button";
 
 type CategoryFormValues = {
   name: string;
@@ -145,15 +148,15 @@ function CategoriesPage() {
     });
   };
 
-  if (listQuery.isLoading) return <p>{t("categories.loading")}</p>;
+  if (listQuery.isLoading) return <PageShell><p className="empty-text">{t("categories.loading")}</p></PageShell>;
   if (listQuery.error?.data?.code === "UNAUTHORIZED") return null;
 
   return (
-    <div>
-      <h1>{t("categories.title")}</h1>
-      <p>{t("categories.description")}</p>
+    <PageShell>
+      <PageHeader title={t("categories.title")} description={t("categories.description")} />
 
-      <form onSubmit={onSubmit}>
+      <Section>
+      <form className="section-stack" onSubmit={onSubmit}>
         <p>
           <label>
             {t("categories.fields.name")} {" "}
@@ -195,29 +198,31 @@ function CategoriesPage() {
           </label>
         </p>
 
-        <p>
-          <button type="submit" disabled={isSubmitting}>
+        <div className="form-actions">
+          <Button type="submit" disabled={isSubmitting}>
             {submitLabel}
-          </button>{" "}
+          </Button>
           {editingId ? (
-            <button type="button" onClick={onCancelEdit}>
+            <Button type="button" variant="secondary" onClick={onCancelEdit}>
               {t("categories.cancelEdit")}
-            </button>
+            </Button>
           ) : null}
-        </p>
+        </div>
       </form>
+      </Section>
 
       {activeError ? (
-        <p>{t("categories.error", { message: activeError.message })}</p>
+        <Alert className="border-red-200 bg-red-50 text-red-700">{t("categories.error", { message: activeError.message })}</Alert>
       ) : null}
 
+      <Section>
       <h2>{t("categories.listTitle")}</h2>
       {!listQuery.data?.length ? (
-        <p>{t("categories.empty")}</p>
+        <p className="empty-text">{t("categories.empty")}</p>
       ) : (
-        <ul>
+        <ul className="space-y-2">
           {listQuery.data.map((category, index) => (
-            <li key={category.id}>
+            <li key={category.id} className="rounded-md border border-slate-200 bg-slate-50 p-3">
               <strong>{category.name}</strong>{" "}
               {category.icon ? <span>{category.icon}</span> : null}{" "}
               {category.color ? (
@@ -225,32 +230,37 @@ function CategoriesPage() {
                   {t("categories.colorLabel")}: {category.color}
                 </span>
               ) : null}{" "}
-              <button
+              <Button
                 type="button"
+                size="sm"
+                variant="secondary"
                 onClick={() => onMove(category.id, "up")}
                 disabled={index === 0 || reorderMutation.isPending}
               >
                 {t("categories.moveUp")}
-              </button>{" "}
-              <button
+              </Button>{" "}
+              <Button
                 type="button"
+                size="sm"
+                variant="secondary"
                 onClick={() => onMove(category.id, "down")}
                 disabled={
                   index === (listQuery.data?.length ?? 1) - 1 || reorderMutation.isPending
                 }
               >
                 {t("categories.moveDown")}
-              </button>{" "}
-              <button type="button" onClick={() => onEdit(category)}>
+              </Button>{" "}
+              <Button size="sm" type="button" variant="secondary" onClick={() => onEdit(category)}>
                 {t("categories.edit")}
-              </button>{" "}
-              <button type="button" onClick={() => onDelete(category.id)}>
+              </Button>{" "}
+              <Button size="sm" type="button" variant="danger" onClick={() => onDelete(category.id)}>
                 {t("categories.delete")}
-              </button>
+              </Button>
             </li>
           ))}
         </ul>
       )}
-    </div>
+      </Section>
+    </PageShell>
   );
 }

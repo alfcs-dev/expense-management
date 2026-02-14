@@ -5,6 +5,9 @@ import { isValidClabe, normalizeClabe } from "@expense-management/shared";
 import { rootRoute } from "./__root";
 import { formatCurrencyByLanguage } from "../utils/locale";
 import { trpc } from "../utils/trpc";
+import { PageShell, PageHeader, Section } from "../components/layout/page";
+import { Alert } from "../components/ui/alert";
+import { Button } from "../components/ui/button";
 
 const ACCOUNT_TYPES = ["debit", "credit", "investment", "cash"] as const;
 const CURRENCIES = ["MXN", "USD"] as const;
@@ -268,18 +271,17 @@ function AccountsPage() {
   };
 
   if (listQuery.isLoading || institutionsQuery.isLoading) {
-    return <p>{t("accounts.loading")}</p>;
+    return <PageShell><p className="empty-text">{t("accounts.loading")}</p></PageShell>;
   }
 
   if (listQuery.error?.data?.code === "UNAUTHORIZED") return null;
   if (institutionsQuery.error?.data?.code === "UNAUTHORIZED") return null;
 
   return (
-    <div>
-      <h1>{t("accounts.title")}</h1>
-      <p>{t("accounts.description")}</p>
-
-      <form onSubmit={onSubmit}>
+    <PageShell>
+      <PageHeader title={t("accounts.title")} description={t("accounts.description")} />
+      <Section>
+      <form className="section-stack" onSubmit={onSubmit}>
         <p>
           <label>
             {t("accounts.fields.name")} {" "}
@@ -449,27 +451,29 @@ function AccountsPage() {
           </label>
         </p>
 
-        <p>
-          <button type="submit" disabled={isSubmitting}>
+        <div className="form-actions">
+          <Button type="submit" disabled={isSubmitting}>
             {submitLabel}
-          </button>{" "}
+          </Button>{" "}
           {editingId ? (
-            <button type="button" onClick={onCancelEdit}>
+            <Button type="button" variant="secondary" onClick={onCancelEdit}>
               {t("accounts.cancelEdit")}
-            </button>
+            </Button>
           ) : null}
-        </p>
+        </div>
       </form>
+      </Section>
 
-      {activeError ? <p>{t("accounts.error", { message: activeError })}</p> : null}
+      {activeError ? <Alert className="border-red-200 bg-red-50 text-red-700">{t("accounts.error", { message: activeError })}</Alert> : null}
 
+      <Section>
       <h2>{t("accounts.listTitle")}</h2>
       {!listQuery.data?.length ? (
-        <p>{t("accounts.empty")}</p>
+        <p className="empty-text">{t("accounts.empty")}</p>
       ) : (
-        <ul>
+        <ul className="space-y-2">
           {listQuery.data.map((account) => (
-            <li key={account.id}>
+            <li key={account.id} className="rounded-md border border-slate-200 bg-slate-50 p-3">
               <strong>{account.name}</strong>{" "}
               <span>
                 ({t(`accounts.types.${account.type}`)} | {account.currency})
@@ -521,16 +525,17 @@ function AccountsPage() {
                   {t("accounts.clabeLabel")}: {account.clabe}
                 </span>
               ) : null}{" "}
-              <button type="button" onClick={() => onEdit(account)}>
+              <Button size="sm" type="button" variant="secondary" onClick={() => onEdit(account)}>
                 {t("accounts.edit")}
-              </button>{" "}
-              <button type="button" onClick={() => onDelete(account.id)}>
+              </Button>{" "}
+              <Button size="sm" type="button" variant="danger" onClick={() => onDelete(account.id)}>
                 {t("accounts.delete")}
-              </button>
+              </Button>
             </li>
           ))}
         </ul>
       )}
-    </div>
+      </Section>
+    </PageShell>
   );
 }

@@ -4,6 +4,9 @@ import { useTranslation } from "react-i18next";
 import { rootRoute } from "./__root";
 import { formatCurrencyByLanguage, formatDateByLanguage } from "../utils/locale";
 import { trpc } from "../utils/trpc";
+import { PageShell, PageHeader, Section } from "../components/layout/page";
+import { Alert } from "../components/ui/alert";
+import { Button } from "../components/ui/button";
 
 type ExpenseFormValues = {
   categoryId: string;
@@ -208,7 +211,7 @@ function ExpensesPage() {
   };
 
   if (budgetQuery.isLoading || accountsQuery.isLoading || categoriesQuery.isLoading) {
-    return <p>{t("expenses.loading")}</p>;
+    return <PageShell><p className="empty-text">{t("expenses.loading")}</p></PageShell>;
   }
 
   if (accountsQuery.error?.data?.code === "UNAUTHORIZED") return null;
@@ -218,11 +221,11 @@ function ExpensesPage() {
   const expenses = (expenseListQuery.data ?? []) as ExpenseListItem[];
 
   return (
-    <div>
-      <h1>{t("expenses.title")}</h1>
-      <p>{t("expenses.description")}</p>
+    <PageShell>
+      <PageHeader title={t("expenses.title")} description={t("expenses.description")} />
 
-      <p>
+      <Section>
+      <div className="inline-row">
         <label>
           {t("expenses.fields.month")}{" "}
           <input
@@ -243,9 +246,9 @@ function ExpensesPage() {
             onChange={(event) => setSelectedYear(Number(event.target.value))}
           />
         </label>
-      </p>
+      </div>
 
-      <form onSubmit={onSubmit}>
+      <form className="section-stack" onSubmit={onSubmit}>
         <p>
           <label>
             {t("expenses.fields.description")}{" "}
@@ -348,29 +351,31 @@ function ExpensesPage() {
           </label>
         </p>
 
-        <p>
-          <button type="submit" disabled={isSubmitting}>
+        <div className="form-actions">
+          <Button type="submit" disabled={isSubmitting}>
             {submitLabel}
-          </button>{" "}
+          </Button>{" "}
           {editingId ? (
-            <button type="button" onClick={onCancelEdit}>
+            <Button type="button" variant="secondary" onClick={onCancelEdit}>
               {t("expenses.cancelEdit")}
-            </button>
+            </Button>
           ) : null}
-        </p>
+        </div>
       </form>
+      </Section>
 
-      {activeError ? <p>{t("expenses.error", { message: activeError.message })}</p> : null}
+      {activeError ? <Alert className="border-red-200 bg-red-50 text-red-700">{t("expenses.error", { message: activeError.message })}</Alert> : null}
 
+      <Section>
       <h2>{t("expenses.listTitle")}</h2>
       {expenseListQuery.isLoading ? (
-        <p>{t("expenses.loadingList")}</p>
+        <p className="empty-text">{t("expenses.loadingList")}</p>
       ) : expenses.length === 0 ? (
-        <p>{t("expenses.empty")}</p>
+        <p className="empty-text">{t("expenses.empty")}</p>
       ) : (
-        <ul>
+        <ul className="space-y-2">
           {expenses.map((expense) => (
-            <li key={expense.id}>
+            <li key={expense.id} className="rounded-md border border-slate-200 bg-slate-50 p-3">
               <strong>{expense.description}</strong> -{" "}
               {formatCurrencyByLanguage(
                 expense.amount,
@@ -379,16 +384,17 @@ function ExpensesPage() {
               )} -{" "}
               {expense.category.name} - {expense.account.name} -{" "}
               {formatDateByLanguage(expense.date, i18n.language)}{" "}
-              <button type="button" onClick={() => onEdit(expense)}>
+              <Button size="sm" type="button" variant="secondary" onClick={() => onEdit(expense)}>
                 {t("expenses.edit")}
-              </button>{" "}
-              <button type="button" onClick={() => onDelete(expense.id)}>
+              </Button>{" "}
+              <Button size="sm" type="button" variant="danger" onClick={() => onDelete(expense.id)}>
                 {t("expenses.delete")}
-              </button>
+              </Button>
             </li>
           ))}
         </ul>
       )}
-    </div>
+      </Section>
+    </PageShell>
   );
 }

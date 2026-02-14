@@ -3,6 +3,8 @@ import { createRoute } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { rootRoute } from "./__root";
 import { authClient } from "../utils/auth-client";
+import { PageShell, PageHeader, Section } from "../components/layout/page";
+import { Button } from "../components/ui/button";
 
 export const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -69,27 +71,26 @@ function HomePage() {
   };
 
   return (
-    <div>
-      <h1>{t("home.title")}</h1>
-      <p>{t("home.phase")}</p>
-      <p>{t("home.publicMessage")}</p>
+    <PageShell>
+      <PageHeader title={t("home.title")} description={t("home.publicMessage")} />
+      <p className="muted">{t("home.phase")}</p>
 
-      {isPending ? <p>{t("home.checkingSession")}</p> : null}
+      <Section>
+      {isPending ? <p className="empty-text">{t("home.checkingSession")}</p> : null}
       {session ? (
         <p>
           {t("home.signedInAs")} <strong>{session.user.email}</strong>.
         </p>
       ) : (
-        <form onSubmit={handleSubmit}>
-          <p>
-            <button type="button" onClick={() => setMode("signin")}>
+        <form className="section-stack" onSubmit={handleSubmit}>
+          <div className="inline-row">
+            <Button type="button" variant={mode === "signin" ? "default" : "secondary"} onClick={() => setMode("signin")}>
               {t("home.signIn")}
-            </button>{" "}
-            |{" "}
-            <button type="button" onClick={() => setMode("signup")}>
+            </Button>
+            <Button type="button" variant={mode === "signup" ? "default" : "secondary"} onClick={() => setMode("signup")}>
               {t("home.signUp")}
-            </button>
-          </p>
+            </Button>
+          </div>
 
           {mode === "signup" ? (
             <p>
@@ -130,13 +131,14 @@ function HomePage() {
             </label>
           </p>
 
-          <button type="submit" disabled={isSubmitting}>
+          <Button type="submit" disabled={isSubmitting}>
             {buttonText}
-          </button>
+          </Button>
         </form>
       )}
 
-      {message ? <p>{message}</p> : null}
-    </div>
+      {message ? <p className="muted">{message}</p> : null}
+      </Section>
+    </PageShell>
   );
 }
