@@ -56,9 +56,9 @@
 
 ### 3.3 Recurring expense templates
 
-- [ ] tRPC procedures: `recurringExpense.list`, `recurringExpense.create`, `recurringExpense.update`, `recurringExpense.delete`.
-- [ ] Model: categoryId, sourceAccountId, destAccountId (optional), description, amount (centavos), currency, frequency (monthly/biweekly/annual/bimonthly), isAnnual, annualCost, notes, isActive. See [SCHEMA_VISUALIZATION.md](../docs/SCHEMA_VISUALIZATION.md).
-- [ ] Web: list of templates, create/edit form with category and account dropdowns, frequency selector, amount in display units.
+- [x] tRPC procedures: `recurringExpense.list`, `recurringExpense.create`, `recurringExpense.update`, `recurringExpense.delete`.
+- [x] Model: categoryId, sourceAccountId, destAccountId (optional), description, amount (centavos), currency, frequency (monthly/biweekly/annual/bimonthly), isAnnual, annualCost, notes, isActive. See [SCHEMA_VISUALIZATION.md](../docs/SCHEMA_VISUALIZATION.md).
+- [x] Web: list of templates, create/edit form with category and account dropdowns, frequency selector, amount in display units.
 
 ### 3.4 Monthly budget generation
 
@@ -174,11 +174,19 @@
   - Web route `/categories` added with category list, create/edit/delete flow, and move up/down reorder controls.
   - Navigation updated to include Categories and i18n strings added to `en.json`.
   - Seed process updated to guarantee PLAN default categories are present (`Kids`, `Subscriptions`, `Telecom`, `Savings`, `Auto`, `Home/Zuhause`, `Miscellaneous`) while preserving CSV-derived categories.
+- 3.3 recurring expense templates implemented end-to-end on 2026-02-14:
+  - tRPC `recurringExpense` router added with `list/create/update/delete`, strict user scoping, and ownership validation for related category/accounts.
+  - Web route `/recurring-expenses` added with template list, create/edit form, delete confirmation, frequency selector, and account/category dropdowns.
+  - Navigation and i18n updated with recurring-template strings and route access from the top nav.
+  - Validation complete: `pnpm lint` and `pnpm typecheck` pass after implementation.
 
 **Decisions:**
 - Replaced static, code-embedded institution lists with a synced catalog from Banxico as source of truth.
 - Adopted an operational sync model (weekly cron in infrastructure) rather than shipping institution changes in code releases.
 - Kept CLABE validation local/algorithmic, but institution naming and availability externalized to the DB catalog.
+- 2026-02-14: kept recurring templates user-owned (no shared/global template table yet) and enforced ownership checks in API for `categoryId`, `sourceAccountId`, and `destAccountId`.
+- 2026-02-14: required `annualCost` only when `isAnnual=true` to keep monthly templates simple while preserving annual-proration data for later dashboard/budget math.
+- 2026-02-14: introduced a dedicated `/recurring-expenses` page now (instead of embedding inside dashboard) to reduce coupling and keep future budget-generation work focused on API logic.
 
 **Roadblocks:**
 - `pnpm db:migrate` uses `prisma migrate dev` (interactive), which can block automation; non-interactive flows should use migrate deploy semantics for server jobs.
@@ -187,6 +195,8 @@
 - Static institution catalogs are high-maintenance and become stale when institutions are renamed, added, or retired.
 - A dynamic sync reduces product drift, avoids frequent app redeploys for catalog updates, and keeps CLABE inference aligned with current Banxico institution data.
 - DB-backed cataloging also provides auditability (`lastSeenAt`, `isActive`, `source`) and safer behavior when provider data changes unexpectedly.
+- Recurring templates are a core input for upcoming budget generation and needed isolated CRUD first to unblock Phase 2 steps 3.4, 3.5, and 3.6.
+- Enforcing ownership on related foreign keys prevents cross-user reference bugs and keeps data boundaries consistent with existing account/category routers.
 
 **Operational follow-up (required for this scope):**
 - Run `pnpm db:sync:institutions` after migrations in each environment.

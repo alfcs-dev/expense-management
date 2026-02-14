@@ -3,7 +3,8 @@
     "home": "Home",
     "dashboard": "Dashboard",
     "accounts": "Accounts",
-    "categories": "Categories"
+    "categories": "Categories",
+    "recurringExpenses": "Recurring"
   },
   "session": {
     "loading": "Session: loading...",
@@ -107,6 +108,46 @@
       "name": "Name",
       "icon": "Icon",
       "color": "Color"
+    }
+  },
+  "recurringExpenses": {
+    "title": "Recurring expenses",
+    "description": "Manage recurring expense templates for your monthly plan.",
+    "loading": "Loading recurring expenses...",
+    "saving": "Saving...",
+    "create": "Create recurring expense",
+    "update": "Update recurring expense",
+    "cancelEdit": "Cancel edit",
+    "edit": "Edit",
+    "delete": "Delete",
+    "deleteConfirm": "Delete this recurring expense?",
+    "error": "Error: {{message}}",
+    "listTitle": "Your recurring expenses",
+    "empty": "No recurring expenses yet.",
+    "inactive": "Inactive",
+    "fields": {
+      "description": "Description",
+      "category": "Category",
+      "sourceAccount": "Source account",
+      "destAccount": "Destination account",
+      "amount": "Amount",
+      "currency": "Currency",
+      "frequency": "Frequency",
+      "isAnnual": "Annual charge",
+      "annualCost": "Annual cost",
+      "notes": "Notes",
+      "isActive": "Active"
+    },
+    "placeholders": {
+      "selectCategory": "Select category",
+      "selectSourceAccount": "Select source account",
+      "none": "None"
+    },
+    "frequency": {
+      "monthly": "Monthly",
+      "biweekly": "Biweekly",
+      "annual": "Annual",
+      "bimonthly": "Every two months"
     }
   },
   "app": {

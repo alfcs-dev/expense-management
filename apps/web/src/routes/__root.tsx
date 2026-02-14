@@ -26,7 +26,8 @@ function RootLayout() {
         <Link to="/">{t("nav.home")}</Link> |{" "}
         <Link to="/dashboard">{t("nav.dashboard")}</Link> |{" "}
         <Link to="/accounts">{t("nav.accounts")}</Link> |{" "}
-        <Link to="/categories">{t("nav.categories")}</Link>
+        <Link to="/categories">{t("nav.categories")}</Link> |{" "}
+        <Link to="/recurring-expenses">{t("nav.recurringExpenses")}</Link>
         {/* Phase 2: language switcher (e.g. EN / ES) */}
         <span style={{ marginLeft: "1rem" }} title={t("language.label")}>
           {t("language.en")}
