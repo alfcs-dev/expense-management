@@ -3,6 +3,7 @@ import { accountRouter } from "./routers/account.js";
 import { budgetRouter } from "./routers/budget.js";
 import { categoryRouter } from "./routers/category.js";
 import { expenseRouter } from "./routers/expense.js";
+import { installmentPlanRouter } from "./routers/installment-plan.js";
 import { recurringExpenseRouter } from "./routers/recurring-expense.js";
 import { userRouter } from "./routers/user.js";
 
@@ -13,6 +14,7 @@ export const appRouter = router({
   recurringExpense: recurringExpenseRouter,
   budget: budgetRouter,
   expense: expenseRouter,
+  installmentPlan: installmentPlanRouter,
 });
 
 export type AppRouter = typeof appRouter;

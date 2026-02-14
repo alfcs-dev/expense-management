@@ -5,6 +5,7 @@
     "accounts": "Accounts",
     "categories": "Categories",
     "expenses": "Expenses",
+    "installments": "Installments",
     "recurringExpenses": "Recurring"
   },
   "session": {
@@ -202,6 +203,43 @@
     "placeholders": {
       "selectCategory": "Select category",
       "selectAccount": "Select account"
+    }
+  },
+  "installments": {
+    "title": "Installment plans",
+    "description": "Create and manage MSI plans with generated monthly expenses.",
+    "loading": "Loading installment plans...",
+    "saving": "Saving...",
+    "create": "Create installment plan",
+    "update": "Update installment plan",
+    "cancelEdit": "Cancel edit",
+    "edit": "Edit",
+    "cancel": "Cancel plan",
+    "cancelConfirm": "Cancel this installment plan?",
+    "error": "Error: {{message}}",
+    "listTitle": "Your installment plans",
+    "empty": "No installment plans yet.",
+    "monthsSuffix": "months",
+    "generatedExpenses": "Generated expenses",
+    "fields": {
+      "description": "Description",
+      "account": "Credit account",
+      "category": "Category",
+      "totalAmount": "Total amount",
+      "currency": "Currency",
+      "months": "Months",
+      "interestRate": "Interest rate (%)",
+      "startDate": "Start date",
+      "status": "Status"
+    },
+    "placeholders": {
+      "selectAccount": "Select credit account",
+      "selectCategory": "Select category"
+    },
+    "status": {
+      "active": "Active",
+      "completed": "Completed",
+      "cancelled": "Cancelled"
     }
   },
   "app": {

@@ -5,6 +5,7 @@
     "accounts": "Cuentas",
     "categories": "Categorías",
     "expenses": "Gastos",
+    "installments": "MSI",
     "recurringExpenses": "Recurrentes"
   },
   "session": {
@@ -202,6 +203,43 @@
     "placeholders": {
       "selectCategory": "Selecciona categoría",
       "selectAccount": "Selecciona cuenta"
+    }
+  },
+  "installments": {
+    "title": "Planes MSI",
+    "description": "Crea y administra planes MSI con gastos mensuales generados.",
+    "loading": "Cargando planes MSI...",
+    "saving": "Guardando...",
+    "create": "Crear plan MSI",
+    "update": "Actualizar plan MSI",
+    "cancelEdit": "Cancelar edición",
+    "edit": "Editar",
+    "cancel": "Cancelar plan",
+    "cancelConfirm": "¿Cancelar este plan MSI?",
+    "error": "Error: {{message}}",
+    "listTitle": "Tus planes MSI",
+    "empty": "Aún no hay planes MSI.",
+    "monthsSuffix": "meses",
+    "generatedExpenses": "Gastos generados",
+    "fields": {
+      "description": "Descripción",
+      "account": "Cuenta de crédito",
+      "category": "Categoría",
+      "totalAmount": "Monto total",
+      "currency": "Moneda",
+      "months": "Meses",
+      "interestRate": "Tasa de interés (%)",
+      "startDate": "Fecha de inicio",
+      "status": "Estado"
+    },
+    "placeholders": {
+      "selectAccount": "Selecciona cuenta de crédito",
+      "selectCategory": "Selecciona categoría"
+    },
+    "status": {
+      "active": "Activo",
+      "completed": "Completado",
+      "cancelled": "Cancelado"
     }
   },
   "app": {

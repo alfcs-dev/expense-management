@@ -4,11 +4,11 @@
 > **When starting this phase:** move this file to `../in_progress/` and use the "In progress" section at the bottom to log achievements, decisions, and roadblocks.
 
 **Planning Metadata**
-- Status: draft
+- Status: in_progress
 - Owner: @alfcs
 - Target start: Week 6
 - Target end: Week 8
-- Actual start: TBD
+- Actual start: 2026-02-14
 - Actual end: TBD
 - Dependencies: Phase 2 complete
 - Linked PRs/issues: TBD
@@ -38,10 +38,10 @@
 
 ### 3.1 Installment plans (MSI)
 
-- [ ] tRPC: `installmentPlan.create`, `installmentPlan.list`, `installmentPlan.update`, `installmentPlan.cancel`.
-- [ ] Model: accountId (credit card), categoryId, description, totalAmount, currency, months, interestRate, startDate, status. See schema.
-- [ ] On create (or on "confirm"): generate N expense records (one per month), linked via `installmentPlanId` and `installmentNumber`; amount = totalAmount / months (or with interest if needed). Dates based on startDate.
-- [ ] Web: create MSI form (description, total, months, start date, account, category); list of plans; view/edit/cancel. Show generated installments in expense list.
+- [x] tRPC: `installmentPlan.create`, `installmentPlan.list`, `installmentPlan.update`, `installmentPlan.cancel`.
+- [x] Model: accountId (credit card), categoryId, description, totalAmount, currency, months, interestRate, startDate, status. See schema.
+- [x] On create (or on "confirm"): generate N expense records (one per month), linked via `installmentPlanId` and `installmentNumber`; amount = totalAmount / months (or with interest if needed). Dates based on startDate.
+- [x] Web: create MSI form (description, total, months, start date, account, category); list of plans; view/edit/cancel. Show generated installments in expense list.
 
 ### 3.2 Transfers
 
@@ -159,13 +159,20 @@
 
 ## 8. In progress (use after moving to in_progress)
 
-*When you start Phase 3, move this file to `../in_progress/` and fill below.*
-
 **Achievements:**
-- 
+- Phase 3 started on 2026-02-14 on branch `phase-3-advanced-features` after Phase 2 merge to `main`.
+- 3.1 installment plans implemented end-to-end on 2026-02-14:
+  - tRPC `installmentPlan` router added with `list/create/update/cancel`, scoped by authenticated user.
+  - Installment creation and updates auto-generate monthly `Expense` rows (`source=installment`) with `installmentPlanId` and `installmentNumber`.
+  - Added `/installments` web route with create/edit/cancel workflow and generated-expenses visibility.
+  - Navigation and i18n resources updated in EN/ES to expose the new Phase 3 surface.
+  - Validation complete: `pnpm lint` and `pnpm typecheck` pass.
 
 **Decisions:**
-- 
+- Start with 3.1 Installment plans (MSI) to unlock auto-generated future expenses early.
+- 2026-02-14: enforce credit-account-only validation for installment plans in API to align MSI behavior with product semantics.
+- 2026-02-14: regenerate installment-generated expenses on plan updates to keep schedule/amounts consistent with plan source-of-truth.
+- 2026-02-14: canceling a plan removes generated installment expenses and sets plan status to `cancelled` to prevent stale future obligations.
 
 **Roadblocks:**
-- 
+- None yet.
