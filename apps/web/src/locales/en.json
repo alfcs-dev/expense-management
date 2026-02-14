@@ -308,6 +308,8 @@
     "title": "Reports",
     "description": "Monthly trends, annual summary, and category breakdown.",
     "loading": "Loading reports...",
+    "export": "Export CSV",
+    "exporting": "Exporting...",
     "error": "Error: {{message}}",
     "empty": "No data for selected range.",
     "annualSummaryTitle": "Annual summary",

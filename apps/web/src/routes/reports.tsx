@@ -55,6 +55,7 @@ function ReportsPage() {
   const annualSummaryQuery = trpc.report.annualSummary.useQuery({ year: toYear }, {
     retry: false,
   });
+  const exportMutation = trpc.report.exportExpensesCsv.useMutation();
 
   useEffect(() => {
     const unauthorized =
@@ -63,7 +64,8 @@ function ReportsPage() {
       (!categoryBreakdownQuery.isLoading &&
         categoryBreakdownQuery.error?.data?.code === "UNAUTHORIZED") ||
       (!annualSummaryQuery.isLoading &&
-        annualSummaryQuery.error?.data?.code === "UNAUTHORIZED");
+        annualSummaryQuery.error?.data?.code === "UNAUTHORIZED") ||
+      exportMutation.error?.data?.code === "UNAUTHORIZED";
     if (unauthorized) {
       navigate({ to: "/" });
     }
@@ -72,6 +74,7 @@ function ReportsPage() {
     annualSummaryQuery.isLoading,
     categoryBreakdownQuery.error?.data?.code,
     categoryBreakdownQuery.isLoading,
+    exportMutation.error?.data?.code,
     monthlyTrendQuery.error?.data?.code,
     monthlyTrendQuery.isLoading,
     navigate,
@@ -83,7 +86,10 @@ function ReportsPage() {
     annualSummaryQuery.isLoading;
 
   const activeError =
-    monthlyTrendQuery.error ?? categoryBreakdownQuery.error ?? annualSummaryQuery.error;
+    monthlyTrendQuery.error ??
+    categoryBreakdownQuery.error ??
+    annualSummaryQuery.error ??
+    exportMutation.error;
 
   if (isLoading) return <p>{t("reports.loading")}</p>;
   if (activeError?.data?.code === "UNAUTHORIZED") return null;
@@ -101,6 +107,18 @@ function ReportsPage() {
   }));
 
   const summary = annualSummaryQuery.data;
+  const onExport = async () => {
+    const result = await exportMutation.mutateAsync(rangeInput);
+    if (!result.csv) return;
+
+    const blob = new Blob([result.csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = result.filename;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div>
@@ -148,6 +166,11 @@ function ReportsPage() {
             onChange={(event) => setToYear(Number(event.target.value))}
           />
         </label>
+      </p>
+      <p>
+        <button type="button" onClick={() => void onExport()} disabled={exportMutation.isPending}>
+          {exportMutation.isPending ? t("reports.exporting") : t("reports.export")}
+        </button>
       </p>
 
       <h2>{t("reports.annualSummaryTitle")}</h2>

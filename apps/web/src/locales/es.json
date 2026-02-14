@@ -308,6 +308,8 @@
     "title": "Reportes",
     "description": "Tendencias mensuales, resumen anual y desglose por categoría.",
     "loading": "Cargando reportes...",
+    "export": "Exportar CSV",
+    "exporting": "Exportando...",
     "error": "Error: {{message}}",
     "empty": "Sin datos para el rango seleccionado.",
     "annualSummaryTitle": "Resumen anual",

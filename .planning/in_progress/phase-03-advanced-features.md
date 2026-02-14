@@ -86,8 +86,8 @@
 
 ### 3.9 Data export (CSV)
 
-- [ ] tRPC procedure or endpoint: export expenses (and optionally transfers) for a date range in CSV format. Include category, account, amount, date, description.
-- [ ] Web: "Export" button on reports or dashboard; download CSV.
+- [x] tRPC procedure or endpoint: export expenses (and optionally transfers) for a date range in CSV format. Include category, account, amount, date, description.
+- [x] Web: "Export" button on reports or dashboard; download CSV.
 
 ---
 
@@ -152,8 +152,8 @@
 - [ ] Annual expenses show monthly equivalent in relevant views.
 - [ ] Reports page with trends and category breakdowns; charts render correctly.
 - [ ] CSV/OFX and CFDI import working; user can map and import.
-- [ ] Auto-categorization rules applicable on import; rules editable.
-- [ ] CSV export for expenses (date range) works.
+- [x] Auto-categorization rules applicable on import; rules editable.
+- [x] CSV export for expenses (date range) works.
 
 ---
 
@@ -205,6 +205,11 @@
   - Import preview now returns `suggestedCategoryId` per row and imports page renders the suggestion.
   - Import apply now supports optional category override: when empty, rules determine category per row; when selected, chosen category overrides all imported rows.
   - Validation complete: `pnpm lint` and `pnpm typecheck` pass.
+- 3.9 CSV export implemented on 2026-02-14:
+  - Added tRPC `report.exportExpensesCsv` for date-range expense export with CSV-safe escaping.
+  - CSV includes date, description, category, account, amount, currency, and source.
+  - Reports page now has an Export CSV action that downloads the generated file in-browser.
+  - Validation complete: `pnpm lint` and `pnpm typecheck` pass.
 
 **Decisions:**
 - Start with 3.1 Installment plans (MSI) to unlock auto-generated future expenses early.
@@ -219,6 +224,7 @@
 - 2026-02-14: implemented lightweight in-house XML extraction for CFDI fields instead of adding a parser dependency in this step; alternative is replacing with `@nodecfdi/cfdi-to-json` when deeper CFDI coverage is required.
 - 2026-02-14: stored `cfdiData` as serialized JSON text in the JSON column to satisfy strict Prisma input typing without introducing additional runtime JSON-shape guards in this step.
 - 2026-02-14: chose persistent `CategoryMapping` table over in-memory rules for 3.8 to provide editable/import-stable behavior across sessions; alternative was static in-code matching with lower schema complexity but no user-level CRUD.
+- 2026-02-14: implemented CSV export as a report router mutation returning `{ filename, csv }`, keeping file generation server-side and download handling client-side; alternative was a dedicated HTTP streaming endpoint for very large exports.
 
 **Roadblocks:**
 - None yet.

@@ -26,6 +26,13 @@ const monthRangeSchema = z.object({
   toMonth: z.number().int().min(1).max(12),
 });
 
+function escapeCsvCell(value: string): string {
+  if (/[",\n]/.test(value)) {
+    return `"${value.replace(/"/g, "\"\"")}"`;
+  }
+  return value;
+}
+
 export const reportRouter = router({
   monthlyTrend: protectedProcedure
     .input(monthRangeSchema)
@@ -180,5 +187,51 @@ export const reportRouter = router({
       return Array.from(byCategory.values()).sort(
         (a, b) => b.total.MXN + b.total.USD - (a.total.MXN + a.total.USD),
       );
+    }),
+
+  exportExpensesCsv: protectedProcedure
+    .input(monthRangeSchema)
+    .mutation(async ({ ctx, input }) => {
+      const userId = requireUserId(ctx.user);
+      const fromDate = monthStartDate(input.fromYear, input.fromMonth);
+      const toDate = monthEndDate(input.toYear, input.toMonth);
+
+      const expenses = await db.expense.findMany({
+        where: {
+          userId,
+          date: {
+            gte: fromDate,
+            lte: toDate,
+          },
+        },
+        include: {
+          category: {
+            select: { name: true },
+          },
+          account: {
+            select: { name: true },
+          },
+        },
+        orderBy: [{ date: "asc" }, { createdAt: "asc" }],
+      });
+
+      const header = "date,description,category,account,amount,currency,source";
+      const lines = expenses.map((expense) =>
+        [
+          expense.date.toISOString().slice(0, 10),
+          escapeCsvCell(expense.description),
+          escapeCsvCell(expense.category.name),
+          escapeCsvCell(expense.account.name),
+          (expense.amount / 100).toFixed(2),
+          expense.currency,
+          expense.source,
+        ].join(","),
+      );
+
+      return {
+        filename: `expenses-${input.fromYear}-${String(input.fromMonth).padStart(2, "0")}-to-${input.toYear}-${String(input.toMonth).padStart(2, "0")}.csv`,
+        csv: [header, ...lines].join("\n"),
+        count: expenses.length,
+      };
     }),
 });
