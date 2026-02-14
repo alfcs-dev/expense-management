@@ -7,6 +7,7 @@ import { categoriesRoute } from "./categories";
 import { expensesRoute } from "./expenses";
 import { installmentsRoute } from "./installments";
 import { recurringExpensesRoute } from "./recurring-expenses";
+import { transfersRoute } from "./transfers";
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
@@ -16,6 +17,7 @@ const routeTree = rootRoute.addChildren([
   expensesRoute,
   installmentsRoute,
   recurringExpensesRoute,
+  transfersRoute,
 ]);
 
 export const router = createRouter({ routeTree });

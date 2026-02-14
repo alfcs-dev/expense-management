@@ -6,6 +6,7 @@
     "categories": "Categorías",
     "expenses": "Gastos",
     "installments": "MSI",
+    "transfers": "Transferencias",
     "recurringExpenses": "Recurrentes"
   },
   "session": {
@@ -240,6 +241,33 @@
       "active": "Activo",
       "completed": "Completado",
       "cancelled": "Cancelado"
+    }
+  },
+  "transfers": {
+    "title": "Transferencias",
+    "description": "Registra transferencias entre tus cuentas.",
+    "loading": "Cargando transferencias...",
+    "saving": "Guardando...",
+    "create": "Crear transferencia",
+    "update": "Actualizar transferencia",
+    "cancelEdit": "Cancelar edición",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "deleteConfirm": "¿Eliminar esta transferencia?",
+    "error": "Error: {{message}}",
+    "listTitle": "Tus transferencias",
+    "empty": "Aún no hay transferencias.",
+    "fields": {
+      "sourceAccount": "Cuenta origen",
+      "destAccount": "Cuenta destino",
+      "amount": "Monto",
+      "currency": "Moneda",
+      "date": "Fecha",
+      "notes": "Notas"
+    },
+    "placeholders": {
+      "selectSource": "Selecciona cuenta origen",
+      "selectDest": "Selecciona cuenta destino"
     }
   },
   "app": {

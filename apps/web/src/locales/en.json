@@ -6,6 +6,7 @@
     "categories": "Categories",
     "expenses": "Expenses",
     "installments": "Installments",
+    "transfers": "Transfers",
     "recurringExpenses": "Recurring"
   },
   "session": {
@@ -240,6 +241,33 @@
       "active": "Active",
       "completed": "Completed",
       "cancelled": "Cancelled"
+    }
+  },
+  "transfers": {
+    "title": "Transfers",
+    "description": "Track transfers between your accounts.",
+    "loading": "Loading transfers...",
+    "saving": "Saving...",
+    "create": "Create transfer",
+    "update": "Update transfer",
+    "cancelEdit": "Cancel edit",
+    "edit": "Edit",
+    "delete": "Delete",
+    "deleteConfirm": "Delete this transfer?",
+    "error": "Error: {{message}}",
+    "listTitle": "Your transfers",
+    "empty": "No transfers yet.",
+    "fields": {
+      "sourceAccount": "Source account",
+      "destAccount": "Destination account",
+      "amount": "Amount",
+      "currency": "Currency",
+      "date": "Date",
+      "notes": "Notes"
+    },
+    "placeholders": {
+      "selectSource": "Select source account",
+      "selectDest": "Select destination account"
     }
   },
   "app": {

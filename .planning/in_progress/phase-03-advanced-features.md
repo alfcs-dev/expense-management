@@ -45,9 +45,9 @@
 
 ### 3.2 Transfers
 
-- [ ] tRPC: `transfer.create`, `transfer.list`, `transfer.update`, `transfer.delete`.
-- [ ] Model: sourceAccountId, destAccountId, amount, currency, date, notes.
-- [ ] Web: list transfers, add transfer form (source, dest, amount, date). Optionally show in dashboard or account view (movements).
+- [x] tRPC: `transfer.create`, `transfer.list`, `transfer.update`, `transfer.delete`.
+- [x] Model: sourceAccountId, destAccountId, amount, currency, date, notes.
+- [x] Web: list transfers, add transfer form (source, dest, amount, date). Optionally show in dashboard or account view (movements).
 
 ### 3.3 Savings goals
 
@@ -167,12 +167,18 @@
   - Added `/installments` web route with create/edit/cancel workflow and generated-expenses visibility.
   - Navigation and i18n resources updated in EN/ES to expose the new Phase 3 surface.
   - Validation complete: `pnpm lint` and `pnpm typecheck` pass.
+- 3.2 transfers implemented end-to-end on 2026-02-14:
+  - tRPC `transfer` router added with `list/create/update/delete`, fully user-scoped with ownership checks on source/destination accounts.
+  - Added `/transfers` web route with create/edit/delete workflow and transfer list.
+  - Navigation and i18n resources updated in EN/ES.
+  - Validation complete: `pnpm lint` and `pnpm typecheck` pass.
 
 **Decisions:**
 - Start with 3.1 Installment plans (MSI) to unlock auto-generated future expenses early.
 - 2026-02-14: enforce credit-account-only validation for installment plans in API to align MSI behavior with product semantics.
 - 2026-02-14: regenerate installment-generated expenses on plan updates to keep schedule/amounts consistent with plan source-of-truth.
 - 2026-02-14: canceling a plan removes generated installment expenses and sets plan status to `cancelled` to prevent stale future obligations.
+- 2026-02-14: transfer operations enforce distinct source/destination accounts in API validation to prevent no-op or misleading transfer records.
 
 **Roadblocks:**
 - None yet.
