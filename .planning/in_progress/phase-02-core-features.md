@@ -62,9 +62,9 @@
 
 ### 3.4 Monthly budget generation
 
-- [ ] Logic: given a month/year, generate or return a Budget for the user. Create from templates: for each RecurringExpense, create placeholder or actual Expense rows (or a separate "budget line" concept if you prefer) so that "planned" amounts per category are known.
-- [ ] Clarify in implementation: either Budget is a container and "budget lines" are derived from RecurringExpense, or Budget has explicit budgeted amounts per category. PLAN suggests "monthly budget generation from templates" — so templates drive the planned view.
-- [ ] tRPC: e.g. `budget.getOrCreateForMonth({ month, year })`, `budget.getPlannedByCategory({ budgetId })`.
+- [x] Logic: given a month/year, generate or return a Budget for the user. Create from templates: for each RecurringExpense, create placeholder or actual Expense rows (or a separate "budget line" concept if you prefer) so that "planned" amounts per category are known.
+- [x] Clarify in implementation: either Budget is a container and "budget lines" are derived from RecurringExpense, or Budget has explicit budgeted amounts per category. PLAN suggests "monthly budget generation from templates" — so templates drive the planned view.
+- [x] tRPC: e.g. `budget.getOrCreateForMonth({ month, year })`, `budget.getPlannedByCategory({ budgetId })`.
 
 ### 3.5 Expense logging (manual)
 
@@ -179,6 +179,11 @@
   - Web route `/recurring-expenses` added with template list, create/edit form, delete confirmation, frequency selector, and account/category dropdowns.
   - Navigation and i18n updated with recurring-template strings and route access from the top nav.
   - Validation complete: `pnpm lint` and `pnpm typecheck` pass after implementation.
+- 3.4 monthly budget generation API implemented on 2026-02-14:
+  - tRPC `budget` router added with `getOrCreateForMonth` (user-scoped upsert by `{ userId, month, year }`).
+  - Added `budget.getPlannedByCategory({ budgetId })` to derive planned values from active recurring templates.
+  - Planned totals are returned grouped by category with currency-safe sums (`MXN` and `USD` separated) and overall totals.
+  - Validation complete: `pnpm lint` and `pnpm typecheck` pass after implementation.
 
 **Decisions:**
 - Replaced static, code-embedded institution lists with a synced catalog from Banxico as source of truth.
@@ -187,6 +192,9 @@
 - 2026-02-14: kept recurring templates user-owned (no shared/global template table yet) and enforced ownership checks in API for `categoryId`, `sourceAccountId`, and `destAccountId`.
 - 2026-02-14: required `annualCost` only when `isAnnual=true` to keep monthly templates simple while preserving annual-proration data for later dashboard/budget math.
 - 2026-02-14: introduced a dedicated `/recurring-expenses` page now (instead of embedding inside dashboard) to reduce coupling and keep future budget-generation work focused on API logic.
+- 2026-02-14: implemented budget as a month container plus derived planned lines from `RecurringExpense` instead of persisting separate budget-line rows; this avoids duplicate source-of-truth data during Phase 2.
+- 2026-02-14: applied frequency normalization in API (`biweekly=26/12`, `bimonthly=1/2`, annual templates prorated by `annualCost/12` fallback to `amount/12`) so planned values are month-comparable.
+- 2026-02-14: returned planned aggregates split by currency to prevent mixing MXN and USD into a single misleading total.
 
 **Roadblocks:**
 - `pnpm db:migrate` uses `prisma migrate dev` (interactive), which can block automation; non-interactive flows should use migrate deploy semantics for server jobs.
@@ -197,6 +205,8 @@
 - DB-backed cataloging also provides auditability (`lastSeenAt`, `isActive`, `source`) and safer behavior when provider data changes unexpectedly.
 - Recurring templates are a core input for upcoming budget generation and needed isolated CRUD first to unblock Phase 2 steps 3.4, 3.5, and 3.6.
 - Enforcing ownership on related foreign keys prevents cross-user reference bugs and keeps data boundaries consistent with existing account/category routers.
+- Derived budget planning keeps recurring templates authoritative, reducing mutation complexity and making recalculation deterministic as templates are edited.
+- Currency-separated aggregates preserve financial correctness before any FX conversion rules are introduced.
 
 **Operational follow-up (required for this scope):**
 - Run `pnpm db:sync:institutions` after migrations in each environment.

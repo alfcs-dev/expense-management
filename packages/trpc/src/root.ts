@@ -1,5 +1,6 @@
 import { router } from "./trpc.js";
 import { accountRouter } from "./routers/account.js";
+import { budgetRouter } from "./routers/budget.js";
 import { categoryRouter } from "./routers/category.js";
 import { recurringExpenseRouter } from "./routers/recurring-expense.js";
 import { userRouter } from "./routers/user.js";
@@ -9,6 +10,7 @@ export const appRouter = router({
   account: accountRouter,
   category: categoryRouter,
   recurringExpense: recurringExpenseRouter,
+  budget: budgetRouter,
 });
 
 export type AppRouter = typeof appRouter;
