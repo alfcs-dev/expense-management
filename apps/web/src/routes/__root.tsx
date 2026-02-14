@@ -38,6 +38,7 @@ function RootLayout() {
         <Link to="/savings-goals">{t("nav.savingsGoals")}</Link> |{" "}
         <Link to="/reports">{t("nav.reports")}</Link> |{" "}
         <Link to="/imports">{t("nav.imports")}</Link> |{" "}
+        <Link to="/category-rules">{t("nav.categoryRules")}</Link> |{" "}
         <Link to="/recurring-expenses">{t("nav.recurringExpenses")}</Link>
         <span style={{ marginLeft: "1rem" }} title={t("language.label")}>
           <button

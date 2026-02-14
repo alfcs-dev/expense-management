@@ -10,6 +10,7 @@
     "savingsGoals": "Metas de ahorro",
     "reports": "Reportes",
     "imports": "Importar",
+    "categoryRules": "Reglas categorías",
     "recurringExpenses": "Recurrentes"
   },
   "session": {
@@ -329,6 +330,7 @@
     "applying": "Importando...",
     "apply": "Aplicar importación",
     "previewTitle": "Previsualización",
+    "previewSuggestedCategory": "Categoría sugerida",
     "empty": "Pega contenido o sube un archivo para previsualizar.",
     "previewEmpty": "No se parsearon filas válidas.",
     "error": "Error: {{message}}",
@@ -341,9 +343,40 @@
       "category": "Categoría",
       "currency": "Moneda"
     },
+    "hints": {
+      "categoryOverride": "Deja la categoría vacía para usar sugerencias por reglas, o selecciona una para sobrescribir todas las filas."
+    },
     "placeholders": {
       "selectAccount": "Selecciona cuenta",
       "selectCategory": "Selecciona categoría"
+    }
+  },
+  "categoryRules": {
+    "title": "Reglas de categoría",
+    "description": "Define reglas por patrón para autoasignar categorías durante importaciones.",
+    "loading": "Cargando reglas de categoría...",
+    "saving": "Guardando...",
+    "create": "Crear regla",
+    "update": "Actualizar regla",
+    "cancelEdit": "Cancelar edición",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "deleteConfirm": "¿Eliminar esta regla?",
+    "error": "Error: {{message}}",
+    "listTitle": "Tus reglas de categoría",
+    "empty": "Aún no hay reglas.",
+    "fields": {
+      "category": "Categoría",
+      "pattern": "Patrón",
+      "matchType": "Tipo de coincidencia"
+    },
+    "placeholders": {
+      "selectCategory": "Selecciona categoría"
+    },
+    "matchTypes": {
+      "contains": "Contiene",
+      "exact": "Exacta",
+      "regex": "Regex"
     }
   },
   "app": {

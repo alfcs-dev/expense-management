@@ -1,6 +1,7 @@
 import { router } from "./trpc.js";
 import { accountRouter } from "./routers/account.js";
 import { budgetRouter } from "./routers/budget.js";
+import { categoryMappingRouter } from "./routers/category-mapping.js";
 import { categoryRouter } from "./routers/category.js";
 import { expenseRouter } from "./routers/expense.js";
 import { installmentPlanRouter } from "./routers/installment-plan.js";
@@ -15,6 +16,7 @@ export const appRouter = router({
   user: userRouter,
   account: accountRouter,
   category: categoryRouter,
+  categoryMapping: categoryMappingRouter,
   recurringExpense: recurringExpenseRouter,
   budget: budgetRouter,
   expense: expenseRouter,

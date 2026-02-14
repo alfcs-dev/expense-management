@@ -11,6 +11,7 @@ import { savingsGoalsRoute } from "./savings-goals";
 import { transfersRoute } from "./transfers";
 import { reportsRoute } from "./reports";
 import { importsRoute } from "./imports";
+import { categoryRulesRoute } from "./category-rules";
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
@@ -24,6 +25,7 @@ const routeTree = rootRoute.addChildren([
   transfersRoute,
   reportsRoute,
   importsRoute,
+  categoryRulesRoute,
 ]);
 
 export const router = createRouter({ routeTree });

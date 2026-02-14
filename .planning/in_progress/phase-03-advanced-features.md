@@ -80,9 +80,9 @@
 
 ### 3.8 Basic auto-categorization
 
-- [ ] Rule-based: CategoryMapping or in-memory rules: match merchant name (substring/regex) or RFC to a categoryId.
-- [ ] Apply on import (CSV/OFX/CFDI): suggest or assign category from rules. Allow user to override.
-- [ ] Simple UI to add/edit rules (merchant name or RFC → category).
+- [x] Rule-based: CategoryMapping or in-memory rules: match merchant name (substring/regex) or RFC to a categoryId.
+- [x] Apply on import (CSV/OFX/CFDI): suggest or assign category from rules. Allow user to override.
+- [x] Simple UI to add/edit rules (merchant name or RFC → category).
 
 ### 3.9 Data export (CSV)
 
@@ -199,6 +199,12 @@
   - CFDI apply path now creates expenses with `source=cfdi`, stores `cfdiUuid`, and persists parsed metadata in `cfdiData`.
   - Imports page now accepts XML files and previews parsed CFDI summary before apply.
   - Validation complete: `pnpm lint` and `pnpm typecheck` pass.
+- 3.8 basic auto-categorization implemented on 2026-02-14:
+  - Added persistent `CategoryMapping` schema + migration and tRPC `categoryMapping` CRUD router.
+  - Added `/category-rules` page (create/edit/delete rules with `contains`/`exact`/`regex` match types).
+  - Import preview now returns `suggestedCategoryId` per row and imports page renders the suggestion.
+  - Import apply now supports optional category override: when empty, rules determine category per row; when selected, chosen category overrides all imported rows.
+  - Validation complete: `pnpm lint` and `pnpm typecheck` pass.
 
 **Decisions:**
 - Start with 3.1 Installment plans (MSI) to unlock auto-generated future expenses early.
@@ -212,6 +218,7 @@
 - 2026-02-14: kept schema unchanged for OFX source in Phase 3 (using `Expense.source=csv` for OFX imports and `[OFX]` description prefix) to avoid a migration mid-phase; alternative is adding `ExpenseSource.ofx` in a later schema revision.
 - 2026-02-14: implemented lightweight in-house XML extraction for CFDI fields instead of adding a parser dependency in this step; alternative is replacing with `@nodecfdi/cfdi-to-json` when deeper CFDI coverage is required.
 - 2026-02-14: stored `cfdiData` as serialized JSON text in the JSON column to satisfy strict Prisma input typing without introducing additional runtime JSON-shape guards in this step.
+- 2026-02-14: chose persistent `CategoryMapping` table over in-memory rules for 3.8 to provide editable/import-stable behavior across sessions; alternative was static in-code matching with lower schema complexity but no user-level CRUD.
 
 **Roadblocks:**
 - None yet.

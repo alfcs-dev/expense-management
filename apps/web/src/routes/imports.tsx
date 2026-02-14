@@ -1,4 +1,4 @@
-import { ChangeEvent, useEffect, useState } from "react";
+import { ChangeEvent, useEffect, useMemo, useState } from "react";
 import { createRoute, useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { rootRoute } from "./__root";
@@ -30,6 +30,13 @@ function ImportsPage() {
     { enabled: content.trim().length > 0, retry: false },
   );
   const applyMutation = trpc.import.applyTransactions.useMutation();
+  const categoryNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const category of categoriesQuery.data ?? []) {
+      map.set(category.id, category.name);
+    }
+    return map;
+  }, [categoriesQuery.data]);
 
   useEffect(() => {
     const unauthorized =
@@ -59,12 +66,12 @@ function ImportsPage() {
   };
 
   const onApply = async () => {
-    if (!accountId || !categoryId || !content.trim()) return;
+    if (!accountId || !content.trim()) return;
     await applyMutation.mutateAsync({
       format,
       content,
       accountId,
-      categoryId,
+      categoryId: categoryId || undefined,
       currency,
     });
   };
@@ -152,6 +159,7 @@ function ImportsPage() {
             ))}
           </select>
         </label>{" "}
+        <span>{t("imports.hints.categoryOverride")}</span>{" "}
         <label>
           {t("imports.fields.currency")}{" "}
           <select
@@ -192,7 +200,13 @@ function ImportsPage() {
           {previewQuery.data.rows.map((row, idx) => (
             <li key={`${row.description}-${idx}`}>
               {formatDateByLanguage(row.date, i18n.language)} - {(row.amount / 100).toFixed(2)} -{" "}
-              {row.description}
+              {row.description}{" "}
+              {row.suggestedCategoryId ? (
+                <em>
+                  ({t("imports.previewSuggestedCategory")}:{" "}
+                  {categoryNameById.get(row.suggestedCategoryId) ?? row.suggestedCategoryId})
+                </em>
+              ) : null}
             </li>
           ))}
         </ul>

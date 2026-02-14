@@ -10,6 +10,7 @@
     "savingsGoals": "Savings goals",
     "reports": "Reports",
     "imports": "Imports",
+    "categoryRules": "Category rules",
     "recurringExpenses": "Recurring"
   },
   "session": {
@@ -329,6 +330,7 @@
     "applying": "Importing...",
     "apply": "Apply import",
     "previewTitle": "Preview",
+    "previewSuggestedCategory": "Suggested category",
     "empty": "Paste content or upload a file to preview.",
     "previewEmpty": "No valid rows parsed.",
     "error": "Error: {{message}}",
@@ -341,9 +343,40 @@
       "category": "Category",
       "currency": "Currency"
     },
+    "hints": {
+      "categoryOverride": "Leave category empty to use rule-based suggestions, or select one to override all rows."
+    },
     "placeholders": {
       "selectAccount": "Select account",
       "selectCategory": "Select category"
+    }
+  },
+  "categoryRules": {
+    "title": "Category rules",
+    "description": "Define pattern-based rules to auto-assign categories during imports.",
+    "loading": "Loading category rules...",
+    "saving": "Saving...",
+    "create": "Create rule",
+    "update": "Update rule",
+    "cancelEdit": "Cancel edit",
+    "edit": "Edit",
+    "delete": "Delete",
+    "deleteConfirm": "Delete this rule?",
+    "error": "Error: {{message}}",
+    "listTitle": "Your category rules",
+    "empty": "No rules yet.",
+    "fields": {
+      "category": "Category",
+      "pattern": "Pattern",
+      "matchType": "Match type"
+    },
+    "placeholders": {
+      "selectCategory": "Select category"
+    },
+    "matchTypes": {
+      "contains": "Contains",
+      "exact": "Exact",
+      "regex": "Regex"
     }
   },
   "app": {

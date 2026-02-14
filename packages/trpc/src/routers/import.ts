@@ -19,7 +19,7 @@ const importInputSchema = z.object({
 
 const importApplySchema = importInputSchema.extend({
   accountId: idSchema,
-  categoryId: idSchema,
+  categoryId: idSchema.optional(),
   currency: currencySchema,
 });
 
@@ -163,18 +163,37 @@ function parseRows(input: { format: "csv" | "ofx" | "cfdi"; content: string }): 
 async function assertOwnedAccountAndCategory(
   userId: string,
   accountId: string,
-  categoryId: string,
+  categoryId?: string,
 ): Promise<void> {
-  const [accountCount, categoryCount] = await Promise.all([
-    db.account.count({ where: { userId, id: accountId } }),
-    db.category.count({ where: { userId, id: categoryId } }),
-  ]);
+  const accountCount = await db.account.count({ where: { userId, id: accountId } });
+  const categoryCount = categoryId
+    ? await db.category.count({ where: { userId, id: categoryId } })
+    : 1;
   if (accountCount === 0 || categoryCount === 0) {
     throw new TRPCError({
       code: "BAD_REQUEST",
       message: "Account or category not found for current user",
     });
   }
+}
+
+function matchesMapping(
+  description: string,
+  mapping: { pattern: string; matchType: string },
+): boolean {
+  const text = description.toLowerCase();
+  const pattern = mapping.pattern.toLowerCase();
+  if (mapping.matchType === "exact") {
+    return text === pattern;
+  }
+  if (mapping.matchType === "regex") {
+    try {
+      return new RegExp(mapping.pattern, "i").test(description);
+    } catch {
+      return false;
+    }
+  }
+  return text.includes(pattern);
 }
 
 async function getOrCreateBudgetIdForDate(userId: string, date: Date): Promise<string> {
@@ -203,14 +222,23 @@ async function getOrCreateBudgetIdForDate(userId: string, date: Date): Promise<s
 export const importRouter = router({
   previewTransactions: protectedProcedure
     .input(importInputSchema)
-    .query(({ input }) => {
+    .query(async ({ ctx, input }) => {
+      const userId = requireUserId(ctx.user);
       const rows = parseRows(input);
+      const mappings = await db.categoryMapping.findMany({
+        where: { userId },
+        select: { categoryId: true, pattern: true, matchType: true },
+        orderBy: { createdAt: "asc" },
+      });
       return {
         count: rows.length,
         rows: rows.slice(0, 200).map((row) => ({
           date: row.date,
           amount: row.amount,
           description: row.description,
+          suggestedCategoryId:
+            mappings.find((mapping) => matchesMapping(row.description, mapping))?.categoryId ??
+            null,
         })),
       };
     }),
@@ -221,15 +249,25 @@ export const importRouter = router({
       const userId = requireUserId(ctx.user);
       await assertOwnedAccountAndCategory(userId, input.accountId, input.categoryId);
       const rows = parseRows(input);
+      const mappings = await db.categoryMapping.findMany({
+        where: { userId },
+        select: { categoryId: true, pattern: true, matchType: true },
+        orderBy: { createdAt: "asc" },
+      });
       let created = 0;
 
       for (const row of rows) {
+        const categoryId =
+          input.categoryId ??
+          mappings.find((mapping) => matchesMapping(row.description, mapping))?.categoryId;
+        if (!categoryId) continue;
+
         const budgetId = await getOrCreateBudgetIdForDate(userId, row.date);
         await db.expense.create({
           data: {
             userId,
             budgetId,
-            categoryId: input.categoryId,
+            categoryId,
             accountId: input.accountId,
             description:
               input.format === "cfdi"
