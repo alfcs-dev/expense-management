@@ -66,8 +66,19 @@ function ExpensesPage() {
   const navigate = useNavigate();
   const utils = trpc.useUtils();
 
-  const [selectedMonth, setSelectedMonth] = useState<number>(now.getMonth() + 1);
-  const [selectedYear, setSelectedYear] = useState<number>(now.getFullYear());
+  const search = new URLSearchParams(window.location.search);
+  const initialMonth = Number.parseInt(search.get("month") ?? "", 10);
+  const initialYear = Number.parseInt(search.get("year") ?? "", 10);
+  const [selectedMonth, setSelectedMonth] = useState<number>(
+    Number.isFinite(initialMonth) && initialMonth >= 1 && initialMonth <= 12
+      ? initialMonth
+      : now.getMonth() + 1,
+  );
+  const [selectedYear, setSelectedYear] = useState<number>(
+    Number.isFinite(initialYear) && initialYear >= 2000 && initialYear <= 2100
+      ? initialYear
+      : now.getFullYear(),
+  );
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<ExpenseFormValues>(INITIAL_FORM);
 

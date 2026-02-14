@@ -30,8 +30,19 @@ function DashboardPage() {
   const navigate = useNavigate();
 
   const today = new Date();
-  const [month, setMonth] = useState<number>(today.getMonth() + 1);
-  const [year, setYear] = useState<number>(today.getFullYear());
+  const search = new URLSearchParams(window.location.search);
+  const initialMonth = Number.parseInt(search.get("month") ?? "", 10);
+  const initialYear = Number.parseInt(search.get("year") ?? "", 10);
+  const [month, setMonth] = useState<number>(
+    Number.isFinite(initialMonth) && initialMonth >= 1 && initialMonth <= 12
+      ? initialMonth
+      : today.getMonth() + 1,
+  );
+  const [year, setYear] = useState<number>(
+    Number.isFinite(initialYear) && initialYear >= 2000 && initialYear <= 2100
+      ? initialYear
+      : today.getFullYear(),
+  );
   const budgetQuery = trpc.budget.getOrCreateForMonth.useQuery(
     { month, year },
     { retry: false },

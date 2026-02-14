@@ -31,6 +31,7 @@ function RootLayout() {
         <Link to="/">{t("nav.home")}</Link> |{" "}
         <Link to="/dashboard">{t("nav.dashboard")}</Link> |{" "}
         <Link to="/accounts">{t("nav.accounts")}</Link> |{" "}
+        <Link to="/budgets">{t("nav.budgets")}</Link> |{" "}
         <Link to="/categories">{t("nav.categories")}</Link> |{" "}
         <Link to="/expenses">{t("nav.expenses")}</Link> |{" "}
         <Link to="/recurring-expenses">{t("nav.recurringExpenses")}</Link>

@@ -3,6 +3,7 @@
     "home": "Inicio",
     "dashboard": "Panel",
     "accounts": "Cuentas",
+    "budgets": "Presupuestos",
     "categories": "Categorías",
     "expenses": "Gastos",
     "recurringExpenses": "Recurrentes"
@@ -202,6 +203,27 @@
     "placeholders": {
       "selectCategory": "Selecciona categoría",
       "selectAccount": "Selecciona cuenta"
+    }
+  },
+  "budgets": {
+    "title": "Presupuestos",
+    "description": "Crea y revisa presupuestos mensuales antes de registrar gastos.",
+    "loading": "Cargando presupuestos...",
+    "saving": "Guardando...",
+    "create": "Crear presupuesto",
+    "error": "Error: {{message}}",
+    "listTitle": "Presupuestos por año",
+    "empty": "No hay presupuestos para este año.",
+    "openExpenses": "Abrir gastos",
+    "openDashboard": "Abrir panel",
+    "fields": {
+      "month": "Mes",
+      "year": "Año",
+      "name": "Nombre",
+      "filterYear": "Filtrar año"
+    },
+    "placeholders": {
+      "name": "Nombre opcional del presupuesto"
     }
   },
   "app": {

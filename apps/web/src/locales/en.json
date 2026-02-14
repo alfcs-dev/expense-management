@@ -3,6 +3,7 @@
     "home": "Home",
     "dashboard": "Dashboard",
     "accounts": "Accounts",
+    "budgets": "Budgets",
     "categories": "Categories",
     "expenses": "Expenses",
     "recurringExpenses": "Recurring"
@@ -202,6 +203,27 @@
     "placeholders": {
       "selectCategory": "Select category",
       "selectAccount": "Select account"
+    }
+  },
+  "budgets": {
+    "title": "Budgets",
+    "description": "Create and review monthly budgets before tracking expenses.",
+    "loading": "Loading budgets...",
+    "saving": "Saving...",
+    "create": "Create budget",
+    "error": "Error: {{message}}",
+    "listTitle": "Budgets by year",
+    "empty": "No budgets for this year.",
+    "openExpenses": "Open expenses",
+    "openDashboard": "Open dashboard",
+    "fields": {
+      "month": "Month",
+      "year": "Year",
+      "name": "Name",
+      "filterYear": "Filter year"
+    },
+    "placeholders": {
+      "name": "Optional budget name"
     }
   },
   "app": {

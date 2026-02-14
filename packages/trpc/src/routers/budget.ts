@@ -40,6 +40,55 @@ function plannedMonthlyAmountForTemplate(template: {
 }
 
 export const budgetRouter = router({
+  create: protectedProcedure
+    .input(
+      monthYearSchema.extend({
+        name: z.string().trim().min(1).max(100).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const userId = requireUserId(ctx.user);
+
+      const existing = await db.budget.findUnique({
+        where: {
+          userId_month_year: {
+            userId,
+            month: input.month,
+            year: input.year,
+          },
+        },
+      });
+
+      if (existing) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "Budget already exists for this month",
+        });
+      }
+
+      return db.budget.create({
+        data: {
+          userId,
+          month: input.month,
+          year: input.year,
+          name: input.name?.trim() || `${input.year}-${String(input.month).padStart(2, "0")}`,
+        },
+      });
+    }),
+
+  listByYear: protectedProcedure
+    .input(z.object({ year: z.number().int().min(2000).max(2100) }))
+    .query(async ({ ctx, input }) => {
+      const userId = requireUserId(ctx.user);
+      return db.budget.findMany({
+        where: {
+          userId,
+          year: input.year,
+        },
+        orderBy: [{ month: "asc" }],
+      });
+    }),
+
   getOrCreateForMonth: protectedProcedure
     .input(monthYearSchema)
     .query(async ({ ctx, input }) => {
