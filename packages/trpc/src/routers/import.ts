@@ -8,10 +8,12 @@ type ParsedRow = {
   date: Date;
   amount: number;
   description: string;
+  cfdiUuid?: string | null;
+  cfdiData?: Record<string, unknown> | null;
 };
 
 const importInputSchema = z.object({
-  format: z.enum(["csv", "ofx"]),
+  format: z.enum(["csv", "ofx", "cfdi"]),
   content: z.string().min(1),
 });
 
@@ -109,10 +111,53 @@ function parseOfxRows(content: string): ParsedRow[] {
   return rows;
 }
 
-function parseRows(input: { format: "csv" | "ofx"; content: string }): ParsedRow[] {
-  return input.format === "csv"
-    ? parseCsvRows(input.content)
-    : parseOfxRows(input.content);
+function parseCfdiRows(content: string): ParsedRow[] {
+  const dateRaw =
+    content.match(/Fecha="([^"]+)"/i)?.[1] ??
+    content.match(/fecha="([^"]+)"/i)?.[1] ??
+    "";
+  const totalRaw =
+    content.match(/Total="([^"]+)"/i)?.[1] ??
+    content.match(/total="([^"]+)"/i)?.[1] ??
+    "";
+  const uuidRaw =
+    content.match(/UUID="([^"]+)"/i)?.[1] ??
+    content.match(/Uuid="([^"]+)"/i)?.[1] ??
+    null;
+  const emisorRfc =
+    content.match(/Emisor[^>]*Rfc="([^"]+)"/i)?.[1] ??
+    content.match(/Emisor[^>]*RFC="([^"]+)"/i)?.[1] ??
+    null;
+  const receptorRfc =
+    content.match(/Receptor[^>]*Rfc="([^"]+)"/i)?.[1] ??
+    content.match(/Receptor[^>]*RFC="([^"]+)"/i)?.[1] ??
+    null;
+
+  const date = parseDate(dateRaw);
+  const amount = parseAmountToCents(totalRaw);
+  if (!date || amount == null) return [];
+
+  return [
+    {
+      date,
+      amount,
+      description: uuidRaw ? `CFDI ${uuidRaw}` : "CFDI XML import",
+      cfdiUuid: uuidRaw,
+      cfdiData: {
+        uuid: uuidRaw,
+        emisorRfc,
+        receptorRfc,
+        total: totalRaw,
+        fecha: dateRaw,
+      },
+    },
+  ];
+}
+
+function parseRows(input: { format: "csv" | "ofx" | "cfdi"; content: string }): ParsedRow[] {
+  if (input.format === "csv") return parseCsvRows(input.content);
+  if (input.format === "ofx") return parseOfxRows(input.content);
+  return parseCfdiRows(input.content);
 }
 
 async function assertOwnedAccountAndCategory(
@@ -187,13 +232,17 @@ export const importRouter = router({
             categoryId: input.categoryId,
             accountId: input.accountId,
             description:
-              input.format === "ofx"
+              input.format === "cfdi"
+                ? row.description
+                : input.format === "ofx"
                 ? `[OFX] ${row.description}`
                 : row.description,
             amount: row.amount,
             currency: input.currency,
             date: row.date,
-            source: "csv",
+            source: input.format === "cfdi" ? "cfdi" : "csv",
+            cfdiUuid: row.cfdiUuid ?? undefined,
+            cfdiData: row.cfdiData ? JSON.stringify(row.cfdiData) : undefined,
           },
         });
         created += 1;
@@ -202,7 +251,7 @@ export const importRouter = router({
       return {
         parsed: rows.length,
         created,
-        source: "csv",
+        source: input.format === "cfdi" ? "cfdi" : "csv",
       };
     }),
 });

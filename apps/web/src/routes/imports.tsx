@@ -5,7 +5,7 @@ import { rootRoute } from "./__root";
 import { formatDateByLanguage } from "../utils/locale";
 import { trpc } from "../utils/trpc";
 
-type ImportFormat = "csv" | "ofx";
+type ImportFormat = "csv" | "ofx" | "cfdi";
 
 export const importsRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -95,14 +95,25 @@ function ImportsPage() {
           >
             <option value="csv">CSV</option>
             <option value="ofx">OFX</option>
+            <option value="cfdi">CFDI XML</option>
           </select>
         </label>
       </p>
 
       <p>
         <label>
-          {t("imports.fields.file")}{" "}
-          <input type="file" accept={format === "csv" ? ".csv,text/csv" : ".ofx,.qfx"} onChange={onFileChange} />
+            {t("imports.fields.file")}{" "}
+          <input
+            type="file"
+            accept={
+              format === "csv"
+                ? ".csv,text/csv"
+                : format === "ofx"
+                  ? ".ofx,.qfx"
+                  : ".xml,text/xml"
+            }
+            onChange={onFileChange}
+          />
         </label>
       </p>
 
