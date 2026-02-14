@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { hashPassword } from "better-auth/crypto";
 import {
   PrismaClient,
   type AccountType,
@@ -537,8 +538,15 @@ async function applySeed(
   debtRows: DebtCsvRow[],
   accountRows: AccountCsvRow[],
 ) {
+  if (process.env.NODE_ENV === "production" && process.env.ALLOW_PROD_SEED !== "true") {
+    throw new Error(
+      "Refusing to run seed in production. Set ALLOW_PROD_SEED=true to override explicitly.",
+    );
+  }
+
   const seedUserEmail = process.env.SEED_USER_EMAIL ?? "seed@local.dev";
   const seedUserName = process.env.SEED_USER_NAME ?? "Seed User";
+  const seedUserPassword = process.env.SEED_USER_PASSWORD ?? "SeedPass123!";
 
   const user = await prisma.user.upsert({
     where: { email: seedUserEmail },
@@ -547,6 +555,27 @@ async function applySeed(
       email: seedUserEmail,
       name: seedUserName,
       emailVerified: true,
+    },
+  });
+
+  const passwordHash = await hashPassword(seedUserPassword);
+
+  await prisma.authAccount.upsert({
+    where: {
+      providerId_accountId: {
+        providerId: "credential",
+        accountId: user.id,
+      },
+    },
+    update: {
+      userId: user.id,
+      password: passwordHash,
+    },
+    create: {
+      userId: user.id,
+      accountId: user.id,
+      providerId: "credential",
+      password: passwordHash,
     },
   });
 
@@ -663,6 +692,7 @@ async function applySeed(
   return {
     userId: user.id,
     email: user.email,
+    password: seedUserPassword,
     accountsCreated: accountByKey.size,
     categoriesCreated: categoryByName.size,
     recurringExpensesCreated: budgetRows.filter((row) => row.sourceAccountName).length,

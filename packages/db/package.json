@@ -29,6 +29,7 @@
     "typescript": "^5.7.0"
   },
   "dependencies": {
-    "@prisma/client": "6.19.2"
+    "@prisma/client": "6.19.2",
+    "better-auth": "^1.4.18"
   }
 }
