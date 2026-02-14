@@ -5,6 +5,12 @@
     "accounts": "Cuentas",
     "categories": "Categorías",
     "expenses": "Gastos",
+    "installments": "MSI",
+    "transfers": "Transferencias",
+    "savingsGoals": "Metas de ahorro",
+    "reports": "Reportes",
+    "imports": "Importar",
+    "categoryRules": "Reglas categorías",
     "recurringExpenses": "Recurrentes"
   },
   "session": {
@@ -149,6 +155,8 @@
     "listTitle": "Tus gastos recurrentes",
     "empty": "Aún no hay gastos recurrentes.",
     "inactive": "Inactivo",
+    "annualCostLabel": "Costo anual",
+    "monthlyEquivalentLabel": "Equivalente mensual",
     "fields": {
       "description": "Descripción",
       "category": "Categoría",
@@ -202,6 +210,175 @@
     "placeholders": {
       "selectCategory": "Selecciona categoría",
       "selectAccount": "Selecciona cuenta"
+    }
+  },
+  "installments": {
+    "title": "Planes MSI",
+    "description": "Crea y administra planes MSI con gastos mensuales generados.",
+    "loading": "Cargando planes MSI...",
+    "saving": "Guardando...",
+    "create": "Crear plan MSI",
+    "update": "Actualizar plan MSI",
+    "cancelEdit": "Cancelar edición",
+    "edit": "Editar",
+    "cancel": "Cancelar plan",
+    "cancelConfirm": "¿Cancelar este plan MSI?",
+    "error": "Error: {{message}}",
+    "listTitle": "Tus planes MSI",
+    "empty": "Aún no hay planes MSI.",
+    "monthsSuffix": "meses",
+    "generatedExpenses": "Gastos generados",
+    "fields": {
+      "description": "Descripción",
+      "account": "Cuenta de crédito",
+      "category": "Categoría",
+      "totalAmount": "Monto total",
+      "currency": "Moneda",
+      "months": "Meses",
+      "interestRate": "Tasa de interés (%)",
+      "startDate": "Fecha de inicio",
+      "status": "Estado"
+    },
+    "placeholders": {
+      "selectAccount": "Selecciona cuenta de crédito",
+      "selectCategory": "Selecciona categoría"
+    },
+    "status": {
+      "active": "Activo",
+      "completed": "Completado",
+      "cancelled": "Cancelado"
+    }
+  },
+  "transfers": {
+    "title": "Transferencias",
+    "description": "Registra transferencias entre tus cuentas.",
+    "loading": "Cargando transferencias...",
+    "saving": "Guardando...",
+    "create": "Crear transferencia",
+    "update": "Actualizar transferencia",
+    "cancelEdit": "Cancelar edición",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "deleteConfirm": "¿Eliminar esta transferencia?",
+    "error": "Error: {{message}}",
+    "listTitle": "Tus transferencias",
+    "empty": "Aún no hay transferencias.",
+    "fields": {
+      "sourceAccount": "Cuenta origen",
+      "destAccount": "Cuenta destino",
+      "amount": "Monto",
+      "currency": "Moneda",
+      "date": "Fecha",
+      "notes": "Notas"
+    },
+    "placeholders": {
+      "selectSource": "Selecciona cuenta origen",
+      "selectDest": "Selecciona cuenta destino"
+    }
+  },
+  "savingsGoals": {
+    "title": "Metas de ahorro",
+    "description": "Define y da seguimiento a tus metas de ahorro por cuenta.",
+    "loading": "Cargando metas de ahorro...",
+    "saving": "Guardando...",
+    "create": "Crear meta",
+    "update": "Actualizar meta",
+    "cancelEdit": "Cancelar edición",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "deleteConfirm": "¿Eliminar esta meta de ahorro?",
+    "error": "Error: {{message}}",
+    "listTitle": "Tus metas de ahorro",
+    "empty": "Aún no hay metas de ahorro.",
+    "progressLabel": "Progreso",
+    "noTarget": "Sin meta",
+    "fields": {
+      "name": "Nombre",
+      "account": "Cuenta",
+      "targetPercentage": "Porcentaje objetivo (%)",
+      "targetAmount": "Monto objetivo",
+      "currency": "Moneda",
+      "notes": "Notas"
+    },
+    "placeholders": {
+      "selectAccount": "Selecciona cuenta"
+    }
+  },
+  "reports": {
+    "title": "Reportes",
+    "description": "Tendencias mensuales, resumen anual y desglose por categoría.",
+    "loading": "Cargando reportes...",
+    "export": "Exportar CSV",
+    "exporting": "Exportando...",
+    "error": "Error: {{message}}",
+    "empty": "Sin datos para el rango seleccionado.",
+    "annualSummaryTitle": "Resumen anual",
+    "monthlyTrendTitle": "Tendencia mensual",
+    "categoryBreakdownTitle": "Desglose por categoría",
+    "incomeLabel": "Ingresos",
+    "expenseLabel": "Gastos",
+    "fields": {
+      "fromMonth": "Mes inicial",
+      "fromYear": "Año inicial",
+      "toMonth": "Mes final",
+      "toYear": "Año final"
+    }
+  },
+  "imports": {
+    "title": "Importar transacciones",
+    "description": "Sube contenido CSV/OFX, previsualiza filas parseadas e impórtalas a gastos.",
+    "loading": "Cargando herramientas de importación...",
+    "previewLoading": "Parseando previsualización...",
+    "applying": "Importando...",
+    "apply": "Aplicar importación",
+    "previewTitle": "Previsualización",
+    "previewSuggestedCategory": "Categoría sugerida",
+    "empty": "Pega contenido o sube un archivo para previsualizar.",
+    "previewEmpty": "No se parsearon filas válidas.",
+    "error": "Error: {{message}}",
+    "result": "Parseadas: {{parsed}} filas, creadas: {{created}} gastos.",
+    "fields": {
+      "format": "Formato",
+      "file": "Archivo",
+      "rawContent": "Contenido",
+      "account": "Cuenta",
+      "category": "Categoría",
+      "currency": "Moneda"
+    },
+    "hints": {
+      "categoryOverride": "Deja la categoría vacía para usar sugerencias por reglas, o selecciona una para sobrescribir todas las filas."
+    },
+    "placeholders": {
+      "selectAccount": "Selecciona cuenta",
+      "selectCategory": "Selecciona categoría"
+    }
+  },
+  "categoryRules": {
+    "title": "Reglas de categoría",
+    "description": "Define reglas por patrón para autoasignar categorías durante importaciones.",
+    "loading": "Cargando reglas de categoría...",
+    "saving": "Guardando...",
+    "create": "Crear regla",
+    "update": "Actualizar regla",
+    "cancelEdit": "Cancelar edición",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "deleteConfirm": "¿Eliminar esta regla?",
+    "error": "Error: {{message}}",
+    "listTitle": "Tus reglas de categoría",
+    "empty": "Aún no hay reglas.",
+    "fields": {
+      "category": "Categoría",
+      "pattern": "Patrón",
+      "matchType": "Tipo de coincidencia"
+    },
+    "placeholders": {
+      "selectCategory": "Selecciona categoría"
+    },
+    "matchTypes": {
+      "contains": "Contiene",
+      "exact": "Exacta",
+      "regex": "Regex"
     }
   },
   "app": {

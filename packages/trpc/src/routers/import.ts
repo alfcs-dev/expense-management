@@ -1,0 +1,295 @@
+import { TRPCError } from "@trpc/server";
+import { db } from "@expense-management/db";
+import { currencySchema, idSchema } from "@expense-management/shared";
+import { z } from "zod";
+import { protectedProcedure, router } from "../trpc.js";
+
+type ParsedRow = {
+  date: Date;
+  amount: number;
+  description: string;
+  cfdiUuid?: string | null;
+  cfdiData?: Record<string, unknown> | null;
+};
+
+const importInputSchema = z.object({
+  format: z.enum(["csv", "ofx", "cfdi"]),
+  content: z.string().min(1),
+});
+
+const importApplySchema = importInputSchema.extend({
+  accountId: idSchema,
+  categoryId: idSchema.optional(),
+  currency: currencySchema,
+});
+
+function requireUserId(user: { id: string } | null): string {
+  if (!user) {
+    throw new TRPCError({ code: "UNAUTHORIZED", message: "Not authenticated" });
+  }
+
+  return user.id;
+}
+
+function parseDate(value: string): Date | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  if (/^\d{8}/.test(trimmed)) {
+    const year = Number(trimmed.slice(0, 4));
+    const month = Number(trimmed.slice(4, 6));
+    const day = Number(trimmed.slice(6, 8));
+    const date = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  const parsed = new Date(trimmed);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed;
+}
+
+function parseAmountToCents(value: string): number | null {
+  const normalized = value.replace(/[$,\s]/g, "");
+  const parsed = Number.parseFloat(normalized);
+  if (!Number.isFinite(parsed)) return null;
+  return Math.round(Math.abs(parsed) * 100);
+}
+
+function parseCsvRows(content: string): ParsedRow[] {
+  const lines = content
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+  if (lines.length === 0) return [];
+
+  const [headerLine, ...dataLines] = lines;
+  const headers = headerLine.split(",").map((h) => h.trim().toLowerCase());
+  const dateIndex = headers.findIndex((h) => ["date", "fecha", "dtposted"].includes(h));
+  const amountIndex = headers.findIndex((h) => ["amount", "monto", "trnamt"].includes(h));
+  const descriptionIndex = headers.findIndex((h) =>
+    ["description", "descripcion", "memo", "name", "concepto"].includes(h),
+  );
+
+  const rows: ParsedRow[] = [];
+  for (const line of dataLines) {
+    const parts = line.split(",");
+    const date = parseDate(parts[dateIndex >= 0 ? dateIndex : 0] ?? "");
+    const amount = parseAmountToCents(parts[amountIndex >= 0 ? amountIndex : 1] ?? "");
+    const description = (parts[descriptionIndex >= 0 ? descriptionIndex : 2] ?? "").trim();
+    if (!date || amount == null || !description) continue;
+    rows.push({
+      date,
+      amount,
+      description,
+    });
+  }
+  return rows;
+}
+
+function parseTag(block: string, tag: string): string {
+  const regex = new RegExp(`<${tag}>([^\\r\\n<]+)`, "i");
+  return block.match(regex)?.[1]?.trim() ?? "";
+}
+
+function parseOfxRows(content: string): ParsedRow[] {
+  const blocks = content.split(/<STMTTRN>/i).slice(1);
+  const rows: ParsedRow[] = [];
+
+  for (const block of blocks) {
+    const date = parseDate(parseTag(block, "DTPOSTED"));
+    const amount = parseAmountToCents(parseTag(block, "TRNAMT"));
+    const description =
+      parseTag(block, "NAME") || parseTag(block, "MEMO") || "Imported OFX transaction";
+    if (!date || amount == null || !description) continue;
+    rows.push({
+      date,
+      amount,
+      description,
+    });
+  }
+
+  return rows;
+}
+
+function parseCfdiRows(content: string): ParsedRow[] {
+  const dateRaw =
+    content.match(/Fecha="([^"]+)"/i)?.[1] ??
+    content.match(/fecha="([^"]+)"/i)?.[1] ??
+    "";
+  const totalRaw =
+    content.match(/Total="([^"]+)"/i)?.[1] ??
+    content.match(/total="([^"]+)"/i)?.[1] ??
+    "";
+  const uuidRaw =
+    content.match(/UUID="([^"]+)"/i)?.[1] ??
+    content.match(/Uuid="([^"]+)"/i)?.[1] ??
+    null;
+  const emisorRfc =
+    content.match(/Emisor[^>]*Rfc="([^"]+)"/i)?.[1] ??
+    content.match(/Emisor[^>]*RFC="([^"]+)"/i)?.[1] ??
+    null;
+  const receptorRfc =
+    content.match(/Receptor[^>]*Rfc="([^"]+)"/i)?.[1] ??
+    content.match(/Receptor[^>]*RFC="([^"]+)"/i)?.[1] ??
+    null;
+
+  const date = parseDate(dateRaw);
+  const amount = parseAmountToCents(totalRaw);
+  if (!date || amount == null) return [];
+
+  return [
+    {
+      date,
+      amount,
+      description: uuidRaw ? `CFDI ${uuidRaw}` : "CFDI XML import",
+      cfdiUuid: uuidRaw,
+      cfdiData: {
+        uuid: uuidRaw,
+        emisorRfc,
+        receptorRfc,
+        total: totalRaw,
+        fecha: dateRaw,
+      },
+    },
+  ];
+}
+
+function parseRows(input: { format: "csv" | "ofx" | "cfdi"; content: string }): ParsedRow[] {
+  if (input.format === "csv") return parseCsvRows(input.content);
+  if (input.format === "ofx") return parseOfxRows(input.content);
+  return parseCfdiRows(input.content);
+}
+
+async function assertOwnedAccountAndCategory(
+  userId: string,
+  accountId: string,
+  categoryId?: string,
+): Promise<void> {
+  const accountCount = await db.account.count({ where: { userId, id: accountId } });
+  const categoryCount = categoryId
+    ? await db.category.count({ where: { userId, id: categoryId } })
+    : 1;
+  if (accountCount === 0 || categoryCount === 0) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "Account or category not found for current user",
+    });
+  }
+}
+
+function matchesMapping(
+  description: string,
+  mapping: { pattern: string; matchType: string },
+): boolean {
+  const text = description.toLowerCase();
+  const pattern = mapping.pattern.toLowerCase();
+  if (mapping.matchType === "exact") {
+    return text === pattern;
+  }
+  if (mapping.matchType === "regex") {
+    try {
+      return new RegExp(mapping.pattern, "i").test(description);
+    } catch {
+      return false;
+    }
+  }
+  return text.includes(pattern);
+}
+
+async function getOrCreateBudgetIdForDate(userId: string, date: Date): Promise<string> {
+  const month = date.getMonth() + 1;
+  const year = date.getFullYear();
+  const budget = await db.budget.upsert({
+    where: {
+      userId_month_year: {
+        userId,
+        month,
+        year,
+      },
+    },
+    update: {},
+    create: {
+      userId,
+      month,
+      year,
+      name: `${year}-${String(month).padStart(2, "0")}`,
+    },
+    select: { id: true },
+  });
+  return budget.id;
+}
+
+export const importRouter = router({
+  previewTransactions: protectedProcedure
+    .input(importInputSchema)
+    .query(async ({ ctx, input }) => {
+      const userId = requireUserId(ctx.user);
+      const rows = parseRows(input);
+      const mappings = await db.categoryMapping.findMany({
+        where: { userId },
+        select: { categoryId: true, pattern: true, matchType: true },
+        orderBy: { createdAt: "asc" },
+      });
+      return {
+        count: rows.length,
+        rows: rows.slice(0, 200).map((row) => ({
+          date: row.date,
+          amount: row.amount,
+          description: row.description,
+          suggestedCategoryId:
+            mappings.find((mapping) => matchesMapping(row.description, mapping))?.categoryId ??
+            null,
+        })),
+      };
+    }),
+
+  applyTransactions: protectedProcedure
+    .input(importApplySchema)
+    .mutation(async ({ ctx, input }) => {
+      const userId = requireUserId(ctx.user);
+      await assertOwnedAccountAndCategory(userId, input.accountId, input.categoryId);
+      const rows = parseRows(input);
+      const mappings = await db.categoryMapping.findMany({
+        where: { userId },
+        select: { categoryId: true, pattern: true, matchType: true },
+        orderBy: { createdAt: "asc" },
+      });
+      let created = 0;
+
+      for (const row of rows) {
+        const categoryId =
+          input.categoryId ??
+          mappings.find((mapping) => matchesMapping(row.description, mapping))?.categoryId;
+        if (!categoryId) continue;
+
+        const budgetId = await getOrCreateBudgetIdForDate(userId, row.date);
+        await db.expense.create({
+          data: {
+            userId,
+            budgetId,
+            categoryId,
+            accountId: input.accountId,
+            description:
+              input.format === "cfdi"
+                ? row.description
+                : input.format === "ofx"
+                ? `[OFX] ${row.description}`
+                : row.description,
+            amount: row.amount,
+            currency: input.currency,
+            date: row.date,
+            source: input.format === "cfdi" ? "cfdi" : "csv",
+            cfdiUuid: row.cfdiUuid ?? undefined,
+            cfdiData: row.cfdiData ? JSON.stringify(row.cfdiData) : undefined,
+          },
+        });
+        created += 1;
+      }
+
+      return {
+        parsed: rows.length,
+        created,
+        source: input.format === "cfdi" ? "cfdi" : "csv",
+      };
+    }),
+});

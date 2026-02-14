@@ -5,6 +5,12 @@
     "accounts": "Accounts",
     "categories": "Categories",
     "expenses": "Expenses",
+    "installments": "Installments",
+    "transfers": "Transfers",
+    "savingsGoals": "Savings goals",
+    "reports": "Reports",
+    "imports": "Imports",
+    "categoryRules": "Category rules",
     "recurringExpenses": "Recurring"
   },
   "session": {
@@ -149,6 +155,8 @@
     "listTitle": "Your recurring expenses",
     "empty": "No recurring expenses yet.",
     "inactive": "Inactive",
+    "annualCostLabel": "Annual cost",
+    "monthlyEquivalentLabel": "Monthly equivalent",
     "fields": {
       "description": "Description",
       "category": "Category",
@@ -202,6 +210,175 @@
     "placeholders": {
       "selectCategory": "Select category",
       "selectAccount": "Select account"
+    }
+  },
+  "installments": {
+    "title": "Installment plans",
+    "description": "Create and manage MSI plans with generated monthly expenses.",
+    "loading": "Loading installment plans...",
+    "saving": "Saving...",
+    "create": "Create installment plan",
+    "update": "Update installment plan",
+    "cancelEdit": "Cancel edit",
+    "edit": "Edit",
+    "cancel": "Cancel plan",
+    "cancelConfirm": "Cancel this installment plan?",
+    "error": "Error: {{message}}",
+    "listTitle": "Your installment plans",
+    "empty": "No installment plans yet.",
+    "monthsSuffix": "months",
+    "generatedExpenses": "Generated expenses",
+    "fields": {
+      "description": "Description",
+      "account": "Credit account",
+      "category": "Category",
+      "totalAmount": "Total amount",
+      "currency": "Currency",
+      "months": "Months",
+      "interestRate": "Interest rate (%)",
+      "startDate": "Start date",
+      "status": "Status"
+    },
+    "placeholders": {
+      "selectAccount": "Select credit account",
+      "selectCategory": "Select category"
+    },
+    "status": {
+      "active": "Active",
+      "completed": "Completed",
+      "cancelled": "Cancelled"
+    }
+  },
+  "transfers": {
+    "title": "Transfers",
+    "description": "Track transfers between your accounts.",
+    "loading": "Loading transfers...",
+    "saving": "Saving...",
+    "create": "Create transfer",
+    "update": "Update transfer",
+    "cancelEdit": "Cancel edit",
+    "edit": "Edit",
+    "delete": "Delete",
+    "deleteConfirm": "Delete this transfer?",
+    "error": "Error: {{message}}",
+    "listTitle": "Your transfers",
+    "empty": "No transfers yet.",
+    "fields": {
+      "sourceAccount": "Source account",
+      "destAccount": "Destination account",
+      "amount": "Amount",
+      "currency": "Currency",
+      "date": "Date",
+      "notes": "Notes"
+    },
+    "placeholders": {
+      "selectSource": "Select source account",
+      "selectDest": "Select destination account"
+    }
+  },
+  "savingsGoals": {
+    "title": "Savings goals",
+    "description": "Set and track your savings goals by account.",
+    "loading": "Loading savings goals...",
+    "saving": "Saving...",
+    "create": "Create goal",
+    "update": "Update goal",
+    "cancelEdit": "Cancel edit",
+    "edit": "Edit",
+    "delete": "Delete",
+    "deleteConfirm": "Delete this savings goal?",
+    "error": "Error: {{message}}",
+    "listTitle": "Your savings goals",
+    "empty": "No savings goals yet.",
+    "progressLabel": "Progress",
+    "noTarget": "No target",
+    "fields": {
+      "name": "Name",
+      "account": "Account",
+      "targetPercentage": "Target percentage (%)",
+      "targetAmount": "Target amount",
+      "currency": "Currency",
+      "notes": "Notes"
+    },
+    "placeholders": {
+      "selectAccount": "Select account"
+    }
+  },
+  "reports": {
+    "title": "Reports",
+    "description": "Monthly trends, annual summary, and category breakdown.",
+    "loading": "Loading reports...",
+    "export": "Export CSV",
+    "exporting": "Exporting...",
+    "error": "Error: {{message}}",
+    "empty": "No data for selected range.",
+    "annualSummaryTitle": "Annual summary",
+    "monthlyTrendTitle": "Monthly trend",
+    "categoryBreakdownTitle": "Category breakdown",
+    "incomeLabel": "Income",
+    "expenseLabel": "Expenses",
+    "fields": {
+      "fromMonth": "From month",
+      "fromYear": "From year",
+      "toMonth": "To month",
+      "toYear": "To year"
+    }
+  },
+  "imports": {
+    "title": "Import transactions",
+    "description": "Upload CSV/OFX content, preview parsed rows, and import into expenses.",
+    "loading": "Loading import tools...",
+    "previewLoading": "Parsing preview...",
+    "applying": "Importing...",
+    "apply": "Apply import",
+    "previewTitle": "Preview",
+    "previewSuggestedCategory": "Suggested category",
+    "empty": "Paste content or upload a file to preview.",
+    "previewEmpty": "No valid rows parsed.",
+    "error": "Error: {{message}}",
+    "result": "Parsed: {{parsed}} rows, created: {{created}} expenses.",
+    "fields": {
+      "format": "Format",
+      "file": "File",
+      "rawContent": "Raw content",
+      "account": "Account",
+      "category": "Category",
+      "currency": "Currency"
+    },
+    "hints": {
+      "categoryOverride": "Leave category empty to use rule-based suggestions, or select one to override all rows."
+    },
+    "placeholders": {
+      "selectAccount": "Select account",
+      "selectCategory": "Select category"
+    }
+  },
+  "categoryRules": {
+    "title": "Category rules",
+    "description": "Define pattern-based rules to auto-assign categories during imports.",
+    "loading": "Loading category rules...",
+    "saving": "Saving...",
+    "create": "Create rule",
+    "update": "Update rule",
+    "cancelEdit": "Cancel edit",
+    "edit": "Edit",
+    "delete": "Delete",
+    "deleteConfirm": "Delete this rule?",
+    "error": "Error: {{message}}",
+    "listTitle": "Your category rules",
+    "empty": "No rules yet.",
+    "fields": {
+      "category": "Category",
+      "pattern": "Pattern",
+      "matchType": "Match type"
+    },
+    "placeholders": {
+      "selectCategory": "Select category"
+    },
+    "matchTypes": {
+      "contains": "Contains",
+      "exact": "Exact",
+      "regex": "Regex"
     }
   },
   "app": {

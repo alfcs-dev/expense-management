@@ -46,6 +46,18 @@ function parseDisplayToCents(value: string): number {
   return Math.round(parsed * 100);
 }
 
+function getMonthlyEquivalent(item: {
+  amount: number;
+  frequency: "monthly" | "biweekly" | "annual" | "bimonthly";
+  isAnnual: boolean;
+  annualCost: number | null;
+}): number {
+  if (item.isAnnual || item.frequency === "annual") {
+    return Math.round((item.annualCost ?? item.amount) / 12);
+  }
+  return item.amount;
+}
+
 export const recurringExpensesRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/recurring-expenses",
@@ -404,6 +416,22 @@ function RecurringExpensesPage() {
               )} -{" "}
               {item.category.name} -{" "}
               {t(`recurringExpenses.frequency.${item.frequency}`)}{" "}
+              {(item.isAnnual || item.frequency === "annual") ? (
+                <>
+                  - {t("recurringExpenses.annualCostLabel")}:{" "}
+                  {formatCurrencyByLanguage(
+                    item.annualCost ?? item.amount,
+                    item.currency as "MXN" | "USD",
+                    i18n.language,
+                  )}{" "}
+                  - {t("recurringExpenses.monthlyEquivalentLabel")}:{" "}
+                  {formatCurrencyByLanguage(
+                    getMonthlyEquivalent(item),
+                    item.currency as "MXN" | "USD",
+                    i18n.language,
+                  )}{" "}
+                </>
+              ) : null}
               {!item.isActive ? `(${t("recurringExpenses.inactive")})` : ""}{" "}
               <button type="button" onClick={() => onEdit(item)}>
                 {t("recurringExpenses.edit")}
