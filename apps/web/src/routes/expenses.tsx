@@ -68,9 +68,14 @@ function ExpensesPage() {
 
   const [selectedMonth, setSelectedMonth] = useState<number>(now.getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState<number>(now.getFullYear());
-  const [activeBudgetId, setActiveBudgetId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<ExpenseFormValues>(INITIAL_FORM);
+
+  const budgetQuery = trpc.budget.getOrCreateForMonth.useQuery(
+    { month: selectedMonth, year: selectedYear },
+    { retry: false },
+  );
+  const activeBudgetId = budgetQuery.data?.id ?? null;
 
   const accountsQuery = trpc.account.list.useQuery(undefined, { retry: false });
   const categoriesQuery = trpc.category.list.useQuery(undefined, { retry: false });
@@ -82,7 +87,6 @@ function ExpensesPage() {
     },
   );
 
-  const budgetMutation = trpc.budget.getOrCreateForMonth.useMutation();
   const createMutation = trpc.expense.create.useMutation({
     onSuccess: async () => {
       await utils.expense.list.invalidate();
@@ -103,22 +107,11 @@ function ExpensesPage() {
   });
 
   useEffect(() => {
-    void budgetMutation
-      .mutateAsync({
-        month: selectedMonth,
-        year: selectedYear,
-      })
-      .then((budget) => {
-        setActiveBudgetId(budget.id);
-      });
-  }, [budgetMutation, selectedMonth, selectedYear]);
-
-  useEffect(() => {
     const unauthorized =
+      (!budgetQuery.isLoading && budgetQuery.error?.data?.code === "UNAUTHORIZED") ||
       (!accountsQuery.isLoading && accountsQuery.error?.data?.code === "UNAUTHORIZED") ||
       (!categoriesQuery.isLoading && categoriesQuery.error?.data?.code === "UNAUTHORIZED") ||
-      (!expenseListQuery.isLoading && expenseListQuery.error?.data?.code === "UNAUTHORIZED") ||
-      budgetMutation.error?.data?.code === "UNAUTHORIZED";
+      (!expenseListQuery.isLoading && expenseListQuery.error?.data?.code === "UNAUTHORIZED");
 
     if (unauthorized) {
       navigate({ to: "/" });
@@ -126,7 +119,8 @@ function ExpensesPage() {
   }, [
     accountsQuery.error?.data?.code,
     accountsQuery.isLoading,
-    budgetMutation.error?.data?.code,
+    budgetQuery.error?.data?.code,
+    budgetQuery.isLoading,
     categoriesQuery.error?.data?.code,
     categoriesQuery.isLoading,
     expenseListQuery.error?.data?.code,
@@ -137,13 +131,12 @@ function ExpensesPage() {
   const isSubmitting =
     createMutation.isPending ||
     updateMutation.isPending ||
-    deleteMutation.isPending ||
-    budgetMutation.isPending;
+    deleteMutation.isPending;
   const activeError =
+    budgetQuery.error ??
     accountsQuery.error ??
     categoriesQuery.error ??
     expenseListQuery.error ??
-    budgetMutation.error ??
     createMutation.error ??
     updateMutation.error ??
     deleteMutation.error;
@@ -203,7 +196,7 @@ function ExpensesPage() {
     await deleteMutation.mutateAsync({ id });
   };
 
-  if (accountsQuery.isLoading || categoriesQuery.isLoading || budgetMutation.isPending) {
+  if (budgetQuery.isLoading || accountsQuery.isLoading || categoriesQuery.isLoading) {
     return <p>{t("expenses.loading")}</p>;
   }
 

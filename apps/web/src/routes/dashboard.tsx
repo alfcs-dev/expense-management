@@ -32,9 +32,11 @@ function DashboardPage() {
   const today = new Date();
   const [month, setMonth] = useState<number>(today.getMonth() + 1);
   const [year, setYear] = useState<number>(today.getFullYear());
-  const [budgetId, setBudgetId] = useState<string | null>(null);
-
-  const budgetMutation = trpc.budget.getOrCreateForMonth.useMutation();
+  const budgetQuery = trpc.budget.getOrCreateForMonth.useQuery(
+    { month, year },
+    { retry: false },
+  );
+  const budgetId = budgetQuery.data?.id ?? null;
   const plannedQuery = trpc.budget.getPlannedByCategory.useQuery(
     { budgetId: budgetId ?? "" },
     { enabled: Boolean(budgetId), retry: false },
@@ -45,14 +47,8 @@ function DashboardPage() {
   );
 
   useEffect(() => {
-    void budgetMutation
-      .mutateAsync({ month, year })
-      .then((budget) => setBudgetId(budget.id));
-  }, [budgetMutation, month, year]);
-
-  useEffect(() => {
     const unauthorized =
-      budgetMutation.error?.data?.code === "UNAUTHORIZED" ||
+      (!budgetQuery.isLoading && budgetQuery.error?.data?.code === "UNAUTHORIZED") ||
       (!plannedQuery.isLoading && plannedQuery.error?.data?.code === "UNAUTHORIZED") ||
       (!expenseQuery.isLoading && expenseQuery.error?.data?.code === "UNAUTHORIZED");
 
@@ -60,7 +56,8 @@ function DashboardPage() {
       navigate({ to: "/" });
     }
   }, [
-    budgetMutation.error?.data?.code,
+    budgetQuery.error?.data?.code,
+    budgetQuery.isLoading,
     expenseQuery.error?.data?.code,
     expenseQuery.isLoading,
     navigate,
@@ -68,8 +65,8 @@ function DashboardPage() {
     plannedQuery.isLoading,
   ]);
 
-  const activeError = plannedQuery.error ?? expenseQuery.error ?? budgetMutation.error;
-  const isLoading = budgetMutation.isPending || plannedQuery.isLoading || expenseQuery.isLoading;
+  const activeError = budgetQuery.error ?? plannedQuery.error ?? expenseQuery.error;
+  const isLoading = budgetQuery.isLoading || plannedQuery.isLoading || expenseQuery.isLoading;
 
   const rows = useMemo<DashboardCategoryRow[]>(() => {
     const map = new Map<string, DashboardCategoryRow>();

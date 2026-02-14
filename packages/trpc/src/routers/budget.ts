@@ -42,7 +42,7 @@ function plannedMonthlyAmountForTemplate(template: {
 export const budgetRouter = router({
   getOrCreateForMonth: protectedProcedure
     .input(monthYearSchema)
-    .mutation(async ({ ctx, input }) => {
+    .query(async ({ ctx, input }) => {
       const userId = requireUserId(ctx.user);
 
       return db.budget.upsert({
