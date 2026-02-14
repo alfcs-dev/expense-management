@@ -68,9 +68,9 @@
 
 ### 3.5 Expense logging (manual)
 
-- [ ] tRPC: `expense.create`, `expense.update`, `expense.delete`, `expense.list` (filter by budgetId, categoryId, date range).
-- [ ] Input: budgetId, categoryId, accountId, description, amount, currency, date. source = 'manual'.
-- [ ] Web: expense list (per budget/month), add expense form, edit/delete. Link to budget and category.
+- [x] tRPC: `expense.create`, `expense.update`, `expense.delete`, `expense.list` (filter by budgetId, categoryId, date range).
+- [x] Input: budgetId, categoryId, accountId, description, amount, currency, date. source = 'manual'.
+- [x] Web: expense list (per budget/month), add expense form, edit/delete. Link to budget and category.
 
 ### 3.6 Dashboard
 
@@ -184,6 +184,12 @@
   - Added `budget.getPlannedByCategory({ budgetId })` to derive planned values from active recurring templates.
   - Planned totals are returned grouped by category with currency-safe sums (`MXN` and `USD` separated) and overall totals.
   - Validation complete: `pnpm lint` and `pnpm typecheck` pass after implementation.
+- 3.5 manual expense logging implemented end-to-end on 2026-02-14:
+  - tRPC `expense` router added with `list/create/update/delete`; list supports `budgetId`, `categoryId`, and date-range filtering.
+  - API enforces user ownership across referenced `budgetId`, `categoryId`, and `accountId`.
+  - Web route `/expenses` added with month/year budget selector, manual expense create/edit/delete, and budget-scoped listing.
+  - Form and API use centavos for persistence and display-unit conversion in UI.
+  - Validation complete: `pnpm lint` and `pnpm typecheck` pass after implementation.
 
 **Decisions:**
 - Replaced static, code-embedded institution lists with a synced catalog from Banxico as source of truth.
@@ -195,6 +201,9 @@
 - 2026-02-14: implemented budget as a month container plus derived planned lines from `RecurringExpense` instead of persisting separate budget-line rows; this avoids duplicate source-of-truth data during Phase 2.
 - 2026-02-14: applied frequency normalization in API (`biweekly=26/12`, `bimonthly=1/2`, annual templates prorated by `annualCost/12` fallback to `amount/12`) so planned values are month-comparable.
 - 2026-02-14: returned planned aggregates split by currency to prevent mixing MXN and USD into a single misleading total.
+- 2026-02-14: added a dedicated `/expenses` page instead of overloading `/dashboard` so manual logging can ship independently while dashboard aggregation is still in progress.
+- 2026-02-14: used `budget.getOrCreateForMonth` from the expenses page to guarantee a valid monthly budget container exists before creating manual expenses.
+- 2026-02-14: narrowed frontend expense list typing to avoid TypeScript "excessively deep type instantiation" errors caused by large inferred tRPC output types in JSX.
 
 **Roadblocks:**
 - `pnpm db:migrate` uses `prisma migrate dev` (interactive), which can block automation; non-interactive flows should use migrate deploy semantics for server jobs.
@@ -207,6 +216,7 @@
 - Enforcing ownership on related foreign keys prevents cross-user reference bugs and keeps data boundaries consistent with existing account/category routers.
 - Derived budget planning keeps recurring templates authoritative, reducing mutation complexity and making recalculation deterministic as templates are edited.
 - Currency-separated aggregates preserve financial correctness before any FX conversion rules are introduced.
+- Budget-first expense creation keeps expense records consistently tied to a concrete month/year budget, which is required for later budget-vs-actual reporting.
 
 **Operational follow-up (required for this scope):**
 - Run `pnpm db:sync:institutions` after migrations in each environment.

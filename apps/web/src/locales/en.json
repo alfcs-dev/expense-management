@@ -4,6 +4,7 @@
     "dashboard": "Dashboard",
     "accounts": "Accounts",
     "categories": "Categories",
+    "expenses": "Expenses",
     "recurringExpenses": "Recurring"
   },
   "session": {
@@ -148,6 +149,36 @@
       "biweekly": "Biweekly",
       "annual": "Annual",
       "bimonthly": "Every two months"
+    }
+  },
+  "expenses": {
+    "title": "Expenses",
+    "description": "Log manual expenses for a selected month budget.",
+    "loading": "Loading expense setup...",
+    "loadingList": "Loading expenses...",
+    "saving": "Saving...",
+    "create": "Create expense",
+    "update": "Update expense",
+    "cancelEdit": "Cancel edit",
+    "edit": "Edit",
+    "delete": "Delete",
+    "deleteConfirm": "Delete this expense?",
+    "error": "Error: {{message}}",
+    "listTitle": "Expenses in selected budget",
+    "empty": "No expenses yet.",
+    "fields": {
+      "month": "Month",
+      "year": "Year",
+      "description": "Description",
+      "category": "Category",
+      "account": "Account",
+      "amount": "Amount",
+      "currency": "Currency",
+      "date": "Date"
+    },
+    "placeholders": {
+      "selectCategory": "Select category",
+      "selectAccount": "Select account"
     }
   },
   "app": {
