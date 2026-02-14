@@ -144,6 +144,8 @@ model Account {
   currency     Currency
   clabe        String?     @unique
   balance      Int         @default(0) // centavos/cents
+  creditLimit  Int?        // centavos/cents; for credit accounts
+  currentDebt  Int?        // centavos/cents; for credit accounts
   institution  String?
   bankLinkId   String?
   createdAt    DateTime   @default(now())
@@ -158,6 +160,17 @@ model Account {
   installmentPlans  InstallmentPlan[]
   savingsGoals      SavingsGoal[]
   bankLink          BankLink?     @relation(fields: [bankLinkId], references: [id], onDelete: SetNull)
+}
+
+model InstitutionCatalog {
+  code       String   @id
+  bankCode   String?
+  name       String
+  source     String
+  isActive   Boolean  @default(true)
+  lastSeenAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }
 
 model Budget {

@@ -1,7 +1,7 @@
 # Phase 2 — Core Features (Weeks 3–5)
 
 > **Source:** [PLAN.md](../PLAN.md) Section 6, Phase 2.  
-> **When starting this phase:** move this file to `../in_progress/` and use the "In progress" section at the bottom to log achievements, decisions, and roadblocks.
+> **Tracking rule:** use the "In progress" section at the bottom to log achievements, decisions, and roadblocks.
 
 **Planning Metadata**
 - Status: in_progress
@@ -36,14 +36,22 @@
 
 ### 3.1 Account management
 
-- [ ] tRPC procedures: `account.list`, `account.create`, `account.update`, `account.delete`. All scoped by `ctx.user.id`.
-- [ ] Input validation (Zod): name, type (debit/credit/investment/cash), currency (MXN/USD), optional institution, balance.
-- [ ] Web: account list, create/edit form, delete with confirmation. Display balance and currency with proper formatting (centavos → display units).
+- [x] tRPC procedures: `account.list`, `account.create`, `account.update`, `account.delete`. All scoped by `ctx.user.id`.
+- [x] Input validation (Zod): name, type (debit/credit/investment/cash), currency (MXN/USD), optional institution, balance.
+- [x] Web: account list, create/edit form, delete with confirmation. Display balance and currency with proper formatting (centavos → display units).
+- [x] Scope adjustment: add CLABE-driven institution behavior required by product rules:
+  - `debit`: valid CLABE required; institution inferred from CLABE; institution selector locked.
+  - `credit`: institution selector enabled by default; CLABE optional; if CLABE is valid, infer institution and lock selector.
+  - Institution selector remains disabled until account type is chosen.
+- [x] Scope adjustment: replace static institution constants with dynamic catalog:
+  - Add `InstitutionCatalog` table and Banxico sync command (`pnpm db:sync:institutions`).
+  - Add weekly production sync requirement to deployment runbook.
+  - Use DB-backed catalog in API/UI for dropdown options and CLABE inference.
 
 ### 3.2 Category management
 
 - [ ] tRPC procedures: `category.list`, `category.create`, `category.update`, `category.delete`, `category.reorder` (sortOrder).
-- [ ] Seed or migrate default categories from PLAN (Kids, Subscriptions, Telecom, Savings, Auto, Home/Zuhause, Miscellaneous) if not already in seed.
+- [ ] Verify seeded default categories from PLAN (Kids, Subscriptions, Telecom, Savings, Auto, Home/Zuhause, Miscellaneous) and add any missing ones via migration/seed if needed.
 - [ ] Web: category list, create/edit (name, icon, color, sortOrder), reorder UI.
 
 ### 3.3 Recurring expense templates
@@ -82,8 +90,8 @@
 
 - [ ] Required schema/docs for this phase are finalized.
 - [ ] External vendor/provider decisions are finalized (if applicable).
-- [ ] Required environment variables and secrets are confirmed.
-- [ ] Validation plan is agreed (`pnpm lint`, `pnpm typecheck`, smoke checks, and any relevant performance checks).
+- [x] Required environment variables and secrets are confirmed.
+- [x] Validation plan is agreed (`pnpm lint`, `pnpm typecheck`, smoke checks, and any relevant performance checks).
 
 ---
 
@@ -144,10 +152,37 @@
 *When you start Phase 2, move this file to `../in_progress/` and fill below.*
 
 **Achievements:**
-- 
+- Phase 2 started on 2026-02-14 after Phase 1 closure and successful CI validation path (lint, typecheck, build on push/PR).
+- 3.1 account management implemented end-to-end:
+  - tRPC `account` router added with `list/create/update/delete` and strict user scoping.
+  - Zod input validation added for account payloads (name/type/currency/institution/balance).
+  - Web route `/accounts` added with list, create/edit form, delete confirmation, and formatted balances/currency.
+  - Navigation updated to include Accounts.
+  - Validation complete: `pnpm lint`, `pnpm typecheck`, and `pnpm build` pass.
+- 3.1 iteration: institution/CLABE flow now enforced for Mexican accounts:
+  - Dynamic institution catalog added with Banxico sync job (`db:sync:institutions`) and DB-backed dropdown source.
+  - Institution inference from CLABE now resolves against the synced catalog in backend and frontend.
+  - Debit accounts now require valid CLABE and infer institution automatically.
+  - Credit accounts allow either manual institution selection or CLABE-based auto-inference (with institution lock when inferred).
+  - Accounts UI now uses institution dropdown catalog and type-driven enable/disable rules.
+  - `InstitutionCatalog` Prisma model and migration added to store institution code/name/source/active state and support catalog evolution over time.
+  - New backend endpoint `account.institutions` added so the web account form reads live institution options from DB instead of hardcoded constants.
+  - Banxico sync script implemented at `packages/db/scripts/sync-institutions.ts` and exposed as `pnpm db:sync:institutions`.
+  - Documentation updated for operations: initial sync in local setup and weekly sync schedule in DigitalOcean deployment runbook.
 
 **Decisions:**
-- 
+- Replaced static, code-embedded institution lists with a synced catalog from Banxico as source of truth.
+- Adopted an operational sync model (weekly cron in infrastructure) rather than shipping institution changes in code releases.
+- Kept CLABE validation local/algorithmic, but institution naming and availability externalized to the DB catalog.
 
 **Roadblocks:**
-- 
+- `pnpm db:migrate` uses `prisma migrate dev` (interactive), which can block automation; non-interactive flows should use migrate deploy semantics for server jobs.
+
+**Why these changes were made:**
+- Static institution catalogs are high-maintenance and become stale when institutions are renamed, added, or retired.
+- A dynamic sync reduces product drift, avoids frequent app redeploys for catalog updates, and keeps CLABE inference aligned with current Banxico institution data.
+- DB-backed cataloging also provides auditability (`lastSeenAt`, `isActive`, `source`) and safer behavior when provider data changes unexpectedly.
+
+**Operational follow-up (required for this scope):**
+- Run `pnpm db:sync:institutions` after migrations in each environment.
+- Configure weekly sync in production (documented in `docs/DEPLOYMENT_DO.md`) and monitor sync logs.

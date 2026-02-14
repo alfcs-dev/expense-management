@@ -169,7 +169,34 @@ Restore dry-run command pattern:
 gunzip -c <backup.sql.gz> | docker exec -i expense-management-db-prod psql -U "$POSTGRES_USER" "$POSTGRES_DB"
 ```
 
-## 11. Operational checklist for "ready to deploy"
+## 11. Institution catalog sync (weekly)
+
+Accounts use a dynamic institution catalog synced from Banxico (`listaInstituciones.do`).
+
+Run once after migrations:
+
+```bash
+cd /opt/expense-management
+pnpm db:sync:institutions
+```
+
+Schedule weekly on the Droplet (example: Sunday 03:00):
+
+```bash
+crontab -e
+```
+
+```cron
+0 3 * * 0 cd /opt/expense-management && /usr/bin/pnpm db:sync:institutions >> /var/log/expense-management-institutions.log 2>&1
+```
+
+Validate recent sync:
+
+```bash
+tail -n 50 /var/log/expense-management-institutions.log
+```
+
+## 12. Operational checklist for "ready to deploy"
 
 - `pnpm lint`, `pnpm typecheck`, `pnpm build` pass on main branch.
 - `.env.production` values reviewed and secrets rotated.
@@ -177,9 +204,10 @@ gunzip -c <backup.sql.gz> | docker exec -i expense-management-db-prod psql -U "$
 - Firewall rules restricted to `22/80/443`.
 - HTTPS configured and validated.
 - Backup job configured and tested restore.
+- Institution catalog sync configured weekly and validated.
 - Smoke tests pass on deployed domain.
 
-## 12. Known current limitations
+## 13. Known current limitations
 
 - CI workflow exists for lint/typecheck/build, but automatic deploy-to-DO job is not yet configured.
 - TLS automation files are not yet included in repo (must be configured on infrastructure before launch).

@@ -30,10 +30,13 @@ docker compose up -d postgres
 # 4. Run migrations (creates DB schema)
 pnpm db:migrate
 
-# 5. (Optional) Preview seed mapping from CSV (no DB writes)
+# 5. Sync institution catalog from Banxico (required for account institution dropdown + CLABE inference)
+pnpm db:sync:institutions
+
+# 6. (Optional) Preview seed mapping from CSV (no DB writes)
 pnpm db:seed:preview
 
-# 6. Start API + web (one terminal)
+# 7. Start API + web (one terminal)
 pnpm dev
 ```
 
@@ -152,6 +155,7 @@ Keep a single `.env` at the repo root and use **`pnpm db:migrate`** for migratio
 | `pnpm db:migrate` | Run DB migrations (from root; loads root `.env`) |
 | `pnpm db:generate` | Regenerate Prisma client |
 | `pnpm db:studio` | Open Prisma Studio using root `.env` |
+| `pnpm db:sync:institutions` | Sync institution catalog from Banxico into DB |
 | `pnpm db:seed:preview` | Parse CSV and print seed representation only (no DB writes) |
 | `pnpm db:seed` | Apply CSV seed to DB (idempotent reset/recreate for seed user) |
 | `docker compose up -d postgres` | Start Postgres only (for local dev) |

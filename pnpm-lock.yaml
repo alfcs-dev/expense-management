@@ -72,6 +72,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@expense-management/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       '@expense-management/trpc':
         specifier: workspace:*
         version: link:../../packages/trpc
@@ -150,9 +153,18 @@ importers:
 
   packages/trpc:
     dependencies:
+      '@expense-management/db':
+        specifier: workspace:*
+        version: link:../db
+      '@expense-management/shared':
+        specifier: workspace:*
+        version: link:../shared
       '@trpc/server':
         specifier: ^11.0.0
         version: 11.10.0(typescript@5.9.3)
+      zod:
+        specifier: ^3.23.0
+        version: 3.25.76
     devDependencies:
       fastify:
         specifier: ^5.7.4

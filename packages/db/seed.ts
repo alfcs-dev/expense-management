@@ -548,8 +548,18 @@ async function applySeed(
   await prisma.budget.deleteMany({ where: { userId: user.id } });
 
   const seedAccounts = buildSeedAccounts(budgetRows, debtRows, accountRows);
+  const debtByCardKey = new Map<string, number>();
+  for (const row of debtRows) {
+    const key = toAccountKey(row.cardName);
+    debtByCardKey.set(
+      key,
+      (debtByCardKey.get(key) ?? 0) + row.remainingAmountCents,
+    );
+  }
   const accountByKey = new Map<string, string>();
   for (const account of seedAccounts) {
+    const accountKey = toAccountKey(account.name);
+    const isCredit = account.type === "credit";
     const created = await prisma.account.create({
       data: {
         userId: user.id,
@@ -559,9 +569,11 @@ async function applySeed(
         clabe: account.clabe,
         institution: account.institution,
         balance: 0,
+        creditLimit: null,
+        currentDebt: isCredit ? debtByCardKey.get(accountKey) ?? 0 : null,
       },
     });
-    accountByKey.set(toAccountKey(account.name), created.id);
+    accountByKey.set(accountKey, created.id);
   }
 
   const categoryByName = new Map<string, string>();

@@ -1,7 +1,8 @@
 {
   "nav": {
     "home": "Home",
-    "dashboard": "Dashboard"
+    "dashboard": "Dashboard",
+    "accounts": "Accounts"
   },
   "session": {
     "loading": "Session: loading...",
@@ -33,6 +34,56 @@
     "loading": "Loading…",
     "error": "Error: {{message}}",
     "protectedMessage": "Protected route. Signed in as: {{email}}"
+  },
+  "accounts": {
+    "title": "Accounts",
+    "description": "Manage your accounts and starting balances.",
+    "loading": "Loading accounts...",
+    "saving": "Saving...",
+    "create": "Create account",
+    "update": "Update account",
+    "cancelEdit": "Cancel edit",
+    "edit": "Edit",
+    "delete": "Delete",
+    "deleteConfirm": "Delete this account?",
+    "error": "Error: {{message}}",
+    "listTitle": "Your accounts",
+    "empty": "No accounts yet.",
+    "balanceLabel": "Balance",
+    "creditLimitLabel": "Credit limit",
+    "currentDebtLabel": "Current debt",
+    "availableCreditLabel": "Available credit",
+    "institutionLabel": "Institution",
+    "clabeLabel": "CLABE",
+    "fields": {
+      "name": "Name",
+      "type": "Type",
+      "currency": "Currency",
+      "balance": "Balance",
+      "creditLimit": "Credit limit",
+      "currentDebt": "Current debt",
+      "institution": "Institution",
+      "clabe": "CLABE"
+    },
+    "placeholders": {
+      "selectType": "Select account type",
+      "selectInstitution": "Select institution"
+    },
+    "hints": {
+      "debitClabe": "Required. Institution is inferred from CLABE.",
+      "creditClabe": "Optional. If valid, institution is inferred and locked."
+    },
+    "errors": {
+      "typeRequired": "Account type is required.",
+      "debitClabeRequired": "Debit accounts require a valid CLABE to infer institution.",
+      "creditInstitutionRequired": "Credit accounts require an institution or a valid CLABE."
+    },
+    "types": {
+      "debit": "Debit",
+      "credit": "Credit",
+      "investment": "Investment",
+      "cash": "Cash"
+    }
   },
   "app": {
     "title": "Budget Manager"
