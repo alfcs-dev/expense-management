@@ -8,6 +8,7 @@
     "installments": "Installments",
     "transfers": "Transfers",
     "savingsGoals": "Savings goals",
+    "reports": "Reports",
     "recurringExpenses": "Recurring"
   },
   "session": {
@@ -299,6 +300,24 @@
     },
     "placeholders": {
       "selectAccount": "Select account"
+    }
+  },
+  "reports": {
+    "title": "Reports",
+    "description": "Monthly trends, annual summary, and category breakdown.",
+    "loading": "Loading reports...",
+    "error": "Error: {{message}}",
+    "empty": "No data for selected range.",
+    "annualSummaryTitle": "Annual summary",
+    "monthlyTrendTitle": "Monthly trend",
+    "categoryBreakdownTitle": "Category breakdown",
+    "incomeLabel": "Income",
+    "expenseLabel": "Expenses",
+    "fields": {
+      "fromMonth": "From month",
+      "fromYear": "From year",
+      "toMonth": "To month",
+      "toYear": "To year"
     }
   },
   "app": {

@@ -8,6 +8,7 @@
     "installments": "MSI",
     "transfers": "Transferencias",
     "savingsGoals": "Metas de ahorro",
+    "reports": "Reportes",
     "recurringExpenses": "Recurrentes"
   },
   "session": {
@@ -299,6 +300,24 @@
     },
     "placeholders": {
       "selectAccount": "Selecciona cuenta"
+    }
+  },
+  "reports": {
+    "title": "Reportes",
+    "description": "Tendencias mensuales, resumen anual y desglose por categoría.",
+    "loading": "Cargando reportes...",
+    "error": "Error: {{message}}",
+    "empty": "Sin datos para el rango seleccionado.",
+    "annualSummaryTitle": "Resumen anual",
+    "monthlyTrendTitle": "Tendencia mensual",
+    "categoryBreakdownTitle": "Desglose por categoría",
+    "incomeLabel": "Ingresos",
+    "expenseLabel": "Gastos",
+    "fields": {
+      "fromMonth": "Mes inicial",
+      "fromYear": "Año inicial",
+      "toMonth": "Mes final",
+      "toYear": "Año final"
     }
   },
   "app": {

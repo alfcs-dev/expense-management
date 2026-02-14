@@ -63,8 +63,8 @@
 
 ### 3.5 Reports and charts
 
-- [ ] tRPC: procedures for monthly trends (e.g. by month, by category), annual summary, category breakdown over time.
-- [ ] Web: reports page(s): monthly comparison, annual view, category breakdown (bar/pie/line). Use Recharts or Tremor; support date range and granularity (month/week if needed).
+- [x] tRPC: procedures for monthly trends (e.g. by month, by category), annual summary, category breakdown over time.
+- [x] Web: reports page(s): monthly comparison, annual view, category breakdown (bar/pie/line). Use Recharts or Tremor; support date range and granularity (month/week if needed).
 
 ### 3.6 Data import — CSV/OFX
 
@@ -183,6 +183,11 @@
   - Recurring templates UI now displays annual cost and monthly-equivalent values for annual items.
   - Added EN/ES labels for annual-cost and monthly-equivalent presentation.
   - Validation complete: `pnpm lint` and `pnpm typecheck` pass.
+- 3.5 reports and charts implemented on 2026-02-14:
+  - tRPC `report` router added with `monthlyTrend`, `annualSummary`, and `categoryBreakdown`.
+  - Added `/reports` route with range selectors and Recharts visuals (monthly bar chart, category pie chart) plus annual summary blocks.
+  - Navigation and i18n resources updated in EN/ES.
+  - Validation complete: `pnpm lint` and `pnpm typecheck` pass.
 
 **Decisions:**
 - Start with 3.1 Installment plans (MSI) to unlock auto-generated future expenses early.
@@ -192,6 +197,7 @@
 - 2026-02-14: transfer operations enforce distinct source/destination accounts in API validation to prevent no-op or misleading transfer records.
 - 2026-02-14: savings-goal progress uses linked account balance as the first implementation source (no separate contribution ledger yet) to avoid introducing additional schema complexity in this phase.
 - 2026-02-14: annual-proration display is surfaced in recurring-template UI while keeping canonical proration logic in budget aggregation APIs to avoid duplicated business logic.
+- 2026-02-14: kept reports aggregation in API (grouping/normalization server-side) while rendering charts client-side for faster iteration and clearer separation of concerns.
 
 **Roadblocks:**
 - None yet.
