@@ -4,11 +4,11 @@
 > **When starting this phase:** move this file to `../in_progress/` and use the "In progress" section at the bottom to log achievements, decisions, and roadblocks.
 
 **Planning Metadata**
-- Status: draft
+- Status: in_progress
 - Owner: @alfcs
 - Target start: Week 3
 - Target end: Week 5
-- Actual start: TBD
+- Actual start: 2026-02-14
 - Actual end: TBD
 - Dependencies: Phase 1 complete
 - Linked PRs/issues: TBD
