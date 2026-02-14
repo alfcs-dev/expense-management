@@ -94,12 +94,12 @@ This phase also introduces direct API testing assets and a minimal automated API
 
 ### Slice C — Basic Automated API Smoke Tests
 
-- [ ] Add API smoke test harness (Fastify inject + Vitest or equivalent)
-- [ ] Add `pnpm test:api` entrypoint and CI hook
-- [ ] Cover minimum scenarios:
-  - [ ] health endpoint
-  - [ ] protected route unauthorized behavior
-  - [ ] authenticated create/list flow for account, budget, recurring, manual expense
+- [x] Add API smoke test harness (Fastify inject + Vitest or equivalent)
+- [x] Add `pnpm test:api` entrypoint and CI hook
+- [x] Cover minimum scenarios:
+  - [x] health endpoint
+  - [x] protected route unauthorized behavior
+  - [x] authenticated create/list flow for account, budget, recurring, manual expense
 
 **Slice C done when**
 - Smoke tests pass locally and in CI.
@@ -200,6 +200,12 @@ Each reintroduced feature must ship as vertical slice with:
   - Added Postman collection and local environment for core auth + API lifecycle.
   - Added `docs/API_TESTING.md` with exact execution order and troubleshooting notes.
   - Added cookie/session handling scripts to collection requests to simplify authenticated tRPC testing.
+- 2026-02-14: Slice C completed on branch `phase-2.5-core-hardening`.
+  - Added API app builder (`apps/api/src/app.ts`) and refactored entrypoint to enable test bootstrapping.
+  - Added Vitest smoke suite (`apps/api/src/app.test.ts`) with health, unauthorized, and authenticated core lifecycle checks.
+  - Added `pnpm test:api` root script and API package test script.
+  - Updated CI workflow with `api_smoke` job backed by Postgres service and migration deploy step.
+  - Validation complete: `pnpm test:api`, `pnpm lint`, `pnpm typecheck`, and `pnpm build` pass.
 
 **Decisions**
 - 2026-02-14: Keep `shadcn/ui` direction for this phase; do not migrate component library.

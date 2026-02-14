@@ -58,24 +58,23 @@ The collection stores IDs into environment variables (`category_id`, `account_id
 
 ## 5. Notes about tRPC payloads
 
-Requests use the tRPC HTTP shape:
+Requests use direct JSON input payloads for this API server:
 
 ```json
 {
-  "json": {
-    "...": "input payload"
-  }
+  "...": "input payload"
 }
 ```
 
 Endpoint format:
 
-- `POST /api/trpc/<router>.<procedure>`
+- Mutations: `POST /api/trpc/<router>.<procedure>` with JSON body input
+- Queries: `GET /api/trpc/<router>.<procedure>?input=<url-encoded-json>`
 
 Examples:
 
 - `POST /api/trpc/budget.create`
-- `POST /api/trpc/expense.list`
+- `GET /api/trpc/expense.list?input=%7B%22budgetId%22%3A%22...%22%7D`
 
 ## 6. Common issues
 

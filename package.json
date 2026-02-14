@@ -19,7 +19,8 @@
     "prod:build": "docker compose --env-file .env.production -f docker-compose.prod.yml build",
     "prod:up": "docker compose --env-file .env.production -f docker-compose.prod.yml up -d",
     "prod:down": "docker compose --env-file .env.production -f docker-compose.prod.yml down",
-    "prod:logs": "docker compose --env-file .env.production -f docker-compose.prod.yml logs -f"
+    "prod:logs": "docker compose --env-file .env.production -f docker-compose.prod.yml logs -f",
+    "test:api": "dotenv -e .env -- pnpm --filter @expense-management/api test"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",

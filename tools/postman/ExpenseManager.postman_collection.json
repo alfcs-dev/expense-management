@@ -120,7 +120,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"json\": {\n    \"name\": \"Postman Category\",\n    \"icon\": \"🧪\",\n    \"color\": \"#4A6CF7\"\n  }\n}"
+              "raw": "{\n  \"name\": \"Postman Category\",\n  \"icon\": \"🧪\",\n  \"color\": \"#4A6CF7\"\n}"
             },
             "url": "{{base_url}}/api/trpc/category.create"
           }
@@ -147,7 +147,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"json\": {\n    \"name\": \"Cash Wallet\",\n    \"type\": \"cash\",\n    \"currency\": \"MXN\",\n    \"balance\": 100000\n  }\n}"
+              "raw": "{\n  \"name\": \"Cash Wallet\",\n  \"type\": \"cash\",\n  \"currency\": \"MXN\",\n  \"balance\": 100000\n}"
             },
             "url": "{{base_url}}/api/trpc/account.create"
           }
@@ -174,7 +174,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"json\": {\n    \"month\": {{month}},\n    \"year\": {{year}},\n    \"name\": \"Postman Budget\"\n  }\n}"
+              "raw": "{\n  \"month\": {{month}},\n  \"year\": {{year}},\n  \"name\": \"Postman Budget\"\n}"
             },
             "url": "{{base_url}}/api/trpc/budget.create"
           }
@@ -182,16 +182,11 @@
         {
           "name": "Budget List By Year",
           "request": {
-            "method": "POST",
+            "method": "GET",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
               { "key": "Cookie", "value": "{{session_cookie}}" }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"json\": {\n    \"year\": {{year}}\n  }\n}"
-            },
-            "url": "{{base_url}}/api/trpc/budget.listByYear"
+            "url": "{{base_url}}/api/trpc/budget.listByYear?input=%7B%22year%22%3A{{year}}%7D"
           }
         },
         {
@@ -216,7 +211,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"json\": {\n    \"categoryId\": \"{{category_id}}\",\n    \"sourceAccountId\": \"{{account_id}}\",\n    \"description\": \"Internet bill\",\n    \"amount\": 49900,\n    \"currency\": \"MXN\",\n    \"frequency\": \"monthly\",\n    \"isAnnual\": false,\n    \"isActive\": true\n  }\n}"
+              "raw": "{\n  \"categoryId\": \"{{category_id}}\",\n  \"sourceAccountId\": \"{{account_id}}\",\n  \"description\": \"Internet bill\",\n  \"amount\": 49900,\n  \"currency\": \"MXN\",\n  \"frequency\": \"monthly\",\n  \"isAnnual\": false,\n  \"isActive\": true\n}"
             },
             "url": "{{base_url}}/api/trpc/recurringExpense.create"
           }
@@ -243,7 +238,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"json\": {\n    \"budgetId\": \"{{budget_id}}\",\n    \"categoryId\": \"{{category_id}}\",\n    \"accountId\": \"{{account_id}}\",\n    \"description\": \"Manual grocery expense\",\n    \"amount\": 15000,\n    \"currency\": \"MXN\",\n    \"date\": \"2026-02-14T12:00:00.000Z\"\n  }\n}"
+              "raw": "{\n  \"budgetId\": \"{{budget_id}}\",\n  \"categoryId\": \"{{category_id}}\",\n  \"accountId\": \"{{account_id}}\",\n  \"description\": \"Manual grocery expense\",\n  \"amount\": 15000,\n  \"currency\": \"MXN\",\n  \"date\": \"2026-02-14T12:00:00.000Z\"\n}"
             },
             "url": "{{base_url}}/api/trpc/expense.create"
           }
@@ -251,31 +246,21 @@
         {
           "name": "Expense List By Budget",
           "request": {
-            "method": "POST",
+            "method": "GET",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
               { "key": "Cookie", "value": "{{session_cookie}}" }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"json\": {\n    \"budgetId\": \"{{budget_id}}\"\n  }\n}"
-            },
-            "url": "{{base_url}}/api/trpc/expense.list"
+            "url": "{{base_url}}/api/trpc/expense.list?input=%7B%22budgetId%22%3A%22{{budget_id}}%22%7D"
           }
         },
         {
           "name": "Budget Planned By Category",
           "request": {
-            "method": "POST",
+            "method": "GET",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
               { "key": "Cookie", "value": "{{session_cookie}}" }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"json\": {\n    \"budgetId\": \"{{budget_id}}\"\n  }\n}"
-            },
-            "url": "{{base_url}}/api/trpc/budget.getPlannedByCategory"
+            "url": "{{base_url}}/api/trpc/budget.getPlannedByCategory?input=%7B%22budgetId%22%3A%22{{budget_id}}%22%7D"
           }
         }
       ]
