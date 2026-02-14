@@ -3,6 +3,7 @@ import { createRoute, useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { isValidClabe, normalizeClabe } from "@expense-management/shared";
 import { rootRoute } from "./__root";
+import { formatCurrencyByLanguage } from "../utils/locale";
 import { trpc } from "../utils/trpc";
 
 const ACCOUNT_TYPES = ["debit", "credit", "investment", "cash"] as const;
@@ -51,13 +52,6 @@ function parseDisplayToCents(value: string): number {
   return Math.round(parsed * 100);
 }
 
-function formatCurrency(cents: number, currency: Currency): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency,
-  }).format(cents / 100);
-}
-
 function getPreferredInstitutionForBankCode(
   bankCode: string,
   institutions: InstitutionOption[],
@@ -88,7 +82,7 @@ export const accountsRoute = createRoute({
 });
 
 function AccountsPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const utils = trpc.useUtils();
 
@@ -484,30 +478,37 @@ function AccountsPage() {
                 <>
                   <span>
                     {t("accounts.creditLimitLabel")}: {" "}
-                    {formatCurrency(
+                    {formatCurrencyByLanguage(
                       account.creditLimit ?? 0,
                       account.currency as Currency,
+                      i18n.language,
                     )}
                   </span>{" "}
                   <span>
                     {t("accounts.currentDebtLabel")}: {" "}
-                    {formatCurrency(
+                    {formatCurrencyByLanguage(
                       account.currentDebt ?? 0,
                       account.currency as Currency,
+                      i18n.language,
                     )}
                   </span>{" "}
                   <span>
                     {t("accounts.availableCreditLabel")}: {" "}
-                    {formatCurrency(
+                    {formatCurrencyByLanguage(
                       (account.creditLimit ?? 0) - (account.currentDebt ?? 0),
                       account.currency as Currency,
+                      i18n.language,
                     )}
                   </span>{" "}
                 </>
               ) : (
                 <span>
                   {t("accounts.balanceLabel")}: {" "}
-                  {formatCurrency(account.balance, account.currency as Currency)}
+                  {formatCurrencyByLanguage(
+                    account.balance,
+                    account.currency as Currency,
+                    i18n.language,
+                  )}
                 </span>
               )}{" "}
               {account.institution ? (

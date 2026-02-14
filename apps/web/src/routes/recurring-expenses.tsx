@@ -3,6 +3,7 @@ import { createRoute, useNavigate } from "@tanstack/react-router";
 import { RECURRING_FREQUENCIES } from "@expense-management/shared";
 import { useTranslation } from "react-i18next";
 import { rootRoute } from "./__root";
+import { formatCurrencyByLanguage } from "../utils/locale";
 import { trpc } from "../utils/trpc";
 
 type RecurringExpenseFormValues = {
@@ -45,13 +46,6 @@ function parseDisplayToCents(value: string): number {
   return Math.round(parsed * 100);
 }
 
-function formatCurrency(cents: number, currency: "MXN" | "USD"): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency,
-  }).format(cents / 100);
-}
-
 export const recurringExpensesRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/recurring-expenses",
@@ -59,7 +53,7 @@ export const recurringExpensesRoute = createRoute({
 });
 
 function RecurringExpensesPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const utils = trpc.useUtils();
 
@@ -403,7 +397,11 @@ function RecurringExpensesPage() {
           {recurringQuery.data.map((item) => (
             <li key={item.id}>
               <strong>{item.description}</strong> -{" "}
-              {formatCurrency(item.amount, item.currency as "MXN" | "USD")} -{" "}
+              {formatCurrencyByLanguage(
+                item.amount,
+                item.currency as "MXN" | "USD",
+                i18n.language,
+              )} -{" "}
               {item.category.name} -{" "}
               {t(`recurringExpenses.frequency.${item.frequency}`)}{" "}
               {!item.isActive ? `(${t("recurringExpenses.inactive")})` : ""}{" "}

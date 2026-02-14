@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { createRoute, useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { rootRoute } from "./__root";
+import { formatCurrencyByLanguage, formatDateByLanguage } from "../utils/locale";
 import { trpc } from "../utils/trpc";
 
 type ExpenseFormValues = {
@@ -47,13 +48,6 @@ function parseDisplayToCents(value: string): number {
   return Math.round(parsed * 100);
 }
 
-function formatCurrency(cents: number, currency: "MXN" | "USD"): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency,
-  }).format(cents / 100);
-}
-
 function toDateInputValue(value: Date): string {
   const year = value.getFullYear();
   const month = String(value.getMonth() + 1).padStart(2, "0");
@@ -68,7 +62,7 @@ export const expensesRoute = createRoute({
 });
 
 function ExpensesPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const utils = trpc.useUtils();
 
@@ -374,9 +368,13 @@ function ExpensesPage() {
           {expenses.map((expense) => (
             <li key={expense.id}>
               <strong>{expense.description}</strong> -{" "}
-              {formatCurrency(expense.amount, expense.currency as "MXN" | "USD")} -{" "}
+              {formatCurrencyByLanguage(
+                expense.amount,
+                expense.currency as "MXN" | "USD",
+                i18n.language,
+              )} -{" "}
               {expense.category.name} - {expense.account.name} -{" "}
-              {toDateInputValue(new Date(expense.date))}{" "}
+              {formatDateByLanguage(expense.date, i18n.language)}{" "}
               <button type="button" onClick={() => onEdit(expense)}>
                 {t("expenses.edit")}
               </button>{" "}

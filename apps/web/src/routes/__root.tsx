@@ -8,7 +8,7 @@ export const rootRoute = createRootRoute({
 });
 
 function RootLayout() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   useEffect(() => {
     document.title = t("app.title");
@@ -20,6 +20,11 @@ function RootLayout() {
     await refetch();
   };
 
+  const onChangeLanguage = async (nextLanguage: "en" | "es") => {
+    if (i18n.language === nextLanguage) return;
+    await i18n.changeLanguage(nextLanguage);
+  };
+
   return (
     <div>
       <nav>
@@ -29,9 +34,21 @@ function RootLayout() {
         <Link to="/categories">{t("nav.categories")}</Link> |{" "}
         <Link to="/expenses">{t("nav.expenses")}</Link> |{" "}
         <Link to="/recurring-expenses">{t("nav.recurringExpenses")}</Link>
-        {/* Phase 2: language switcher (e.g. EN / ES) */}
         <span style={{ marginLeft: "1rem" }} title={t("language.label")}>
-          {t("language.en")}
+          <button
+            type="button"
+            onClick={() => void onChangeLanguage("en")}
+            disabled={i18n.language.startsWith("en")}
+          >
+            {t("language.en")}
+          </button>{" "}
+          <button
+            type="button"
+            onClick={() => void onChangeLanguage("es")}
+            disabled={i18n.language.startsWith("es")}
+          >
+            {t("language.es")}
+          </button>
         </span>
       </nav>
       <p>

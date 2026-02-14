@@ -3,6 +3,7 @@ import { createRoute, useNavigate } from "@tanstack/react-router";
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useTranslation } from "react-i18next";
 import { rootRoute } from "./__root";
+import { formatCurrencyByLanguage } from "../utils/locale";
 import { trpc } from "../utils/trpc";
 
 type DashboardCategoryRow = {
@@ -13,13 +14,6 @@ type DashboardCategoryRow = {
   variance: { MXN: number; USD: number };
   isIncome: boolean;
 };
-
-function formatCurrency(cents: number, currency: "MXN" | "USD"): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency,
-  }).format(cents / 100);
-}
 
 function isIncomeCategory(categoryName: string): boolean {
   return /income|salary|payroll|nomina|n[óo]mina|sueldo/i.test(categoryName);
@@ -32,7 +26,7 @@ export const dashboardRoute = createRoute({
 });
 
 function DashboardPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
 
   const today = new Date();
@@ -193,30 +187,30 @@ function DashboardPage() {
         <li>
           {t("dashboard.plannedIncome")}:
           {" "}
-          {formatCurrency(totals.plannedIncome.MXN, "MXN")}
+          {formatCurrencyByLanguage(totals.plannedIncome.MXN, "MXN", i18n.language)}
           {" / "}
-          {formatCurrency(totals.plannedIncome.USD, "USD")}
+          {formatCurrencyByLanguage(totals.plannedIncome.USD, "USD", i18n.language)}
         </li>
         <li>
           {t("dashboard.actualIncome")}:
           {" "}
-          {formatCurrency(totals.actualIncome.MXN, "MXN")}
+          {formatCurrencyByLanguage(totals.actualIncome.MXN, "MXN", i18n.language)}
           {" / "}
-          {formatCurrency(totals.actualIncome.USD, "USD")}
+          {formatCurrencyByLanguage(totals.actualIncome.USD, "USD", i18n.language)}
         </li>
         <li>
           {t("dashboard.plannedExpense")}:
           {" "}
-          {formatCurrency(totals.plannedExpense.MXN, "MXN")}
+          {formatCurrencyByLanguage(totals.plannedExpense.MXN, "MXN", i18n.language)}
           {" / "}
-          {formatCurrency(totals.plannedExpense.USD, "USD")}
+          {formatCurrencyByLanguage(totals.plannedExpense.USD, "USD", i18n.language)}
         </li>
         <li>
           {t("dashboard.actualExpense")}:
           {" "}
-          {formatCurrency(totals.actualExpense.MXN, "MXN")}
+          {formatCurrencyByLanguage(totals.actualExpense.MXN, "MXN", i18n.language)}
           {" / "}
-          {formatCurrency(totals.actualExpense.USD, "USD")}
+          {formatCurrencyByLanguage(totals.actualExpense.USD, "USD", i18n.language)}
         </li>
       </ul>
 
@@ -259,12 +253,12 @@ function DashboardPage() {
             {rows.map((row) => (
               <tr key={row.categoryId}>
                 <td>{row.categoryName}</td>
-                <td>{formatCurrency(row.planned.MXN, "MXN")}</td>
-                <td>{formatCurrency(row.actual.MXN, "MXN")}</td>
-                <td>{formatCurrency(row.variance.MXN, "MXN")}</td>
-                <td>{formatCurrency(row.planned.USD, "USD")}</td>
-                <td>{formatCurrency(row.actual.USD, "USD")}</td>
-                <td>{formatCurrency(row.variance.USD, "USD")}</td>
+                <td>{formatCurrencyByLanguage(row.planned.MXN, "MXN", i18n.language)}</td>
+                <td>{formatCurrencyByLanguage(row.actual.MXN, "MXN", i18n.language)}</td>
+                <td>{formatCurrencyByLanguage(row.variance.MXN, "MXN", i18n.language)}</td>
+                <td>{formatCurrencyByLanguage(row.planned.USD, "USD", i18n.language)}</td>
+                <td>{formatCurrencyByLanguage(row.actual.USD, "USD", i18n.language)}</td>
+                <td>{formatCurrencyByLanguage(row.variance.USD, "USD", i18n.language)}</td>
               </tr>
             ))}
           </tbody>

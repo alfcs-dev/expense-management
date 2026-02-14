@@ -1,0 +1,215 @@
+{
+  "nav": {
+    "home": "Inicio",
+    "dashboard": "Panel",
+    "accounts": "Cuentas",
+    "categories": "Categorías",
+    "expenses": "Gastos",
+    "recurringExpenses": "Recurrentes"
+  },
+  "session": {
+    "loading": "Sesión: cargando...",
+    "signedInAs": "Sesión: {{email}}",
+    "notSignedIn": "Sesión: sin iniciar",
+    "signOut": "Cerrar sesión"
+  },
+  "home": {
+    "title": "Administrador de Presupuesto",
+    "phase": "Fase 1 — base",
+    "publicMessage": "Inicio público. Inicia sesión para abrir el panel.",
+    "checkingSession": "Verificando sesión...",
+    "signedInAs": "Sesión iniciada como",
+    "signIn": "Iniciar sesión",
+    "signUp": "Crear cuenta",
+    "signingIn": "Iniciando sesión...",
+    "creatingAccount": "Creando cuenta...",
+    "createAccount": "Crear cuenta",
+    "name": "Nombre",
+    "email": "Correo",
+    "password": "Contraseña",
+    "signInFailed": "Error al iniciar sesión.",
+    "signUpFailed": "Error al crear cuenta.",
+    "signedInSuccess": "Sesión iniciada.",
+    "accountCreatedSuccess": "Cuenta creada e inicio de sesión correcto."
+  },
+  "dashboard": {
+    "title": "Panel",
+    "loading": "Cargando…",
+    "error": "Error: {{message}}",
+    "description": "Resumen mensual con montos planificados vs reales por categoría.",
+    "overviewTitle": "Resumen mensual",
+    "plannedIncome": "Ingreso planificado",
+    "actualIncome": "Ingreso real",
+    "plannedExpense": "Gasto planificado",
+    "actualExpense": "Gasto real",
+    "budgetVsActualTitle": "Presupuesto vs real por categoría",
+    "chartTitle": "Gráfica por categoría",
+    "chartPlannedMXN": "Planificado (MXN)",
+    "chartActualMXN": "Real (MXN)",
+    "empty": "Sin datos para el mes seleccionado.",
+    "fields": {
+      "month": "Mes",
+      "year": "Año"
+    },
+    "table": {
+      "category": "Categoría",
+      "plannedMXN": "Planificado MXN",
+      "actualMXN": "Real MXN",
+      "varianceMXN": "Variación MXN",
+      "plannedUSD": "Planificado USD",
+      "actualUSD": "Real USD",
+      "varianceUSD": "Variación USD"
+    }
+  },
+  "accounts": {
+    "title": "Cuentas",
+    "description": "Administra tus cuentas y saldos iniciales.",
+    "loading": "Cargando cuentas...",
+    "saving": "Guardando...",
+    "create": "Crear cuenta",
+    "update": "Actualizar cuenta",
+    "cancelEdit": "Cancelar edición",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "deleteConfirm": "¿Eliminar esta cuenta?",
+    "error": "Error: {{message}}",
+    "listTitle": "Tus cuentas",
+    "empty": "Aún no hay cuentas.",
+    "balanceLabel": "Saldo",
+    "creditLimitLabel": "Límite de crédito",
+    "currentDebtLabel": "Deuda actual",
+    "availableCreditLabel": "Crédito disponible",
+    "institutionLabel": "Institución",
+    "clabeLabel": "CLABE",
+    "fields": {
+      "name": "Nombre",
+      "type": "Tipo",
+      "currency": "Moneda",
+      "balance": "Saldo",
+      "creditLimit": "Límite de crédito",
+      "currentDebt": "Deuda actual",
+      "institution": "Institución",
+      "clabe": "CLABE"
+    },
+    "placeholders": {
+      "selectType": "Selecciona tipo de cuenta",
+      "selectInstitution": "Selecciona institución"
+    },
+    "hints": {
+      "debitClabe": "Requerida. La institución se infiere desde la CLABE.",
+      "creditClabe": "Opcional. Si es válida, la institución se infiere y se bloquea."
+    },
+    "errors": {
+      "typeRequired": "El tipo de cuenta es obligatorio.",
+      "debitClabeRequired": "Las cuentas de débito requieren CLABE válida para inferir institución.",
+      "creditInstitutionRequired": "Las cuentas de crédito requieren institución o CLABE válida."
+    },
+    "types": {
+      "debit": "Débito",
+      "credit": "Crédito",
+      "investment": "Inversión",
+      "cash": "Efectivo"
+    }
+  },
+  "categories": {
+    "title": "Categorías",
+    "description": "Administra nombres, íconos, colores y orden de categorías.",
+    "loading": "Cargando categorías...",
+    "saving": "Guardando...",
+    "create": "Crear categoría",
+    "update": "Actualizar categoría",
+    "cancelEdit": "Cancelar edición",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "deleteConfirm": "¿Eliminar esta categoría?",
+    "moveUp": "Subir",
+    "moveDown": "Bajar",
+    "error": "Error: {{message}}",
+    "listTitle": "Tus categorías",
+    "empty": "Aún no hay categorías.",
+    "colorLabel": "Color",
+    "fields": {
+      "name": "Nombre",
+      "icon": "Ícono",
+      "color": "Color"
+    }
+  },
+  "recurringExpenses": {
+    "title": "Gastos recurrentes",
+    "description": "Administra plantillas de gasto recurrente para tu plan mensual.",
+    "loading": "Cargando gastos recurrentes...",
+    "saving": "Guardando...",
+    "create": "Crear gasto recurrente",
+    "update": "Actualizar gasto recurrente",
+    "cancelEdit": "Cancelar edición",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "deleteConfirm": "¿Eliminar este gasto recurrente?",
+    "error": "Error: {{message}}",
+    "listTitle": "Tus gastos recurrentes",
+    "empty": "Aún no hay gastos recurrentes.",
+    "inactive": "Inactivo",
+    "fields": {
+      "description": "Descripción",
+      "category": "Categoría",
+      "sourceAccount": "Cuenta origen",
+      "destAccount": "Cuenta destino",
+      "amount": "Monto",
+      "currency": "Moneda",
+      "frequency": "Frecuencia",
+      "isAnnual": "Cargo anual",
+      "annualCost": "Costo anual",
+      "notes": "Notas",
+      "isActive": "Activo"
+    },
+    "placeholders": {
+      "selectCategory": "Selecciona categoría",
+      "selectSourceAccount": "Selecciona cuenta origen",
+      "none": "Ninguna"
+    },
+    "frequency": {
+      "monthly": "Mensual",
+      "biweekly": "Quincenal",
+      "annual": "Anual",
+      "bimonthly": "Bimestral"
+    }
+  },
+  "expenses": {
+    "title": "Gastos",
+    "description": "Registra gastos manuales para el presupuesto mensual seleccionado.",
+    "loading": "Cargando configuración de gastos...",
+    "loadingList": "Cargando gastos...",
+    "saving": "Guardando...",
+    "create": "Crear gasto",
+    "update": "Actualizar gasto",
+    "cancelEdit": "Cancelar edición",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "deleteConfirm": "¿Eliminar este gasto?",
+    "error": "Error: {{message}}",
+    "listTitle": "Gastos del presupuesto seleccionado",
+    "empty": "Aún no hay gastos.",
+    "fields": {
+      "month": "Mes",
+      "year": "Año",
+      "description": "Descripción",
+      "category": "Categoría",
+      "account": "Cuenta",
+      "amount": "Monto",
+      "currency": "Moneda",
+      "date": "Fecha"
+    },
+    "placeholders": {
+      "selectCategory": "Selecciona categoría",
+      "selectAccount": "Selecciona cuenta"
+    }
+  },
+  "app": {
+    "title": "Administrador de Presupuesto"
+  },
+  "language": {
+    "label": "Idioma",
+    "en": "Inglés",
+    "es": "Español"
+  }
+}

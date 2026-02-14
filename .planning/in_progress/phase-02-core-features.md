@@ -4,12 +4,12 @@
 > **Tracking rule:** use the "In progress" section at the bottom to log achievements, decisions, and roadblocks.
 
 **Planning Metadata**
-- Status: in_progress
+- Status: done
 - Owner: @alfcs
 - Target start: Week 3
 - Target end: Week 5
 - Actual start: 2026-02-14
-- Actual end: TBD
+- Actual end: 2026-02-14
 - Dependencies: Phase 1 complete
 - Linked PRs/issues: TBD
 
@@ -81,8 +81,8 @@
 
 ### 3.7 Spanish i18n
 
-- [ ] Add `es.json` with all keys from `en.json` translated.
-- [ ] Ensure language switcher (if present) and locale detection work; currency/date formatting use `es-MX` when Spanish is selected.
+- [x] Add `es.json` with all keys from `en.json` translated.
+- [x] Ensure language switcher (if present) and locale detection work; currency/date formatting use `es-MX` when Spanish is selected.
 
 ---
 
@@ -138,12 +138,12 @@
 
 ## 7. Definition of done
 
-- [ ] Accounts and categories full CRUD in UI; currency and balance displayed correctly.
-- [ ] Recurring expense templates with account routing and frequency; list and edit in UI.
-- [ ] Selecting a month shows a budget (created or existing) with planned amounts from templates.
-- [ ] Manual expenses can be added/edited/deleted and appear in the dashboard.
-- [ ] Dashboard shows monthly income vs expenses, category breakdown, and budget vs actual.
-- [ ] Spanish language available and all Phase 2 strings translated.
+- [x] Accounts and categories full CRUD in UI; currency and balance displayed correctly.
+- [x] Recurring expense templates with account routing and frequency; list and edit in UI.
+- [x] Selecting a month shows a budget (created or existing) with planned amounts from templates.
+- [x] Manual expenses can be added/edited/deleted and appear in the dashboard.
+- [x] Dashboard shows monthly income vs expenses, category breakdown, and budget vs actual.
+- [x] Spanish language available and all Phase 2 strings translated.
 
 ---
 
@@ -196,6 +196,12 @@
   - Budget-vs-actual data combines `budget.getPlannedByCategory` (planned) with `expense.list` (actual) for the selected budget month.
   - Added `recharts` dependency in `apps/web` for chart rendering.
   - Validation complete: `pnpm lint` and `pnpm typecheck` pass after implementation.
+- 3.7 Spanish i18n completed on 2026-02-14:
+  - Added full `es.json` translation resource mirroring `en.json` keys for current Phase 2 scope.
+  - i18n bootstrap now loads EN+ES resources, detects language from localStorage/browser, and persists language changes.
+  - Implemented language switcher in root navigation (EN/ES).
+  - Updated currency/date presentation to be locale-aware (`es-MX` when Spanish is active) across accounts, recurring expenses, expenses, and dashboard views.
+  - Final validation complete: `pnpm lint`, `pnpm typecheck`, and `pnpm build` all pass.
 
 **Decisions:**
 - Replaced static, code-embedded institution lists with a synced catalog from Banxico as source of truth.
@@ -213,9 +219,12 @@
 - 2026-02-14: implemented dashboard aggregation client-side by combining existing APIs (`budget.getPlannedByCategory` + `expense.list`) instead of adding a dedicated dashboard endpoint to keep API surface minimal for this phase.
 - 2026-02-14: used category-name heuristics (`income|salary|payroll|nomina|sueldo`) to classify income for overview totals until a first-class income flag/entity is introduced.
 - 2026-02-14: selected Recharts for immediate delivery of a simple, maintainable comparison chart aligned with PLAN recommendations.
+- 2026-02-14: implemented two-language i18n resources (`en`, `es`) with persisted language preference and browser fallback detection to satisfy Phase 2 multilingual UX requirements without adding new infrastructure.
+- 2026-02-14: centralized locale-aware formatting helpers in `apps/web/src/utils/locale.ts` so currency/date rendering stays consistent across routes and easier to extend.
 
 **Roadblocks:**
 - `pnpm db:migrate` uses `prisma migrate dev` (interactive), which can block automation; non-interactive flows should use migrate deploy semantics for server jobs.
+- `pnpm build` reports a Vite chunk-size warning (~900kB app bundle) after dashboard/chart additions; this is non-blocking for Phase 2 but should be optimized in a follow-up.
 
 **Why these changes were made:**
 - Static institution catalogs are high-maintenance and become stale when institutions are renamed, added, or retired.
@@ -228,6 +237,7 @@
 - Budget-first expense creation keeps expense records consistently tied to a concrete month/year budget, which is required for later budget-vs-actual reporting.
 - Reusing existing budget/expense APIs for dashboard data reduced implementation risk and kept phase velocity high while preserving clear upgrade paths for server-side aggregation later.
 - The temporary income heuristic allows phase-complete dashboards now, while explicitly flagging a schema-level improvement area for future phases.
+- Locale-aware formatter helpers avoid duplicated formatting logic and reduce translation/locale regressions when adding new routes.
 
 **Operational follow-up (required for this scope):**
 - Run `pnpm db:sync:institutions` after migrations in each environment.
