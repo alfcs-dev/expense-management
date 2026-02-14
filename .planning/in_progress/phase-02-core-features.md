@@ -74,10 +74,10 @@
 
 ### 3.6 Dashboard
 
-- [ ] Monthly overview: total income (from recurring or a simple income concept), total expenses, per-category totals.
-- [ ] Budget vs actual: planned (from recurring templates) vs actual (sum of expenses) per category; variance or progress bar.
-- [ ] Month selector; ensure data is scoped to selected month and user.
-- [ ] Use Recharts or Tremor for simple charts (e.g. category breakdown pie/bar).
+- [x] Monthly overview: total income (from recurring or a simple income concept), total expenses, per-category totals.
+- [x] Budget vs actual: planned (from recurring templates) vs actual (sum of expenses) per category; variance or progress bar.
+- [x] Month selector; ensure data is scoped to selected month and user.
+- [x] Use Recharts or Tremor for simple charts (e.g. category breakdown pie/bar).
 
 ### 3.7 Spanish i18n
 
@@ -190,6 +190,12 @@
   - Web route `/expenses` added with month/year budget selector, manual expense create/edit/delete, and budget-scoped listing.
   - Form and API use centavos for persistence and display-unit conversion in UI.
   - Validation complete: `pnpm lint` and `pnpm typecheck` pass after implementation.
+- 3.6 dashboard implemented on 2026-02-14:
+  - Replaced placeholder dashboard with month/year scoped overview tied to `budget.getOrCreateForMonth`.
+  - Dashboard now renders planned vs actual totals, per-category variance table, and a Recharts bar chart.
+  - Budget-vs-actual data combines `budget.getPlannedByCategory` (planned) with `expense.list` (actual) for the selected budget month.
+  - Added `recharts` dependency in `apps/web` for chart rendering.
+  - Validation complete: `pnpm lint` and `pnpm typecheck` pass after implementation.
 
 **Decisions:**
 - Replaced static, code-embedded institution lists with a synced catalog from Banxico as source of truth.
@@ -204,6 +210,9 @@
 - 2026-02-14: added a dedicated `/expenses` page instead of overloading `/dashboard` so manual logging can ship independently while dashboard aggregation is still in progress.
 - 2026-02-14: used `budget.getOrCreateForMonth` from the expenses page to guarantee a valid monthly budget container exists before creating manual expenses.
 - 2026-02-14: narrowed frontend expense list typing to avoid TypeScript "excessively deep type instantiation" errors caused by large inferred tRPC output types in JSX.
+- 2026-02-14: implemented dashboard aggregation client-side by combining existing APIs (`budget.getPlannedByCategory` + `expense.list`) instead of adding a dedicated dashboard endpoint to keep API surface minimal for this phase.
+- 2026-02-14: used category-name heuristics (`income|salary|payroll|nomina|sueldo`) to classify income for overview totals until a first-class income flag/entity is introduced.
+- 2026-02-14: selected Recharts for immediate delivery of a simple, maintainable comparison chart aligned with PLAN recommendations.
 
 **Roadblocks:**
 - `pnpm db:migrate` uses `prisma migrate dev` (interactive), which can block automation; non-interactive flows should use migrate deploy semantics for server jobs.
@@ -217,6 +226,8 @@
 - Derived budget planning keeps recurring templates authoritative, reducing mutation complexity and making recalculation deterministic as templates are edited.
 - Currency-separated aggregates preserve financial correctness before any FX conversion rules are introduced.
 - Budget-first expense creation keeps expense records consistently tied to a concrete month/year budget, which is required for later budget-vs-actual reporting.
+- Reusing existing budget/expense APIs for dashboard data reduced implementation risk and kept phase velocity high while preserving clear upgrade paths for server-side aggregation later.
+- The temporary income heuristic allows phase-complete dashboards now, while explicitly flagging a schema-level improvement area for future phases.
 
 **Operational follow-up (required for this scope):**
 - Run `pnpm db:sync:institutions` after migrations in each environment.

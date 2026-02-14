@@ -36,7 +36,30 @@
     "title": "Dashboard",
     "loading": "Loading…",
     "error": "Error: {{message}}",
-    "protectedMessage": "Protected route. Signed in as: {{email}}"
+    "description": "Monthly overview with planned vs actual amounts by category.",
+    "overviewTitle": "Monthly overview",
+    "plannedIncome": "Planned income",
+    "actualIncome": "Actual income",
+    "plannedExpense": "Planned expenses",
+    "actualExpense": "Actual expenses",
+    "budgetVsActualTitle": "Budget vs actual by category",
+    "chartTitle": "Category chart",
+    "chartPlannedMXN": "Planned (MXN)",
+    "chartActualMXN": "Actual (MXN)",
+    "empty": "No data for selected month.",
+    "fields": {
+      "month": "Month",
+      "year": "Year"
+    },
+    "table": {
+      "category": "Category",
+      "plannedMXN": "Planned MXN",
+      "actualMXN": "Actual MXN",
+      "varianceMXN": "Variance MXN",
+      "plannedUSD": "Planned USD",
+      "actualUSD": "Actual USD",
+      "varianceUSD": "Variance USD"
+    }
   },
   "accounts": {
     "title": "Accounts",
