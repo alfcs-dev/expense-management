@@ -31,7 +31,13 @@
     "signInFailed": "Sign-in failed.",
     "signUpFailed": "Sign-up failed.",
     "signedInSuccess": "Signed in.",
-    "accountCreatedSuccess": "Account created and signed in."
+    "accountCreatedSuccess": "Account created and signed in.",
+    "loginDescription": "Login with your email and password",
+    "login": "Login",
+    "register": "Register",
+    "forgotPassword": "Forgot your password?",
+    "dontHaveAccount": "Don't have an account?",
+    "registerDescription": "Create an account to get started."
   },
   "dashboard": {
     "title": "Dashboard",

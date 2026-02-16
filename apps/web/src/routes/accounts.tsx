@@ -1,8 +1,8 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { createRoute, useNavigate } from "@tanstack/react-router";
+import { createRoute } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { isValidClabe, normalizeClabe } from "@expense-management/shared";
-import { rootRoute } from "./__root";
+import { protectedRoute } from "./protected";
 import { formatCurrencyByLanguage } from "../utils/locale";
 import { trpc } from "../utils/trpc";
 import { PageShell, PageHeader, Section } from "../components/layout/page";
@@ -59,7 +59,9 @@ function getPreferredInstitutionForBankCode(
   bankCode: string,
   institutions: InstitutionOption[],
 ): string | null {
-  const candidates = institutions.filter((institution) => institution.bankCode === bankCode);
+  const candidates = institutions.filter(
+    (institution) => institution.bankCode === bankCode,
+  );
   if (candidates.length === 0) return null;
 
   const score = (code: string) => {
@@ -79,14 +81,13 @@ function getPreferredInstitutionForBankCode(
 }
 
 export const accountsRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => protectedRoute,
   path: "/accounts",
   component: AccountsPage,
 });
 
 function AccountsPage() {
   const { t, i18n } = useTranslation();
-  const navigate = useNavigate();
   const utils = trpc.useUtils();
 
   const [form, setForm] = useState<AccountFormValues>(INITIAL_FORM);
@@ -108,7 +109,9 @@ function AccountsPage() {
   }, [institutions, normalizedClabe]);
 
   const hasInferableClabe =
-    normalizedClabe.length === 18 && isValidClabe(normalizedClabe) && Boolean(inferredInstitution);
+    normalizedClabe.length === 18 &&
+    isValidClabe(normalizedClabe) &&
+    Boolean(inferredInstitution);
 
   const isInstitutionLocked =
     form.type === "debit" || (form.type === "credit" && hasInferableClabe);
@@ -144,22 +147,6 @@ function AccountsPage() {
     createMutation.error?.message ??
     updateMutation.error?.message ??
     deleteMutation.error?.message;
-
-  useEffect(() => {
-    const unauthorized =
-      (!listQuery.isLoading && listQuery.error?.data?.code === "UNAUTHORIZED") ||
-      (!institutionsQuery.isLoading && institutionsQuery.error?.data?.code === "UNAUTHORIZED");
-
-    if (unauthorized) {
-      navigate({ to: "/" });
-    }
-  }, [
-    institutionsQuery.error?.data?.code,
-    institutionsQuery.isLoading,
-    listQuery.error?.data?.code,
-    listQuery.isLoading,
-    navigate,
-  ]);
 
   useEffect(() => {
     if (form.type === "debit") {
@@ -271,7 +258,11 @@ function AccountsPage() {
   };
 
   if (listQuery.isLoading || institutionsQuery.isLoading) {
-    return <PageShell><p className="empty-text">{t("accounts.loading")}</p></PageShell>;
+    return (
+      <PageShell>
+        <p className="empty-text">{t("accounts.loading")}</p>
+      </PageShell>
+    );
   }
 
   if (listQuery.error?.data?.code === "UNAUTHORIZED") return null;
@@ -281,260 +272,277 @@ function AccountsPage() {
     <PageShell>
       <PageHeader title={t("accounts.title")} description={t("accounts.description")} />
       <Section>
-      <form className="section-stack" onSubmit={onSubmit}>
-        <p>
-          <label>
-            {t("accounts.fields.name")} {" "}
-            <input
-              type="text"
-              value={form.name}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, name: event.target.value }))
-              }
-              required
-            />
-          </label>
-        </p>
-
-        <p>
-          <label>
-            {t("accounts.fields.type")} {" "}
-            <select
-              value={form.type}
-              onChange={(event) => {
-                const nextType = event.target.value as SelectableAccountType;
-                setForm((current) => ({
-                  ...current,
-                  type: nextType,
-                  institution: nextType ? current.institution : "",
-                  clabe:
-                    nextType === "debit" || nextType === "credit" ? current.clabe : "",
-                }));
-              }}
-              required
-            >
-              <option value="">{t("accounts.placeholders.selectType")}</option>
-              {ACCOUNT_TYPES.map((type) => (
-                <option key={type} value={type}>
-                  {t(`accounts.types.${type}`)}
-                </option>
-              ))}
-            </select>
-          </label>
-        </p>
-
-        <p>
-          <label>
-            {t("accounts.fields.currency")} {" "}
-            <select
-              value={form.currency}
-              onChange={(event) =>
-                setForm((current) => ({
-                  ...current,
-                  currency: event.target.value as Currency,
-                }))
-              }
-            >
-              {CURRENCIES.map((currency) => (
-                <option key={currency} value={currency}>
-                  {currency}
-                </option>
-              ))}
-            </select>
-          </label>
-        </p>
-
-        {isClabeVisible ? (
+        <form className="section-stack" onSubmit={onSubmit}>
           <p>
             <label>
-              {t("accounts.fields.clabe")} {" "}
+              {t("accounts.fields.name")}{" "}
               <input
                 type="text"
-                inputMode="numeric"
-                maxLength={18}
-                value={form.clabe}
+                value={form.name}
                 onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    clabe: normalizeClabe(event.target.value),
-                  }))
-                }
-                required={form.type === "debit"}
-              />
-            </label>
-            <br />
-            <small>
-              {form.type === "debit"
-                ? t("accounts.hints.debitClabe")
-                : t("accounts.hints.creditClabe")}
-            </small>
-          </p>
-        ) : null}
-
-        {form.type === "credit" ? (
-          <>
-            <p>
-              <label>
-                {t("accounts.fields.creditLimit")} {" "}
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={form.creditLimit}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      creditLimit: event.target.value,
-                    }))
-                  }
-                  required
-                />
-              </label>
-            </p>
-            <p>
-              <label>
-                {t("accounts.fields.currentDebt")} {" "}
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={form.currentDebt}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      currentDebt: event.target.value,
-                    }))
-                  }
-                  required
-                />
-              </label>
-            </p>
-          </>
-        ) : form.type ? (
-          <p>
-            <label>
-              {t("accounts.fields.balance")} {" "}
-              <input
-                type="number"
-                step="0.01"
-                value={form.balance}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, balance: event.target.value }))
+                  setForm((current) => ({ ...current, name: event.target.value }))
                 }
                 required
               />
             </label>
           </p>
-        ) : null}
 
-        <p>
-          <label>
-            {t("accounts.fields.institution")} {" "}
-            <select
-              value={form.institution}
-              onChange={(event) =>
-                setForm((current) => ({
-                  ...current,
-                  institution: event.target.value,
-                }))
-              }
-              disabled={isInstitutionDisabled}
-              required={form.type === "debit" || form.type === "credit"}
-            >
-              <option value="">{t("accounts.placeholders.selectInstitution")}</option>
-              {institutions.map((institution) => (
-                <option key={institution.code} value={institution.name}>
-                  {institution.name}
-                </option>
-              ))}
-            </select>
-          </label>
-        </p>
+          <p>
+            <label>
+              {t("accounts.fields.type")}{" "}
+              <select
+                value={form.type}
+                onChange={(event) => {
+                  const nextType = event.target.value as SelectableAccountType;
+                  setForm((current) => ({
+                    ...current,
+                    type: nextType,
+                    institution: nextType ? current.institution : "",
+                    clabe:
+                      nextType === "debit" || nextType === "credit" ? current.clabe : "",
+                  }));
+                }}
+                required
+              >
+                <option value="">{t("accounts.placeholders.selectType")}</option>
+                {ACCOUNT_TYPES.map((type) => (
+                  <option key={type} value={type}>
+                    {t(`accounts.types.${type}`)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </p>
 
-        <div className="form-actions">
-          <Button type="submit" disabled={isSubmitting}>
-            {submitLabel}
-          </Button>{" "}
-          {editingId ? (
-            <Button type="button" variant="secondary" onClick={onCancelEdit}>
-              {t("accounts.cancelEdit")}
-            </Button>
+          <p>
+            <label>
+              {t("accounts.fields.currency")}{" "}
+              <select
+                value={form.currency}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    currency: event.target.value as Currency,
+                  }))
+                }
+              >
+                {CURRENCIES.map((currency) => (
+                  <option key={currency} value={currency}>
+                    {currency}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </p>
+
+          {isClabeVisible ? (
+            <p>
+              <label>
+                {t("accounts.fields.clabe")}{" "}
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={18}
+                  value={form.clabe}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      clabe: normalizeClabe(event.target.value),
+                    }))
+                  }
+                  required={form.type === "debit"}
+                />
+              </label>
+              <br />
+              <small>
+                {form.type === "debit"
+                  ? t("accounts.hints.debitClabe")
+                  : t("accounts.hints.creditClabe")}
+              </small>
+            </p>
           ) : null}
-        </div>
-      </form>
+
+          {form.type === "credit" ? (
+            <>
+              <p>
+                <label>
+                  {t("accounts.fields.creditLimit")}{" "}
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={form.creditLimit}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        creditLimit: event.target.value,
+                      }))
+                    }
+                    required
+                  />
+                </label>
+              </p>
+              <p>
+                <label>
+                  {t("accounts.fields.currentDebt")}{" "}
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={form.currentDebt}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        currentDebt: event.target.value,
+                      }))
+                    }
+                    required
+                  />
+                </label>
+              </p>
+            </>
+          ) : form.type ? (
+            <p>
+              <label>
+                {t("accounts.fields.balance")}{" "}
+                <input
+                  type="number"
+                  step="0.01"
+                  value={form.balance}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, balance: event.target.value }))
+                  }
+                  required
+                />
+              </label>
+            </p>
+          ) : null}
+
+          <p>
+            <label>
+              {t("accounts.fields.institution")}{" "}
+              <select
+                value={form.institution}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    institution: event.target.value,
+                  }))
+                }
+                disabled={isInstitutionDisabled}
+                required={form.type === "debit" || form.type === "credit"}
+              >
+                <option value="">{t("accounts.placeholders.selectInstitution")}</option>
+                {institutions.map((institution) => (
+                  <option key={institution.code} value={institution.name}>
+                    {institution.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </p>
+
+          <div className="form-actions">
+            <Button type="submit" disabled={isSubmitting}>
+              {submitLabel}
+            </Button>{" "}
+            {editingId ? (
+              <Button type="button" variant="secondary" onClick={onCancelEdit}>
+                {t("accounts.cancelEdit")}
+              </Button>
+            ) : null}
+          </div>
+        </form>
       </Section>
 
-      {activeError ? <Alert className="border-red-200 bg-red-50 text-red-700">{t("accounts.error", { message: activeError })}</Alert> : null}
+      {activeError ? (
+        <Alert className="border-red-200 bg-red-50 text-red-700">
+          {t("accounts.error", { message: activeError })}
+        </Alert>
+      ) : null}
 
       <Section>
-      <h2>{t("accounts.listTitle")}</h2>
-      {!listQuery.data?.length ? (
-        <p className="empty-text">{t("accounts.empty")}</p>
-      ) : (
-        <ul className="space-y-2">
-          {listQuery.data.map((account) => (
-            <li key={account.id} className="rounded-md border border-slate-200 bg-slate-50 p-3">
-              <strong>{account.name}</strong>{" "}
-              <span>
-                ({t(`accounts.types.${account.type}`)} | {account.currency})
-              </span>{" "}
-              {account.type === "credit" ? (
-                <>
+        <h2>{t("accounts.listTitle")}</h2>
+        {!listQuery.data?.length ? (
+          <p className="empty-text">{t("accounts.empty")}</p>
+        ) : (
+          <ul className="space-y-2">
+            {listQuery.data.map((account) => (
+              <li
+                key={account.id}
+                className="rounded-md border border-slate-200 bg-slate-50 p-3"
+              >
+                <strong>{account.name}</strong>{" "}
+                <span>
+                  ({t(`accounts.types.${account.type}`)} | {account.currency})
+                </span>{" "}
+                {account.type === "credit" ? (
+                  <>
+                    <span>
+                      {t("accounts.creditLimitLabel")}:{" "}
+                      {formatCurrencyByLanguage(
+                        account.creditLimit ?? 0,
+                        account.currency as Currency,
+                        i18n.language,
+                      )}
+                    </span>{" "}
+                    <span>
+                      {t("accounts.currentDebtLabel")}:{" "}
+                      {formatCurrencyByLanguage(
+                        account.currentDebt ?? 0,
+                        account.currency as Currency,
+                        i18n.language,
+                      )}
+                    </span>{" "}
+                    <span>
+                      {t("accounts.availableCreditLabel")}:{" "}
+                      {formatCurrencyByLanguage(
+                        (account.creditLimit ?? 0) - (account.currentDebt ?? 0),
+                        account.currency as Currency,
+                        i18n.language,
+                      )}
+                    </span>{" "}
+                  </>
+                ) : (
                   <span>
-                    {t("accounts.creditLimitLabel")}: {" "}
+                    {t("accounts.balanceLabel")}:{" "}
                     {formatCurrencyByLanguage(
-                      account.creditLimit ?? 0,
+                      account.balance,
                       account.currency as Currency,
                       i18n.language,
                     )}
-                  </span>{" "}
+                  </span>
+                )}{" "}
+                {account.institution ? (
                   <span>
-                    {t("accounts.currentDebtLabel")}: {" "}
-                    {formatCurrencyByLanguage(
-                      account.currentDebt ?? 0,
-                      account.currency as Currency,
-                      i18n.language,
-                    )}
-                  </span>{" "}
+                    {t("accounts.institutionLabel")}: {account.institution}
+                  </span>
+                ) : null}{" "}
+                {account.clabe ? (
                   <span>
-                    {t("accounts.availableCreditLabel")}: {" "}
-                    {formatCurrencyByLanguage(
-                      (account.creditLimit ?? 0) - (account.currentDebt ?? 0),
-                      account.currency as Currency,
-                      i18n.language,
-                    )}
-                  </span>{" "}
-                </>
-              ) : (
-                <span>
-                  {t("accounts.balanceLabel")}: {" "}
-                  {formatCurrencyByLanguage(
-                    account.balance,
-                    account.currency as Currency,
-                    i18n.language,
-                  )}
-                </span>
-              )}{" "}
-              {account.institution ? (
-                <span>
-                  {t("accounts.institutionLabel")}: {account.institution}
-                </span>
-              ) : null}{" "}
-              {account.clabe ? (
-                <span>
-                  {t("accounts.clabeLabel")}: {account.clabe}
-                </span>
-              ) : null}{" "}
-              <Button size="sm" type="button" variant="secondary" onClick={() => onEdit(account)}>
-                {t("accounts.edit")}
-              </Button>{" "}
-              <Button size="sm" type="button" variant="danger" onClick={() => onDelete(account.id)}>
-                {t("accounts.delete")}
-              </Button>
-            </li>
-          ))}
-        </ul>
-      )}
+                    {t("accounts.clabeLabel")}: {account.clabe}
+                  </span>
+                ) : null}{" "}
+                <Button
+                  size="sm"
+                  type="button"
+                  variant="secondary"
+                  onClick={() => onEdit(account)}
+                >
+                  {t("accounts.edit")}
+                </Button>{" "}
+                <Button
+                  size="sm"
+                  type="button"
+                  variant="destructive"
+                  onClick={() => onDelete(account.id)}
+                >
+                  {t("accounts.delete")}
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
       </Section>
     </PageShell>
   );

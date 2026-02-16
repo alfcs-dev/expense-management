@@ -1,7 +1,7 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
-import { createRoute, useNavigate } from "@tanstack/react-router";
+import { FormEvent, useMemo, useState } from "react";
+import { createRoute } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { rootRoute } from "./__root";
+import { protectedRoute } from "./protected";
 import { trpc } from "../utils/trpc";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -23,14 +23,13 @@ const INITIAL_FORM: BudgetFormValues = {
 };
 
 export const budgetsRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => protectedRoute,
   path: "/budgets",
   component: BudgetsPage,
 });
 
 function BudgetsPage() {
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const utils = trpc.useUtils();
 
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
@@ -54,20 +53,6 @@ function BudgetsPage() {
     },
   });
 
-  useEffect(() => {
-    const unauthorized =
-      (!listQuery.isLoading && listQuery.error?.data?.code === "UNAUTHORIZED") ||
-      createMutation.error?.data?.code === "UNAUTHORIZED";
-    if (unauthorized) {
-      navigate({ to: "/" });
-    }
-  }, [
-    createMutation.error?.data?.code,
-    listQuery.error?.data?.code,
-    listQuery.isLoading,
-    navigate,
-  ]);
-
   const activeError = listQuery.error ?? createMutation.error;
 
   const submitLabel = useMemo(() => {
@@ -90,7 +75,11 @@ function BudgetsPage() {
   };
 
   if (listQuery.isLoading) {
-    return <PageShell><p className="empty-text">{t("budgets.loading")}</p></PageShell>;
+    return (
+      <PageShell>
+        <p className="empty-text">{t("budgets.loading")}</p>
+      </PageShell>
+    );
   }
   if (listQuery.error?.data?.code === "UNAUTHORIZED") return null;
 
@@ -102,20 +91,27 @@ function BudgetsPage() {
         <form className="section-stack" onSubmit={onSubmit}>
           <div className="field-grid">
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">{t("budgets.fields.month")}</label>
+              <label className="mb-1 block text-sm font-medium text-slate-700">
+                {t("budgets.fields.month")}
+              </label>
               <Input
                 type="number"
                 min={1}
                 max={12}
                 value={form.month}
                 onChange={(event) =>
-                  setForm((current) => ({ ...current, month: Number(event.target.value) }))
+                  setForm((current) => ({
+                    ...current,
+                    month: Number(event.target.value),
+                  }))
                 }
                 required
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">{t("budgets.fields.year")}</label>
+              <label className="mb-1 block text-sm font-medium text-slate-700">
+                {t("budgets.fields.year")}
+              </label>
               <Input
                 type="number"
                 min={2000}
@@ -130,7 +126,9 @@ function BudgetsPage() {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">{t("budgets.fields.name")}</label>
+            <label className="mb-1 block text-sm font-medium text-slate-700">
+              {t("budgets.fields.name")}
+            </label>
             <Input
               type="text"
               value={form.name}
@@ -150,13 +148,17 @@ function BudgetsPage() {
       </Section>
 
       {activeError ? (
-        <Alert className="border-red-200 bg-red-50 text-red-700">{t("budgets.error", { message: activeError.message })}</Alert>
+        <Alert className="border-red-200 bg-red-50 text-red-700">
+          {t("budgets.error", { message: activeError.message })}
+        </Alert>
       ) : null}
 
       <Section>
         <h2>{t("budgets.listTitle")}</h2>
         <div className="max-w-xs">
-          <label className="mb-1 block text-sm font-medium text-slate-700">{t("budgets.fields.filterYear")}</label>
+          <label className="mb-1 block text-sm font-medium text-slate-700">
+            {t("budgets.fields.filterYear")}
+          </label>
           <Input
             type="number"
             min={2000}
@@ -171,7 +173,10 @@ function BudgetsPage() {
         ) : (
           <ul className="space-y-2">
             {listQuery.data.map((budget) => (
-              <li key={budget.id} className="rounded-md border border-slate-200 bg-slate-50 p-3">
+              <li
+                key={budget.id}
+                className="rounded-md border border-slate-200 bg-slate-50 p-3"
+              >
                 <div className="inline-row">
                   <strong>
                     {budget.year}-{String(budget.month).padStart(2, "0")}
@@ -182,7 +187,7 @@ function BudgetsPage() {
                   <a href={`/expenses?month=${budget.month}&year=${budget.year}`}>
                     {t("budgets.openExpenses")}
                   </a>
-                  <a href={`/dashboard?month=${budget.month}&year=${budget.year}`}>
+                  <a href={`/?month=${budget.month}&year=${budget.year}`}>
                     {t("budgets.openDashboard")}
                   </a>
                 </div>

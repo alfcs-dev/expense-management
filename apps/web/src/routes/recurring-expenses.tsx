@@ -1,8 +1,8 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
-import { createRoute, useNavigate } from "@tanstack/react-router";
+import { FormEvent, useMemo, useState } from "react";
+import { createRoute } from "@tanstack/react-router";
 import { RECURRING_FREQUENCIES } from "@expense-management/shared";
 import { useTranslation } from "react-i18next";
-import { rootRoute } from "./__root";
+import { protectedRoute } from "./protected";
 import { formatCurrencyByLanguage } from "../utils/locale";
 import { trpc } from "../utils/trpc";
 import { PageShell, PageHeader, Section } from "../components/layout/page";
@@ -50,14 +50,13 @@ function parseDisplayToCents(value: string): number {
 }
 
 export const recurringExpensesRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => protectedRoute,
   path: "/recurring-expenses",
   component: RecurringExpensesPage,
 });
 
 function RecurringExpensesPage() {
   const { t, i18n } = useTranslation();
-  const navigate = useNavigate();
   const utils = trpc.useUtils();
 
   const [form, setForm] = useState<RecurringExpenseFormValues>(INITIAL_FORM);
@@ -95,25 +94,6 @@ function RecurringExpensesPage() {
     createMutation.error ??
     updateMutation.error ??
     deleteMutation.error;
-
-  useEffect(() => {
-    const unauthorized =
-      (!recurringQuery.isLoading && recurringQuery.error?.data?.code === "UNAUTHORIZED") ||
-      (!accountsQuery.isLoading && accountsQuery.error?.data?.code === "UNAUTHORIZED") ||
-      (!categoriesQuery.isLoading && categoriesQuery.error?.data?.code === "UNAUTHORIZED");
-
-    if (unauthorized) {
-      navigate({ to: "/" });
-    }
-  }, [
-    accountsQuery.error?.data?.code,
-    accountsQuery.isLoading,
-    categoriesQuery.error?.data?.code,
-    categoriesQuery.isLoading,
-    navigate,
-    recurringQuery.error?.data?.code,
-    recurringQuery.isLoading,
-  ]);
 
   const submitLabel = useMemo(() => {
     if (createMutation.isPending || updateMutation.isPending) {
@@ -179,7 +159,11 @@ function RecurringExpensesPage() {
   };
 
   if (recurringQuery.isLoading || accountsQuery.isLoading || categoriesQuery.isLoading) {
-    return <PageShell><p className="empty-text">{t("recurringExpenses.loading")}</p></PageShell>;
+    return (
+      <PageShell>
+        <p className="empty-text">{t("recurringExpenses.loading")}</p>
+      </PageShell>
+    );
   }
 
   if (recurringQuery.error?.data?.code === "UNAUTHORIZED") return null;
@@ -188,237 +172,266 @@ function RecurringExpensesPage() {
 
   return (
     <PageShell>
-      <PageHeader title={t("recurringExpenses.title")} description={t("recurringExpenses.description")} />
+      <PageHeader
+        title={t("recurringExpenses.title")}
+        description={t("recurringExpenses.description")}
+      />
       <Section>
-      <form className="section-stack" onSubmit={onSubmit}>
-        <p>
-          <label>
-            {t("recurringExpenses.fields.description")}{" "}
-            <input
-              type="text"
-              value={form.description}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, description: event.target.value }))
-              }
-              required
-            />
-          </label>
-        </p>
-
-        <p>
-          <label>
-            {t("recurringExpenses.fields.category")}{" "}
-            <select
-              value={form.categoryId}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, categoryId: event.target.value }))
-              }
-              required
-            >
-              <option value="">{t("recurringExpenses.placeholders.selectCategory")}</option>
-              {(categoriesQuery.data ?? []).map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
-            </select>
-          </label>
-        </p>
-
-        <p>
-          <label>
-            {t("recurringExpenses.fields.sourceAccount")}{" "}
-            <select
-              value={form.sourceAccountId}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, sourceAccountId: event.target.value }))
-              }
-              required
-            >
-              <option value="">{t("recurringExpenses.placeholders.selectSourceAccount")}</option>
-              {(accountsQuery.data ?? []).map((account) => (
-                <option key={account.id} value={account.id}>
-                  {account.name}
-                </option>
-              ))}
-            </select>
-          </label>
-        </p>
-
-        <p>
-          <label>
-            {t("recurringExpenses.fields.destAccount")}{" "}
-            <select
-              value={form.destAccountId}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, destAccountId: event.target.value }))
-              }
-            >
-              <option value="">{t("recurringExpenses.placeholders.none")}</option>
-              {(accountsQuery.data ?? []).map((account) => (
-                <option key={account.id} value={account.id}>
-                  {account.name}
-                </option>
-              ))}
-            </select>
-          </label>
-        </p>
-
-        <p>
-          <label>
-            {t("recurringExpenses.fields.amount")}{" "}
-            <input
-              type="number"
-              step="0.01"
-              min="0"
-              value={form.amount}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, amount: event.target.value }))
-              }
-              required
-            />
-          </label>
-        </p>
-
-        <p>
-          <label>
-            {t("recurringExpenses.fields.currency")}{" "}
-            <select
-              value={form.currency}
-              onChange={(event) =>
-                setForm((current) => ({
-                  ...current,
-                  currency: event.target.value as "MXN" | "USD",
-                }))
-              }
-            >
-              <option value="MXN">MXN</option>
-              <option value="USD">USD</option>
-            </select>
-          </label>
-        </p>
-
-        <p>
-          <label>
-            {t("recurringExpenses.fields.frequency")}{" "}
-            <select
-              value={form.frequency}
-              onChange={(event) =>
-                setForm((current) => ({
-                  ...current,
-                  frequency: event.target.value as (typeof RECURRING_FREQUENCIES)[number],
-                }))
-              }
-            >
-              {RECURRING_FREQUENCIES.map((frequency) => (
-                <option key={frequency} value={frequency}>
-                  {t(`recurringExpenses.frequency.${frequency}`)}
-                </option>
-              ))}
-            </select>
-          </label>
-        </p>
-
-        <p>
-          <label>
-            <input
-              type="checkbox"
-              checked={form.isAnnual}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, isAnnual: event.target.checked }))
-              }
-            />{" "}
-            {t("recurringExpenses.fields.isAnnual")}
-          </label>
-        </p>
-
-        {form.isAnnual ? (
+        <form className="section-stack" onSubmit={onSubmit}>
           <p>
             <label>
-              {t("recurringExpenses.fields.annualCost")}{" "}
+              {t("recurringExpenses.fields.description")}{" "}
               <input
-                type="number"
-                step="0.01"
-                min="0"
-                value={form.annualCost}
+                type="text"
+                value={form.description}
                 onChange={(event) =>
-                  setForm((current) => ({ ...current, annualCost: event.target.value }))
+                  setForm((current) => ({ ...current, description: event.target.value }))
                 }
                 required
               />
             </label>
           </p>
-        ) : null}
 
-        <p>
-          <label>
-            {t("recurringExpenses.fields.notes")}{" "}
-            <textarea
-              value={form.notes}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, notes: event.target.value }))
-              }
-            />
-          </label>
-        </p>
+          <p>
+            <label>
+              {t("recurringExpenses.fields.category")}{" "}
+              <select
+                value={form.categoryId}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, categoryId: event.target.value }))
+                }
+                required
+              >
+                <option value="">
+                  {t("recurringExpenses.placeholders.selectCategory")}
+                </option>
+                {(categoriesQuery.data ?? []).map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </p>
 
-        <p>
-          <label>
-            <input
-              type="checkbox"
-              checked={form.isActive}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, isActive: event.target.checked }))
-              }
-            />{" "}
-            {t("recurringExpenses.fields.isActive")}
-          </label>
-        </p>
+          <p>
+            <label>
+              {t("recurringExpenses.fields.sourceAccount")}{" "}
+              <select
+                value={form.sourceAccountId}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    sourceAccountId: event.target.value,
+                  }))
+                }
+                required
+              >
+                <option value="">
+                  {t("recurringExpenses.placeholders.selectSourceAccount")}
+                </option>
+                {(accountsQuery.data ?? []).map((account) => (
+                  <option key={account.id} value={account.id}>
+                    {account.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </p>
 
-        <div className="form-actions">
-          <Button type="submit" disabled={isSubmitting}>
-            {submitLabel}
-          </Button>{" "}
-          {editingId ? (
-            <Button type="button" variant="secondary" onClick={onCancelEdit}>
-              {t("recurringExpenses.cancelEdit")}
-            </Button>
+          <p>
+            <label>
+              {t("recurringExpenses.fields.destAccount")}{" "}
+              <select
+                value={form.destAccountId}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    destAccountId: event.target.value,
+                  }))
+                }
+              >
+                <option value="">{t("recurringExpenses.placeholders.none")}</option>
+                {(accountsQuery.data ?? []).map((account) => (
+                  <option key={account.id} value={account.id}>
+                    {account.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </p>
+
+          <p>
+            <label>
+              {t("recurringExpenses.fields.amount")}{" "}
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={form.amount}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, amount: event.target.value }))
+                }
+                required
+              />
+            </label>
+          </p>
+
+          <p>
+            <label>
+              {t("recurringExpenses.fields.currency")}{" "}
+              <select
+                value={form.currency}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    currency: event.target.value as "MXN" | "USD",
+                  }))
+                }
+              >
+                <option value="MXN">MXN</option>
+                <option value="USD">USD</option>
+              </select>
+            </label>
+          </p>
+
+          <p>
+            <label>
+              {t("recurringExpenses.fields.frequency")}{" "}
+              <select
+                value={form.frequency}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    frequency: event.target
+                      .value as (typeof RECURRING_FREQUENCIES)[number],
+                  }))
+                }
+              >
+                {RECURRING_FREQUENCIES.map((frequency) => (
+                  <option key={frequency} value={frequency}>
+                    {t(`recurringExpenses.frequency.${frequency}`)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </p>
+
+          <p>
+            <label>
+              <input
+                type="checkbox"
+                checked={form.isAnnual}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, isAnnual: event.target.checked }))
+                }
+              />{" "}
+              {t("recurringExpenses.fields.isAnnual")}
+            </label>
+          </p>
+
+          {form.isAnnual ? (
+            <p>
+              <label>
+                {t("recurringExpenses.fields.annualCost")}{" "}
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={form.annualCost}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, annualCost: event.target.value }))
+                  }
+                  required
+                />
+              </label>
+            </p>
           ) : null}
-        </div>
-      </form>
+
+          <p>
+            <label>
+              {t("recurringExpenses.fields.notes")}{" "}
+              <textarea
+                value={form.notes}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, notes: event.target.value }))
+                }
+              />
+            </label>
+          </p>
+
+          <p>
+            <label>
+              <input
+                type="checkbox"
+                checked={form.isActive}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, isActive: event.target.checked }))
+                }
+              />{" "}
+              {t("recurringExpenses.fields.isActive")}
+            </label>
+          </p>
+
+          <div className="form-actions">
+            <Button type="submit" disabled={isSubmitting}>
+              {submitLabel}
+            </Button>{" "}
+            {editingId ? (
+              <Button type="button" variant="secondary" onClick={onCancelEdit}>
+                {t("recurringExpenses.cancelEdit")}
+              </Button>
+            ) : null}
+          </div>
+        </form>
       </Section>
 
       {activeError ? (
-        <Alert className="border-red-200 bg-red-50 text-red-700">{t("recurringExpenses.error", { message: activeError.message })}</Alert>
+        <Alert className="border-red-200 bg-red-50 text-red-700">
+          {t("recurringExpenses.error", { message: activeError.message })}
+        </Alert>
       ) : null}
 
       <Section>
-      <h2>{t("recurringExpenses.listTitle")}</h2>
-      {!recurringQuery.data?.length ? (
-        <p className="empty-text">{t("recurringExpenses.empty")}</p>
-      ) : (
-        <ul className="space-y-2">
-          {recurringQuery.data.map((item) => (
-            <li key={item.id} className="rounded-md border border-slate-200 bg-slate-50 p-3">
-              <strong>{item.description}</strong> -{" "}
-              {formatCurrencyByLanguage(
-                item.amount,
-                item.currency as "MXN" | "USD",
-                i18n.language,
-              )} -{" "}
-              {item.category.name} -{" "}
-              {t(`recurringExpenses.frequency.${item.frequency}`)}{" "}
-              {!item.isActive ? `(${t("recurringExpenses.inactive")})` : ""}{" "}
-              <Button size="sm" type="button" variant="secondary" onClick={() => onEdit(item)}>
-                {t("recurringExpenses.edit")}
-              </Button>{" "}
-              <Button size="sm" type="button" variant="danger" onClick={() => onDelete(item.id)}>
-                {t("recurringExpenses.delete")}
-              </Button>
-            </li>
-          ))}
-        </ul>
-      )}
+        <h2>{t("recurringExpenses.listTitle")}</h2>
+        {!recurringQuery.data?.length ? (
+          <p className="empty-text">{t("recurringExpenses.empty")}</p>
+        ) : (
+          <ul className="space-y-2">
+            {recurringQuery.data.map((item) => (
+              <li
+                key={item.id}
+                className="rounded-md border border-slate-200 bg-slate-50 p-3"
+              >
+                <strong>{item.description}</strong> -{" "}
+                {formatCurrencyByLanguage(
+                  item.amount,
+                  item.currency as "MXN" | "USD",
+                  i18n.language,
+                )}{" "}
+                - {item.category.name} -{" "}
+                {t(`recurringExpenses.frequency.${item.frequency}`)}{" "}
+                {!item.isActive ? `(${t("recurringExpenses.inactive")})` : ""}{" "}
+                <Button
+                  size="sm"
+                  type="button"
+                  variant="secondary"
+                  onClick={() => onEdit(item)}
+                >
+                  {t("recurringExpenses.edit")}
+                </Button>{" "}
+                <Button
+                  size="sm"
+                  type="button"
+                  variant="destructive"
+                  onClick={() => onDelete(item.id)}
+                >
+                  {t("recurringExpenses.delete")}
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
       </Section>
     </PageShell>
   );

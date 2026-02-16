@@ -1,7 +1,7 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
-import { createRoute, useNavigate } from "@tanstack/react-router";
+import { FormEvent, useMemo, useState } from "react";
+import { createRoute } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { rootRoute } from "./__root";
+import { protectedRoute } from "./protected";
 import { trpc } from "../utils/trpc";
 import { PageShell, PageHeader, Section } from "../components/layout/page";
 import { Alert } from "../components/ui/alert";
@@ -20,14 +20,13 @@ const INITIAL_FORM: CategoryFormValues = {
 };
 
 export const categoriesRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => protectedRoute,
   path: "/categories",
   component: CategoriesPage,
 });
 
 function CategoriesPage() {
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const utils = trpc.useUtils();
 
   const [form, setForm] = useState<CategoryFormValues>(INITIAL_FORM);
@@ -70,12 +69,6 @@ function CategoriesPage() {
     updateMutation.error ??
     deleteMutation.error ??
     reorderMutation.error;
-
-  useEffect(() => {
-    if (!listQuery.isLoading && listQuery.error?.data?.code === "UNAUTHORIZED") {
-      navigate({ to: "/" });
-    }
-  }, [listQuery.isLoading, listQuery.error?.data?.code, navigate]);
 
   const submitLabel = useMemo(() => {
     if (createMutation.isPending || updateMutation.isPending) {
@@ -148,118 +141,142 @@ function CategoriesPage() {
     });
   };
 
-  if (listQuery.isLoading) return <PageShell><p className="empty-text">{t("categories.loading")}</p></PageShell>;
+  if (listQuery.isLoading)
+    return (
+      <PageShell>
+        <p className="empty-text">{t("categories.loading")}</p>
+      </PageShell>
+    );
   if (listQuery.error?.data?.code === "UNAUTHORIZED") return null;
 
   return (
     <PageShell>
-      <PageHeader title={t("categories.title")} description={t("categories.description")} />
+      <PageHeader
+        title={t("categories.title")}
+        description={t("categories.description")}
+      />
 
       <Section>
-      <form className="section-stack" onSubmit={onSubmit}>
-        <p>
-          <label>
-            {t("categories.fields.name")} {" "}
-            <input
-              type="text"
-              value={form.name}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, name: event.target.value }))
-              }
-              required
-            />
-          </label>
-        </p>
+        <form className="section-stack" onSubmit={onSubmit}>
+          <p>
+            <label>
+              {t("categories.fields.name")}{" "}
+              <input
+                type="text"
+                value={form.name}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, name: event.target.value }))
+                }
+                required
+              />
+            </label>
+          </p>
 
-        <p>
-          <label>
-            {t("categories.fields.icon")} {" "}
-            <input
-              type="text"
-              value={form.icon}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, icon: event.target.value }))
-              }
-            />
-          </label>
-        </p>
+          <p>
+            <label>
+              {t("categories.fields.icon")}{" "}
+              <input
+                type="text"
+                value={form.icon}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, icon: event.target.value }))
+                }
+              />
+            </label>
+          </p>
 
-        <p>
-          <label>
-            {t("categories.fields.color")} {" "}
-            <input
-              type="text"
-              placeholder="#1A2B3C"
-              value={form.color}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, color: event.target.value }))
-              }
-            />
-          </label>
-        </p>
+          <p>
+            <label>
+              {t("categories.fields.color")}{" "}
+              <input
+                type="text"
+                placeholder="#1A2B3C"
+                value={form.color}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, color: event.target.value }))
+                }
+              />
+            </label>
+          </p>
 
-        <div className="form-actions">
-          <Button type="submit" disabled={isSubmitting}>
-            {submitLabel}
-          </Button>
-          {editingId ? (
-            <Button type="button" variant="secondary" onClick={onCancelEdit}>
-              {t("categories.cancelEdit")}
+          <div className="form-actions">
+            <Button type="submit" disabled={isSubmitting}>
+              {submitLabel}
             </Button>
-          ) : null}
-        </div>
-      </form>
+            {editingId ? (
+              <Button type="button" variant="secondary" onClick={onCancelEdit}>
+                {t("categories.cancelEdit")}
+              </Button>
+            ) : null}
+          </div>
+        </form>
       </Section>
 
       {activeError ? (
-        <Alert className="border-red-200 bg-red-50 text-red-700">{t("categories.error", { message: activeError.message })}</Alert>
+        <Alert className="border-red-200 bg-red-50 text-red-700">
+          {t("categories.error", { message: activeError.message })}
+        </Alert>
       ) : null}
 
       <Section>
-      <h2>{t("categories.listTitle")}</h2>
-      {!listQuery.data?.length ? (
-        <p className="empty-text">{t("categories.empty")}</p>
-      ) : (
-        <ul className="space-y-2">
-          {listQuery.data.map((category, index) => (
-            <li key={category.id} className="rounded-md border border-slate-200 bg-slate-50 p-3">
-              <strong>{category.name}</strong>{" "}
-              {category.icon ? <span>{category.icon}</span> : null}{" "}
-              {category.color ? (
-                <span>
-                  {t("categories.colorLabel")}: {category.color}
-                </span>
-              ) : null}{" "}
-              <Button
-                type="button"
-                size="sm"
-                variant="secondary"
-                onClick={() => onMove(category.id, "up")}
-                disabled={index === 0 || reorderMutation.isPending}
+        <h2>{t("categories.listTitle")}</h2>
+        {!listQuery.data?.length ? (
+          <p className="empty-text">{t("categories.empty")}</p>
+        ) : (
+          <ul className="space-y-2">
+            {listQuery.data.map((category, index) => (
+              <li
+                key={category.id}
+                className="rounded-md border border-slate-200 bg-slate-50 p-3"
               >
-                {t("categories.moveUp")}
-              </Button>{" "}
-              <Button
-                type="button"
-                size="sm"
-                variant="secondary"
-                onClick={() => onMove(category.id, "down")}
-                disabled={
-                  index === (listQuery.data?.length ?? 1) - 1 || reorderMutation.isPending
-                }
-              >
-                {t("categories.moveDown")}
-              </Button>{" "}
-              <Button size="sm" type="button" variant="secondary" onClick={() => onEdit(category)}>
-                {t("categories.edit")}
-              </Button>{" "}
-              <Button size="sm" type="button" variant="danger" onClick={() => onDelete(category.id)}>
-                {t("categories.delete")}
-              </Button>
-            </li>
-          ))}
-        </ul>
-      )}
+                <strong>{category.name}</strong>{" "}
+                {category.icon ? <span>{category.icon}</span> : null}{" "}
+                {category.color ? (
+                  <span>
+                    {t("categories.colorLabel")}: {category.color}
+                  </span>
+                ) : null}{" "}
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => onMove(category.id, "up")}
+                  disabled={index === 0 || reorderMutation.isPending}
+                >
+                  {t("categories.moveUp")}
+                </Button>{" "}
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => onMove(category.id, "down")}
+                  disabled={
+                    index === (listQuery.data?.length ?? 1) - 1 ||
+                    reorderMutation.isPending
+                  }
+                >
+                  {t("categories.moveDown")}
+                </Button>{" "}
+                <Button
+                  size="sm"
+                  type="button"
+                  variant="secondary"
+                  onClick={() => onEdit(category)}
+                >
+                  {t("categories.edit")}
+                </Button>{" "}
+                <Button
+                  size="sm"
+                  type="button"
+                  variant="destructive"
+                  onClick={() => onDelete(category.id)}
+                >
+                  {t("categories.delete")}
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
       </Section>
     </PageShell>
   );

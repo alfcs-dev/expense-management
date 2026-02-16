@@ -31,7 +31,12 @@
     "signInFailed": "Error al iniciar sesión.",
     "signUpFailed": "Error al crear cuenta.",
     "signedInSuccess": "Sesión iniciada.",
-    "accountCreatedSuccess": "Cuenta creada e inicio de sesión correcto."
+    "accountCreatedSuccess": "Cuenta creada e inicio de sesión correcto.",
+    "loginDescription": "Inicia sesión con tu correo y contraseña",
+    "login": "Entrar",
+    "register": "Registrarse",
+    "forgotPassword": "¿Olvidaste tu contraseña?",
+    "dontHaveAccount": "¿No tienes una cuenta?"
   },
   "dashboard": {
     "title": "Panel",

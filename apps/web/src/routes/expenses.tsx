@@ -1,7 +1,7 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
-import { createRoute, useNavigate } from "@tanstack/react-router";
+import { FormEvent, useMemo, useState } from "react";
+import { createRoute } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { rootRoute } from "./__root";
+import { protectedRoute } from "./protected";
 import { formatCurrencyByLanguage, formatDateByLanguage } from "../utils/locale";
 import { trpc } from "../utils/trpc";
 import { PageShell, PageHeader, Section } from "../components/layout/page";
@@ -59,14 +59,13 @@ function toDateInputValue(value: Date): string {
 }
 
 export const expensesRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => protectedRoute,
   path: "/expenses",
   component: ExpensesPage,
 });
 
 function ExpensesPage() {
   const { t, i18n } = useTranslation();
-  const navigate = useNavigate();
   const utils = trpc.useUtils();
 
   const search = new URLSearchParams(window.location.search);
@@ -120,32 +119,8 @@ function ExpensesPage() {
     },
   });
 
-  useEffect(() => {
-    const unauthorized =
-      (!budgetQuery.isLoading && budgetQuery.error?.data?.code === "UNAUTHORIZED") ||
-      (!accountsQuery.isLoading && accountsQuery.error?.data?.code === "UNAUTHORIZED") ||
-      (!categoriesQuery.isLoading && categoriesQuery.error?.data?.code === "UNAUTHORIZED") ||
-      (!expenseListQuery.isLoading && expenseListQuery.error?.data?.code === "UNAUTHORIZED");
-
-    if (unauthorized) {
-      navigate({ to: "/" });
-    }
-  }, [
-    accountsQuery.error?.data?.code,
-    accountsQuery.isLoading,
-    budgetQuery.error?.data?.code,
-    budgetQuery.isLoading,
-    categoriesQuery.error?.data?.code,
-    categoriesQuery.isLoading,
-    expenseListQuery.error?.data?.code,
-    expenseListQuery.isLoading,
-    navigate,
-  ]);
-
   const isSubmitting =
-    createMutation.isPending ||
-    updateMutation.isPending ||
-    deleteMutation.isPending;
+    createMutation.isPending || updateMutation.isPending || deleteMutation.isPending;
   const activeError =
     budgetQuery.error ??
     accountsQuery.error ??
@@ -211,7 +186,11 @@ function ExpensesPage() {
   };
 
   if (budgetQuery.isLoading || accountsQuery.isLoading || categoriesQuery.isLoading) {
-    return <PageShell><p className="empty-text">{t("expenses.loading")}</p></PageShell>;
+    return (
+      <PageShell>
+        <p className="empty-text">{t("expenses.loading")}</p>
+      </PageShell>
+    );
   }
 
   if (accountsQuery.error?.data?.code === "UNAUTHORIZED") return null;
@@ -225,175 +204,192 @@ function ExpensesPage() {
       <PageHeader title={t("expenses.title")} description={t("expenses.description")} />
 
       <Section>
-      <div className="inline-row">
-        <label>
-          {t("expenses.fields.month")}{" "}
-          <input
-            type="number"
-            min={1}
-            max={12}
-            value={selectedMonth}
-            onChange={(event) => setSelectedMonth(Number(event.target.value))}
-          />
-        </label>{" "}
-        <label>
-          {t("expenses.fields.year")}{" "}
-          <input
-            type="number"
-            min={2000}
-            max={2100}
-            value={selectedYear}
-            onChange={(event) => setSelectedYear(Number(event.target.value))}
-          />
-        </label>
-      </div>
-
-      <form className="section-stack" onSubmit={onSubmit}>
-        <p>
+        <div className="inline-row">
           <label>
-            {t("expenses.fields.description")}{" "}
-            <input
-              type="text"
-              value={form.description}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, description: event.target.value }))
-              }
-              required
-            />
-          </label>
-        </p>
-
-        <p>
-          <label>
-            {t("expenses.fields.category")}{" "}
-            <select
-              value={form.categoryId}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, categoryId: event.target.value }))
-              }
-              required
-            >
-              <option value="">{t("expenses.placeholders.selectCategory")}</option>
-              {(categoriesQuery.data ?? []).map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
-            </select>
-          </label>
-        </p>
-
-        <p>
-          <label>
-            {t("expenses.fields.account")}{" "}
-            <select
-              value={form.accountId}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, accountId: event.target.value }))
-              }
-              required
-            >
-              <option value="">{t("expenses.placeholders.selectAccount")}</option>
-              {(accountsQuery.data ?? []).map((account) => (
-                <option key={account.id} value={account.id}>
-                  {account.name}
-                </option>
-              ))}
-            </select>
-          </label>
-        </p>
-
-        <p>
-          <label>
-            {t("expenses.fields.amount")}{" "}
+            {t("expenses.fields.month")}{" "}
             <input
               type="number"
-              step="0.01"
-              min="0"
-              value={form.amount}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, amount: event.target.value }))
-              }
-              required
+              min={1}
+              max={12}
+              value={selectedMonth}
+              onChange={(event) => setSelectedMonth(Number(event.target.value))}
             />
-          </label>
-        </p>
-
-        <p>
+          </label>{" "}
           <label>
-            {t("expenses.fields.currency")}{" "}
-            <select
-              value={form.currency}
-              onChange={(event) =>
-                setForm((current) => ({
-                  ...current,
-                  currency: event.target.value as "MXN" | "USD",
-                }))
-              }
-            >
-              <option value="MXN">MXN</option>
-              <option value="USD">USD</option>
-            </select>
-          </label>
-        </p>
-
-        <p>
-          <label>
-            {t("expenses.fields.date")}{" "}
+            {t("expenses.fields.year")}{" "}
             <input
-              type="date"
-              value={form.date}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, date: event.target.value }))
-              }
-              required
+              type="number"
+              min={2000}
+              max={2100}
+              value={selectedYear}
+              onChange={(event) => setSelectedYear(Number(event.target.value))}
             />
           </label>
-        </p>
-
-        <div className="form-actions">
-          <Button type="submit" disabled={isSubmitting}>
-            {submitLabel}
-          </Button>{" "}
-          {editingId ? (
-            <Button type="button" variant="secondary" onClick={onCancelEdit}>
-              {t("expenses.cancelEdit")}
-            </Button>
-          ) : null}
         </div>
-      </form>
+
+        <form className="section-stack" onSubmit={onSubmit}>
+          <p>
+            <label>
+              {t("expenses.fields.description")}{" "}
+              <input
+                type="text"
+                value={form.description}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, description: event.target.value }))
+                }
+                required
+              />
+            </label>
+          </p>
+
+          <p>
+            <label>
+              {t("expenses.fields.category")}{" "}
+              <select
+                value={form.categoryId}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, categoryId: event.target.value }))
+                }
+                required
+              >
+                <option value="">{t("expenses.placeholders.selectCategory")}</option>
+                {(categoriesQuery.data ?? []).map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </p>
+
+          <p>
+            <label>
+              {t("expenses.fields.account")}{" "}
+              <select
+                value={form.accountId}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, accountId: event.target.value }))
+                }
+                required
+              >
+                <option value="">{t("expenses.placeholders.selectAccount")}</option>
+                {(accountsQuery.data ?? []).map((account) => (
+                  <option key={account.id} value={account.id}>
+                    {account.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </p>
+
+          <p>
+            <label>
+              {t("expenses.fields.amount")}{" "}
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={form.amount}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, amount: event.target.value }))
+                }
+                required
+              />
+            </label>
+          </p>
+
+          <p>
+            <label>
+              {t("expenses.fields.currency")}{" "}
+              <select
+                value={form.currency}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    currency: event.target.value as "MXN" | "USD",
+                  }))
+                }
+              >
+                <option value="MXN">MXN</option>
+                <option value="USD">USD</option>
+              </select>
+            </label>
+          </p>
+
+          <p>
+            <label>
+              {t("expenses.fields.date")}{" "}
+              <input
+                type="date"
+                value={form.date}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, date: event.target.value }))
+                }
+                required
+              />
+            </label>
+          </p>
+
+          <div className="form-actions">
+            <Button type="submit" disabled={isSubmitting}>
+              {submitLabel}
+            </Button>{" "}
+            {editingId ? (
+              <Button type="button" variant="secondary" onClick={onCancelEdit}>
+                {t("expenses.cancelEdit")}
+              </Button>
+            ) : null}
+          </div>
+        </form>
       </Section>
 
-      {activeError ? <Alert className="border-red-200 bg-red-50 text-red-700">{t("expenses.error", { message: activeError.message })}</Alert> : null}
+      {activeError ? (
+        <Alert className="border-red-200 bg-red-50 text-red-700">
+          {t("expenses.error", { message: activeError.message })}
+        </Alert>
+      ) : null}
 
       <Section>
-      <h2>{t("expenses.listTitle")}</h2>
-      {expenseListQuery.isLoading ? (
-        <p className="empty-text">{t("expenses.loadingList")}</p>
-      ) : expenses.length === 0 ? (
-        <p className="empty-text">{t("expenses.empty")}</p>
-      ) : (
-        <ul className="space-y-2">
-          {expenses.map((expense) => (
-            <li key={expense.id} className="rounded-md border border-slate-200 bg-slate-50 p-3">
-              <strong>{expense.description}</strong> -{" "}
-              {formatCurrencyByLanguage(
-                expense.amount,
-                expense.currency as "MXN" | "USD",
-                i18n.language,
-              )} -{" "}
-              {expense.category.name} - {expense.account.name} -{" "}
-              {formatDateByLanguage(expense.date, i18n.language)}{" "}
-              <Button size="sm" type="button" variant="secondary" onClick={() => onEdit(expense)}>
-                {t("expenses.edit")}
-              </Button>{" "}
-              <Button size="sm" type="button" variant="danger" onClick={() => onDelete(expense.id)}>
-                {t("expenses.delete")}
-              </Button>
-            </li>
-          ))}
-        </ul>
-      )}
+        <h2>{t("expenses.listTitle")}</h2>
+        {expenseListQuery.isLoading ? (
+          <p className="empty-text">{t("expenses.loadingList")}</p>
+        ) : expenses.length === 0 ? (
+          <p className="empty-text">{t("expenses.empty")}</p>
+        ) : (
+          <ul className="space-y-2">
+            {expenses.map((expense) => (
+              <li
+                key={expense.id}
+                className="rounded-md border border-slate-200 bg-slate-50 p-3"
+              >
+                <strong>{expense.description}</strong> -{" "}
+                {formatCurrencyByLanguage(
+                  expense.amount,
+                  expense.currency as "MXN" | "USD",
+                  i18n.language,
+                )}{" "}
+                - {expense.category.name} - {expense.account.name} -{" "}
+                {formatDateByLanguage(expense.date, i18n.language)}{" "}
+                <Button
+                  size="sm"
+                  type="button"
+                  variant="secondary"
+                  onClick={() => onEdit(expense)}
+                >
+                  {t("expenses.edit")}
+                </Button>{" "}
+                <Button
+                  size="sm"
+                  type="button"
+                  variant="destructive"
+                  onClick={() => onDelete(expense.id)}
+                >
+                  {t("expenses.delete")}
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
       </Section>
     </PageShell>
   );
