@@ -167,6 +167,18 @@ Keep a single `.env` at the repo root and use **`pnpm db:migrate`** for migratio
 
 ---
 
+## Formatting and Linting
+
+- The repo uses **ESLint as the formatter entrypoint** with Prettier integrated via `eslint-plugin-prettier/recommended`.
+- `pnpm lint` checks both lint and formatting consistency.
+- In VS Code/Cursor, enable:
+  - `editor.formatOnSave: true`
+  - `editor.defaultFormatter: dbaeumer.vscode-eslint`
+  - `editor.codeActionsOnSave.source.fixAll.eslint: "explicit"` (or `true`)
+- This setup keeps one formatter path for all TypeScript files in apps and packages.
+
+---
+
 ## URLs
 
 | Service | URL |

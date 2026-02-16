@@ -225,6 +225,41 @@ Each reintroduced feature must ship as vertical slice with:
   - Applied shared styling baseline across `/accounts`, `/categories`, `/budgets`, `/recurring-expenses`, `/expenses`, `/dashboard`, and `/` (auth entry).
   - Standardized state presentation (loading/error/empty) and action button hierarchy.
   - Added route QA checklist in `docs/UI_ACCEPTANCE_CHECKLIST.md`.
+- 2026-02-15: Auth navigation hardening for protected routes.
+  - Added a pathless protected parent route with TanStack Router `beforeLoad` session checks (`/api/auth/get-session`) so app pages are guarded at the routing layer.
+  - Moved `/dashboard`, `/accounts`, `/budgets`, `/categories`, `/expenses`, and `/recurring-expenses` under the protected route tree.
+  - Updated root sign-out flow to redirect to `/sign-in` immediately after logout.
+  - Improved route-guard performance by moving session access into TanStack Router context with an auth-session cache (authenticated sessions cached briefly, in-flight requests deduplicated).
+- 2026-02-15: Formatting baseline hardened with Prettier via ESLint.
+  - Added `prettier`, `eslint-plugin-prettier`, and `eslint-config-prettier` at workspace root.
+  - Enabled `eslint-plugin-prettier/recommended` in flat ESLint config so Prettier runs as ESLint rules.
+  - Updated workspace VS Code settings to use ESLint as default formatter with format-on-save + `source.fixAll.eslint`.
+  - Replaced placeholder `lint` scripts in `packages/db`, `packages/shared`, and `packages/trpc` with real `eslint .` commands so formatting/linting now applies across all TypeScript workspace packages.
+- 2026-02-15: Auth route UX restructured around protected home.
+  - Documented target route/auth model in `docs/ROUTING_AUTH.md`.
+  - Moved auth screens to dedicated public routes: `"/sign-in"` (login) and `"/register"` (account creation).
+  - Promoted dashboard to protected home route `"/"` and added `"/dashboard"` legacy redirect alias to preserve old links.
+  - Updated unauthorized redirects and sign-out behavior to land on `"/sign-in"`.
+  - Extracted sign-in screen into its own route module (`apps/web/src/routes/sign-in.tsx`) and removed old `index` route module for clearer auth route ownership.
+- 2026-02-15: Unblocked web typecheck by replacing invalid button variant usage.
+  - Updated `variant="danger"` to `variant="destructive"` in accounts, categories, expenses, and recurring-expenses routes.
+- 2026-02-15: Locale parity check completed for web translations.
+  - Compared `apps/web/src/locales/en.json` and `apps/web/src/locales/es.json` key-by-key.
+  - Added missing Spanish `home.*` auth labels (`loginDescription`, `login`, `register`, `forgotPassword`, `dontHaveAccount`) so EN/ES key sets are aligned.
+- 2026-02-15: Auth redirect handoff hardened after route-guard redirect query rollout.
+  - Protected-route guard now forwards attempted path into `?redirect=` using router `location.href`.
+  - Sign-in and register routes now parse/preserve `redirect` and resolve callback URLs from it (same-origin only, fallback `/`).
+  - This fixes post-auth navigation always landing on dashboard when a protected deep link initiated the sign-in flow.
+- 2026-02-15: Guard cleanup for protected routes and auth-search ergonomics.
+  - Made auth route search parsing return truly optional `redirect` params for `"/sign-in"` and `"/register"` (instead of always materializing `redirect: undefined`).
+  - Removed duplicated per-page unauthorized `useEffect` navigation redirects from protected routes (`accounts`, `budgets`, `categories`, `dashboard`, `expenses`, `recurring-expenses`) and retained route-level protection in `protected.beforeLoad`.
+- 2026-02-15: Added centralized runtime unauthorized handling for mid-session expiry.
+  - Introduced global React Query unauthorized interception in `apps/web/src/main.tsx` (`QueryCache` + `MutationCache` `onError`).
+  - On `UNAUTHORIZED`, app now invalidates auth cache and redirects once to `"/sign-in"` with `redirect=<current-url>`, avoiding loops on auth routes.
+- 2026-02-15: Fixed Zod schema-version mismatch causing runtime tRPC input parser errors.
+  - Root cause: `@expense-management/shared` exported Zod v3 schemas while tRPC routers used Zod v4.
+  - Updated `packages/shared/package.json` to `zod@^4.3.6` and refreshed lockfile via `pnpm install`.
+  - Verified runtime schema composition (`z.object({ budgetId: idSchema })`) succeeds with shared `idSchema`.
 
 **Decisions**
 - 2026-02-14: Keep `shadcn/ui` direction for this phase; do not migrate component library.
