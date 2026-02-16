@@ -19,7 +19,7 @@
     "seed": "tsx seed.ts",
     "seed:preview": "tsx seed.ts --preview",
     "sync:institutions": "tsx scripts/sync-institutions.ts",
-    "lint": "echo no lint yet",
+    "lint": "eslint .",
     "typecheck": "prisma generate && tsc --noEmit"
   },
   "devDependencies": {

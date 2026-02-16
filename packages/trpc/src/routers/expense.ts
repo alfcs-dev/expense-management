@@ -123,27 +123,25 @@ export const expenseRouter = router({
       });
     }),
 
-  create: protectedProcedure
-    .input(expenseInputSchema)
-    .mutation(async ({ ctx, input }) => {
-      const userId = requireUserId(ctx.user);
+  create: protectedProcedure.input(expenseInputSchema).mutation(async ({ ctx, input }) => {
+    const userId = requireUserId(ctx.user);
 
-      await assertOwnedReferences(userId, input);
+    await assertOwnedReferences(userId, input);
 
-      return db.expense.create({
-        data: {
-          userId,
-          budgetId: input.budgetId,
-          categoryId: input.categoryId,
-          accountId: input.accountId,
-          description: input.description.trim(),
-          amount: input.amount,
-          currency: input.currency,
-          date: input.date,
-          source: "manual",
-        },
-      });
-    }),
+    return db.expense.create({
+      data: {
+        userId,
+        budgetId: input.budgetId,
+        categoryId: input.categoryId,
+        accountId: input.accountId,
+        description: input.description.trim(),
+        amount: input.amount,
+        currency: input.currency,
+        date: input.date,
+        source: "manual",
+      },
+    });
+  }),
 
   update: protectedProcedure
     .input(
@@ -183,22 +181,20 @@ export const expenseRouter = router({
       });
     }),
 
-  delete: protectedProcedure
-    .input(z.object({ id: idSchema }))
-    .mutation(async ({ ctx, input }) => {
-      const userId = requireUserId(ctx.user);
+  delete: protectedProcedure.input(z.object({ id: idSchema })).mutation(async ({ ctx, input }) => {
+    const userId = requireUserId(ctx.user);
 
-      const deleted = await db.expense.deleteMany({
-        where: {
-          id: input.id,
-          userId,
-        },
-      });
+    const deleted = await db.expense.deleteMany({
+      where: {
+        id: input.id,
+        userId,
+      },
+    });
 
-      if (deleted.count === 0) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Expense not found" });
-      }
+    if (deleted.count === 0) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "Expense not found" });
+    }
 
-      return { success: true };
-    }),
+    return { success: true };
+  }),
 });

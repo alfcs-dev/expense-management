@@ -31,28 +31,26 @@ export const categoryRouter = router({
     });
   }),
 
-  create: protectedProcedure
-    .input(categoryInputSchema)
-    .mutation(async ({ ctx, input }) => {
-      const userId = requireUserId(ctx.user);
+  create: protectedProcedure.input(categoryInputSchema).mutation(async ({ ctx, input }) => {
+    const userId = requireUserId(ctx.user);
 
-      const maxSortOrder = await db.category.aggregate({
-        where: { userId },
-        _max: { sortOrder: true },
-      });
+    const maxSortOrder = await db.category.aggregate({
+      where: { userId },
+      _max: { sortOrder: true },
+    });
 
-      const sortOrder = input.sortOrder ?? (maxSortOrder._max.sortOrder ?? -1) + 1;
+    const sortOrder = input.sortOrder ?? (maxSortOrder._max.sortOrder ?? -1) + 1;
 
-      return db.category.create({
-        data: {
-          userId,
-          name: input.name,
-          icon: input.icon?.trim() || null,
-          color: input.color?.trim() || null,
-          sortOrder,
-        },
-      });
-    }),
+    return db.category.create({
+      data: {
+        userId,
+        name: input.name,
+        icon: input.icon?.trim() || null,
+        color: input.color?.trim() || null,
+        sortOrder,
+      },
+    });
+  }),
 
   update: protectedProcedure
     .input(
@@ -84,23 +82,21 @@ export const categoryRouter = router({
       return db.category.findUniqueOrThrow({ where: { id: input.id } });
     }),
 
-  delete: protectedProcedure
-    .input(z.object({ id: idSchema }))
-    .mutation(async ({ ctx, input }) => {
-      const userId = requireUserId(ctx.user);
-      const deleted = await db.category.deleteMany({
-        where: {
-          id: input.id,
-          userId,
-        },
-      });
+  delete: protectedProcedure.input(z.object({ id: idSchema })).mutation(async ({ ctx, input }) => {
+    const userId = requireUserId(ctx.user);
+    const deleted = await db.category.deleteMany({
+      where: {
+        id: input.id,
+        userId,
+      },
+    });
 
-      if (deleted.count === 0) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Category not found" });
-      }
+    if (deleted.count === 0) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "Category not found" });
+    }
 
-      return { success: true };
-    }),
+    return { success: true };
+  }),
 
   reorder: protectedProcedure
     .input(

@@ -89,28 +89,26 @@ export const budgetRouter = router({
       });
     }),
 
-  getOrCreateForMonth: protectedProcedure
-    .input(monthYearSchema)
-    .query(async ({ ctx, input }) => {
-      const userId = requireUserId(ctx.user);
+  getOrCreateForMonth: protectedProcedure.input(monthYearSchema).query(async ({ ctx, input }) => {
+    const userId = requireUserId(ctx.user);
 
-      return db.budget.upsert({
-        where: {
-          userId_month_year: {
-            userId,
-            month: input.month,
-            year: input.year,
-          },
-        },
-        update: {},
-        create: {
+    return db.budget.upsert({
+      where: {
+        userId_month_year: {
           userId,
           month: input.month,
           year: input.year,
-          name: `${input.year}-${String(input.month).padStart(2, "0")}`,
         },
-      });
-    }),
+      },
+      update: {},
+      create: {
+        userId,
+        month: input.month,
+        year: input.year,
+        name: `${input.year}-${String(input.month).padStart(2, "0")}`,
+      },
+    });
+  }),
 
   getPlannedByCategory: protectedProcedure
     .input(z.object({ budgetId: idSchema }))

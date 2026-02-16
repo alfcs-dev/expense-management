@@ -1,11 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import { db } from "@expense-management/db";
-import {
-  currencySchema,
-  idSchema,
-  normalizeClabe,
-  isValidClabe,
-} from "@expense-management/shared";
+import { currencySchema, idSchema, normalizeClabe, isValidClabe } from "@expense-management/shared";
 import { z } from "zod";
 import { protectedProcedure, router } from "../trpc.js";
 
@@ -27,37 +22,36 @@ const nonCreditAccountSchema = accountBaseSchema.extend({
   balance: z.number().int(),
 });
 
-const upsertAccountInputSchema = z.union([
-  creditAccountSchema,
-  nonCreditAccountSchema,
-]).superRefine((input, ctx) => {
-  const normalizedClabe = input.clabe ? normalizeClabe(input.clabe) : "";
+const upsertAccountInputSchema = z
+  .union([creditAccountSchema, nonCreditAccountSchema])
+  .superRefine((input, ctx) => {
+    const normalizedClabe = input.clabe ? normalizeClabe(input.clabe) : "";
 
-  if (input.type === "debit" && !normalizedClabe) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ["clabe"],
-      message: "CLABE is required for debit accounts",
-    });
-    return;
-  }
+    if (input.type === "debit" && !normalizedClabe) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["clabe"],
+        message: "CLABE is required for debit accounts",
+      });
+      return;
+    }
 
-  if (normalizedClabe && !isValidClabe(normalizedClabe)) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ["clabe"],
-      message: "CLABE must contain 18 valid digits",
-    });
-  }
+    if (normalizedClabe && !isValidClabe(normalizedClabe)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["clabe"],
+        message: "CLABE must contain 18 valid digits",
+      });
+    }
 
-  if (input.type === "credit" && !normalizedClabe && !input.institution?.trim()) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ["institution"],
-      message: "Institution is required for credit accounts when CLABE is missing",
-    });
-  }
-});
+    if (input.type === "credit" && !normalizedClabe && !input.institution?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["institution"],
+        message: "Institution is required for credit accounts when CLABE is missing",
+      });
+    }
+  });
 
 function requireUserId(user: { id: string } | null): string {
   if (!user) {
@@ -160,41 +154,39 @@ export const accountRouter = router({
     });
   }),
 
-  create: protectedProcedure
-    .input(upsertAccountInputSchema)
-    .mutation(async ({ ctx, input }) => {
-      const userId = requireUserId(ctx.user);
-      const identity = await buildInstitutionAndClabe(input);
+  create: protectedProcedure.input(upsertAccountInputSchema).mutation(async ({ ctx, input }) => {
+    const userId = requireUserId(ctx.user);
+    const identity = await buildInstitutionAndClabe(input);
 
-      const accountData =
-        input.type === "credit"
-          ? {
-              userId,
-              name: input.name,
-              type: input.type,
-              currency: input.currency,
-              institution: identity.institution,
-              clabe: identity.clabe,
-              balance: 0,
-              creditLimit: input.creditLimit,
-              currentDebt: input.currentDebt,
-            }
-          : {
-              userId,
-              name: input.name,
-              type: input.type,
-              currency: input.currency,
-              institution: identity.institution,
-              clabe: identity.clabe,
-              balance: input.balance,
-              creditLimit: null,
-              currentDebt: null,
-            };
+    const accountData =
+      input.type === "credit"
+        ? {
+            userId,
+            name: input.name,
+            type: input.type,
+            currency: input.currency,
+            institution: identity.institution,
+            clabe: identity.clabe,
+            balance: 0,
+            creditLimit: input.creditLimit,
+            currentDebt: input.currentDebt,
+          }
+        : {
+            userId,
+            name: input.name,
+            type: input.type,
+            currency: input.currency,
+            institution: identity.institution,
+            clabe: identity.clabe,
+            balance: input.balance,
+            creditLimit: null,
+            currentDebt: null,
+          };
 
-      return db.account.create({
-        data: accountData,
-      });
-    }),
+    return db.account.create({
+      data: accountData,
+    });
+  }),
 
   update: protectedProcedure
     .input(
@@ -246,21 +238,19 @@ export const accountRouter = router({
       });
     }),
 
-  delete: protectedProcedure
-    .input(z.object({ id: idSchema }))
-    .mutation(async ({ ctx, input }) => {
-      const userId = requireUserId(ctx.user);
-      const deleted = await db.account.deleteMany({
-        where: {
-          id: input.id,
-          userId,
-        },
-      });
+  delete: protectedProcedure.input(z.object({ id: idSchema })).mutation(async ({ ctx, input }) => {
+    const userId = requireUserId(ctx.user);
+    const deleted = await db.account.deleteMany({
+      where: {
+        id: input.id,
+        userId,
+      },
+    });
 
-      if (deleted.count === 0) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Account not found" });
-      }
+    if (deleted.count === 0) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "Account not found" });
+    }
 
-      return { success: true };
-    }),
+    return { success: true };
+  }),
 });

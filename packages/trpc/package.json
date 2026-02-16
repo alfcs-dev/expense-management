@@ -14,14 +14,14 @@
   },
   "scripts": {
     "build": "tsc",
-    "lint": "echo no lint yet",
+    "lint": "eslint .",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@expense-management/db": "workspace:*",
     "@expense-management/shared": "workspace:*",
     "@trpc/server": "^11.0.0",
-    "zod": "^3.23.0"
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "fastify": "^5.7.4",

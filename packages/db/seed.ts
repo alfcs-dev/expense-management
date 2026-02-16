@@ -214,8 +214,7 @@ function parseBudgetCsv(content: string): BudgetParsedCsv {
       continue;
     }
 
-    const monthlyAmountCents =
-      parseMoneyToCents(cells[5]) ?? parseMoneyToCents(cells[1]) ?? 0;
+    const monthlyAmountCents = parseMoneyToCents(cells[5]) ?? parseMoneyToCents(cells[1]) ?? 0;
     const biweeklyAmountCents = parseMoneyToCents(cells[2]);
     const annualCostCents = parseMoneyToCents(cells[4]);
     const isAnnual = parseBoolean(cells[3]);
@@ -276,11 +275,7 @@ function parseDebtCsv(content: string): DebtParsedCsv {
     }
 
     // Ignore summary/placeholder rows with no debt footprint.
-    if (
-      totalAmountCents === 0 &&
-      monthlyPaymentCents === 0 &&
-      remainingAmountCents === 0
-    ) {
+    if (totalAmountCents === 0 && monthlyPaymentCents === 0 && remainingAmountCents === 0) {
       continue;
     }
 
@@ -300,15 +295,9 @@ function parseDebtCsv(content: string): DebtParsedCsv {
   return { rows, cards: Array.from(cards) };
 }
 
-function parseAccountTypeLabel(
-  typeLabel: string | null,
-  accountName: string,
-): AccountType {
+function parseAccountTypeLabel(typeLabel: string | null, accountName: string): AccountType {
   const value = (typeLabel ?? "").toLowerCase();
-  if (
-    value.includes("credito") ||
-    value.includes("departamental")
-  ) {
+  if (value.includes("credito") || value.includes("departamental")) {
     return "credit";
   }
   if (value.includes("inversion")) {
@@ -360,11 +349,7 @@ function parseAccountCsv(content: string): AccountParsedCsv {
 
 function inferAccountType(accountName: string): AccountType {
   const value = accountName.toLowerCase();
-  if (
-    value.includes("inversion") ||
-    value.includes("trading") ||
-    value.includes("dolares")
-  ) {
+  if (value.includes("inversion") || value.includes("trading") || value.includes("dolares")) {
     return "investment";
   }
   if (
@@ -407,10 +392,7 @@ function inferInstallmentStatus(row: DebtCsvRow): InstallmentPlanStatus {
   return "active";
 }
 
-function uniqueAccountNames(
-  budgetRows: BudgetCsvRow[],
-  debtRows: DebtCsvRow[],
-): string[] {
+function uniqueAccountNames(budgetRows: BudgetCsvRow[], debtRows: DebtCsvRow[]): string[] {
   const set = new Set<string>();
   for (const row of budgetRows) {
     if (row.sourceAccountName) set.add(row.sourceAccountName);
@@ -495,10 +477,7 @@ function makeBar(value: number, max: number, width = 24): string {
 function buildVisualization(budgetRows: BudgetCsvRow[], debtRows: DebtCsvRow[]): string {
   const sectionTotals = new Map<string, number>();
   for (const row of budgetRows) {
-    sectionTotals.set(
-      row.section,
-      (sectionTotals.get(row.section) ?? 0) + row.monthlyAmountCents,
-    );
+    sectionTotals.set(row.section, (sectionTotals.get(row.section) ?? 0) + row.monthlyAmountCents);
   }
 
   const cardRemaining = new Map<string, number>();
@@ -590,10 +569,7 @@ async function applySeed(
   const debtByCardKey = new Map<string, number>();
   for (const row of debtRows) {
     const key = toAccountKey(row.cardName);
-    debtByCardKey.set(
-      key,
-      (debtByCardKey.get(key) ?? 0) + row.remainingAmountCents,
-    );
+    debtByCardKey.set(key, (debtByCardKey.get(key) ?? 0) + row.remainingAmountCents);
   }
   const accountByKey = new Map<string, string>();
   for (const account of seedAccounts) {
@@ -609,7 +585,7 @@ async function applySeed(
         institution: account.institution,
         balance: 0,
         creditLimit: null,
-        currentDebt: isCredit ? debtByCardKey.get(accountKey) ?? 0 : null,
+        currentDebt: isCredit ? (debtByCardKey.get(accountKey) ?? 0) : null,
       },
     });
     accountByKey.set(accountKey, created.id);
@@ -640,7 +616,7 @@ async function applySeed(
     if (!sourceAccountId || !categoryId) continue;
 
     const destinationAccountId = row.destinationAccountName
-      ? accountByKey.get(toAccountKey(row.destinationAccountName)) ?? null
+      ? (accountByKey.get(toAccountKey(row.destinationAccountName)) ?? null)
       : null;
 
     await prisma.recurringExpense.create({
@@ -710,10 +686,7 @@ function previewData(
 ) {
   const recurringBySection = new Map<string, number>();
   for (const row of budgetParsed.rows) {
-    recurringBySection.set(
-      row.section,
-      (recurringBySection.get(row.section) ?? 0) + 1,
-    );
+    recurringBySection.set(row.section, (recurringBySection.get(row.section) ?? 0) + 1);
   }
 
   const debtByCard = new Map<string, { plans: number; remainingCents: number }>();
@@ -735,10 +708,7 @@ function previewData(
         name,
         recurringExpenses: count,
       })),
-      totalMonthlyCents: budgetParsed.rows.reduce(
-        (sum, row) => sum + row.monthlyAmountCents,
-        0,
-      ),
+      totalMonthlyCents: budgetParsed.rows.reduce((sum, row) => sum + row.monthlyAmountCents, 0),
     },
     installmentDebt: {
       rowsParsed: debtParsed.rows.length,
@@ -747,10 +717,7 @@ function previewData(
         plans: data.plans,
         remainingCents: data.remainingCents,
       })),
-      totalRemainingCents: debtParsed.rows.reduce(
-        (sum, row) => sum + row.remainingAmountCents,
-        0,
-      ),
+      totalRemainingCents: debtParsed.rows.reduce((sum, row) => sum + row.remainingAmountCents, 0),
       totalMonthlyDebtPaymentCents: debtParsed.rows.reduce(
         (sum, row) => sum + row.monthlyPaymentCents,
         0,
@@ -759,11 +726,8 @@ function previewData(
     uniqueAccountsReferenced: uniqueAccountNames(budgetParsed.rows, debtParsed.rows).sort(),
     accountCatalog: {
       rowsParsed: accountParsed.rows.length,
-      totalSeedAccounts: buildSeedAccounts(
-        budgetParsed.rows,
-        debtParsed.rows,
-        accountParsed.rows,
-      ).length,
+      totalSeedAccounts: buildSeedAccounts(budgetParsed.rows, debtParsed.rows, accountParsed.rows)
+        .length,
       sampleAccounts: accountParsed.rows.slice(0, 8).map((row) => ({
         name: row.name,
         typeLabel: row.typeLabel,
@@ -803,7 +767,8 @@ function previewData(
 
 async function main() {
   const args = parseArgs();
-  const budgetCsvPath = process.env.SEED_BUDGET_CSV_PATH ?? process.env.SEED_CSV_PATH ?? defaultBudgetCsvPath;
+  const budgetCsvPath =
+    process.env.SEED_BUDGET_CSV_PATH ?? process.env.SEED_CSV_PATH ?? defaultBudgetCsvPath;
   const debtCsvPath = process.env.SEED_DEBT_CSV_PATH ?? defaultDebtCsvPath;
   const accountsCsvPath = process.env.SEED_ACCOUNTS_CSV_PATH ?? defaultAccountsCsvPath;
 
@@ -830,11 +795,7 @@ async function main() {
     return;
   }
 
-  const result = await applySeed(
-    budgetParsed.rows,
-    debtParsed.rows,
-    accountParsed.rows,
-  );
+  const result = await applySeed(budgetParsed.rows, debtParsed.rows, accountParsed.rows);
   console.log("Seed applied:", JSON.stringify(result, null, 2));
 }
 

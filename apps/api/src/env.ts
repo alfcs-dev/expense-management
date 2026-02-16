@@ -9,9 +9,7 @@ const repoRootEnvPath = path.resolve(currentDir, "../../../.env");
 loadDotenv({ path: repoRootEnvPath });
 
 const envSchema = z.object({
-  NODE_ENV: z
-    .enum(["development", "test", "production"])
-    .default("development"),
+  NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().min(1).max(65535).default(4000),
   DATABASE_URL: z.string().min(1),
   BETTER_AUTH_SECRET: z.string().min(32).optional(),
@@ -30,9 +28,7 @@ if (!parsed.success) {
 export const env = parsed.data;
 
 if (env.NODE_ENV === "production" && !env.BETTER_AUTH_SECRET) {
-  console.error(
-    "Invalid API environment: BETTER_AUTH_SECRET is required in production.",
-  );
+  console.error("Invalid API environment: BETTER_AUTH_SECRET is required in production.");
   process.exit(1);
 }
 
@@ -42,7 +38,10 @@ export function getCorsOrigin(): true | string | string[] {
   if (raw === undefined || raw === "" || raw === "true" || raw === "*") {
     return true;
   }
-  return raw.split(",").map((s) => s.trim()).filter(Boolean);
+  return raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
 
 /** Resolve trusted origins for Better Auth. */
@@ -51,5 +50,8 @@ export function getTrustedOrigins(): string[] {
   if (!raw || raw === "true" || raw === "*") {
     return ["http://localhost:5173"];
   }
-  return raw.split(",").map((s) => s.trim()).filter(Boolean);
+  return raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
 }

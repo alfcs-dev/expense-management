@@ -33,7 +33,10 @@ function decodeHtml(value: string): string {
     .trim();
 }
 
-function parseInstitutions(html: string, source: CatalogInstitution["source"]): CatalogInstitution[] {
+function parseInstitutions(
+  html: string,
+  source: CatalogInstitution["source"],
+): CatalogInstitution[] {
   const rowPattern = /<tr>\s*<td>(\d+)<\/td>\s*<td>([^<]+)<\/td>\s*<\/tr>/g;
   const institutions = new Map<string, CatalogInstitution>();
 
@@ -58,7 +61,10 @@ function parseInstitutions(html: string, source: CatalogInstitution["source"]): 
   return [...institutions.values()];
 }
 
-async function fetchInstitutions(url: string, source: CatalogInstitution["source"]): Promise<CatalogInstitution[]> {
+async function fetchInstitutions(
+  url: string,
+  source: CatalogInstitution["source"],
+): Promise<CatalogInstitution[]> {
   const response = await fetch(url);
   if (!response.ok) {
     throw new Error(`Failed to fetch institutions from ${url}: ${response.status}`);
@@ -113,7 +119,9 @@ async function upsertInstitutions(institutions: CatalogInstitution[]): Promise<v
 }
 
 async function main() {
-  const includeBeta = process.argv.includes("--include-beta") || process.env.SYNC_INSTITUTIONS_INCLUDE_BETA === "true";
+  const includeBeta =
+    process.argv.includes("--include-beta") ||
+    process.env.SYNC_INSTITUTIONS_INCLUDE_BETA === "true";
 
   const primary = await fetchInstitutions(BANXICO_URL, "banxico-cep");
   let merged = primary;
