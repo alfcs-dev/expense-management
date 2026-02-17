@@ -232,6 +232,15 @@
       "selectCategory": "Selecciona categoría",
       "selectAccount": "Selecciona cuenta",
       "amountInBudgetCurrency": "Monto convertido opcional"
+    },
+    "validation": {
+      "budgetRequired": "Selecciona un presupuesto antes de guardar un gasto.",
+      "categoryRequired": "La categoría es obligatoria.",
+      "accountRequired": "La cuenta es obligatoria.",
+      "descriptionRequired": "La descripción es obligatoria.",
+      "dateRequired": "La fecha es obligatoria.",
+      "amountPositive": "El monto debe ser mayor a 0.",
+      "convertedAmountPositive": "El monto convertido debe ser mayor a 0 cuando se captura."
     }
   },
   "budgets": {

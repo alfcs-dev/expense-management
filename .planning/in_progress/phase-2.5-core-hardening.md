@@ -200,6 +200,10 @@ Each reintroduced feature must ship as vertical slice with:
 ## 8. In Progress Log
 
 **Achievements**
+- 2026-02-17: Hardened manual expense form UX and required-field validation.
+  - Updated `/expenses` budget selector and create flow layout for better readability.
+  - Added explicit client-side validation for required expense inputs (budget/category/account/description/amount/date) and positive amount constraints.
+  - Added EN/ES validation copy for expense form feedback.
 - 2026-02-17: Scoped recurring templates to explicit budgets.
   - Added required `budgetId` on `RecurringExpense` and linked each template to a single budget.
   - Updated recurring API create/update validation to enforce budget ownership for the authenticated user.

@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { createRoute } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
+import { CalendarIcon, FileTextIcon, WalletIcon } from "lucide-react";
 import { protectedRoute } from "./protected";
 import { formatCurrencyByLanguage, formatDateByLanguage } from "../utils/locale";
 import { trpc } from "../utils/trpc";
@@ -14,8 +15,27 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "../components/ui/dialog";
+import {
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
 
 type ExpenseFormValues = {
   categoryId: string;
@@ -89,6 +109,7 @@ function ExpensesPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [form, setForm] = useState<ExpenseFormValues>(INITIAL_FORM);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const budgetsQuery = trpc.budget.list.useQuery(undefined, { retry: false });
   const defaultBudgetQuery = trpc.budget.getDefault.useQuery(undefined, { retry: false });
@@ -123,6 +144,7 @@ function ExpensesPage() {
     onSuccess: async () => {
       await utils.expense.list.invalidate();
       setForm(INITIAL_FORM);
+      setFormError(null);
       setIsFormOpen(false);
     },
   });
@@ -131,6 +153,7 @@ function ExpensesPage() {
       await utils.expense.list.invalidate();
       setEditingId(null);
       setForm(INITIAL_FORM);
+      setFormError(null);
       setIsFormOpen(false);
     },
   });
@@ -140,15 +163,17 @@ function ExpensesPage() {
     },
   });
 
-  const activeError =
-    budgetsQuery.error ??
-    defaultBudgetQuery.error ??
-    accountsQuery.error ??
-    categoriesQuery.error ??
-    expenseListQuery.error ??
-    createMutation.error ??
-    updateMutation.error ??
-    deleteMutation.error;
+  const activeErrorMessage =
+    formError ??
+    budgetsQuery.error?.message ??
+    defaultBudgetQuery.error?.message ??
+    accountsQuery.error?.message ??
+    categoriesQuery.error?.message ??
+    expenseListQuery.error?.message ??
+    createMutation.error?.message ??
+    updateMutation.error?.message ??
+    deleteMutation.error?.message ??
+    null;
 
   const submitLabel = useMemo(() => {
     if (createMutation.isPending || updateMutation.isPending) {
@@ -163,17 +188,61 @@ function ExpensesPage() {
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!activeBudgetId) return;
+    setFormError(null);
+
+    if (!activeBudgetId) {
+      setFormError(t("expenses.validation.budgetRequired"));
+      return;
+    }
+
+    if (!form.categoryId) {
+      setFormError(t("expenses.validation.categoryRequired"));
+      return;
+    }
+
+    if (!form.accountId) {
+      setFormError(t("expenses.validation.accountRequired"));
+      return;
+    }
+
+    const description = form.description.trim();
+    if (!description) {
+      setFormError(t("expenses.validation.descriptionRequired"));
+      return;
+    }
+
+    if (!form.date) {
+      setFormError(t("expenses.validation.dateRequired"));
+      return;
+    }
+
+    const amount = parseDisplayToCents(form.amount);
+    if (amount <= 0) {
+      setFormError(t("expenses.validation.amountPositive"));
+      return;
+    }
+
+    const convertedAmount = parseDisplayToCents(form.amountInBudgetCurrency);
+    if (
+      showConversionInput &&
+      form.amountInBudgetCurrency.trim() &&
+      convertedAmount <= 0
+    ) {
+      setFormError(t("expenses.validation.convertedAmountPositive"));
+      return;
+    }
 
     const payload = {
       budgetId: activeBudgetId,
       categoryId: form.categoryId,
       accountId: form.accountId,
-      description: form.description.trim(),
-      amount: parseDisplayToCents(form.amount),
+      description,
+      amount,
       currency: form.currency,
       amountInBudgetCurrency: showConversionInput
-        ? parseDisplayToCents(form.amountInBudgetCurrency)
+        ? convertedAmount > 0
+          ? convertedAmount
+          : undefined
         : undefined,
       date: new Date(`${form.date}T12:00:00`),
     };
@@ -191,6 +260,7 @@ function ExpensesPage() {
 
   const onEdit = (expense: ExpenseListItem) => {
     setEditingId(expense.id);
+    setFormError(null);
     setSelectedBudgetId(expense.budget.id);
     setForm({
       categoryId: expense.categoryId,
@@ -209,6 +279,7 @@ function ExpensesPage() {
   const onCancelEdit = () => {
     setEditingId(null);
     setForm(INITIAL_FORM);
+    setFormError(null);
     setIsFormOpen(false);
   };
 
@@ -247,21 +318,40 @@ function ExpensesPage() {
       ) : null}
 
       <Section>
-        <div className="inline-row">
-          <label>
-            {t("expenses.fields.budget")}{" "}
-            <select
-              value={activeBudgetId ?? ""}
-              onChange={(event) => setSelectedBudgetId(event.target.value)}
-            >
-              {(budgetsQuery.data ?? []).map((budget) => (
-                <option key={budget.id} value={budget.id}>
-                  {budget.name}
-                  {budget.isDefault ? ` (${t("budgets.defaultTag")})` : ""}
-                </option>
-              ))}
-            </select>
-          </label>
+        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div className="w-full max-w-md">
+            <Field>
+              <FieldLabel>{t("expenses.fields.budget")}</FieldLabel>
+              <Select
+                value={activeBudgetId ?? undefined}
+                onValueChange={(value) => setSelectedBudgetId(value ?? "")}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder={t("expenses.fields.budget")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {(budgetsQuery.data ?? []).map((budget) => (
+                    <SelectItem key={budget.id} value={budget.id}>
+                      {budget.name}
+                      {budget.isDefault ? ` (${t("budgets.defaultTag")})` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+          </div>
+          <Button
+            type="button"
+            onClick={() => {
+              setEditingId(null);
+              setForm(INITIAL_FORM);
+              setFormError(null);
+              setIsFormOpen(true);
+            }}
+            disabled={!activeBudgetId}
+          >
+            {t("expenses.create")}
+          </Button>
         </div>
         {activeBudget ? (
           <p className="muted mt-2">
@@ -275,9 +365,9 @@ function ExpensesPage() {
         ) : null}
       </Section>
 
-      {activeError ? (
+      {activeErrorMessage ? (
         <Alert className="border-red-200 bg-red-50 text-red-700">
-          {t("expenses.error", { message: activeError.message })}
+          {t("expenses.error", { message: activeErrorMessage })}
         </Alert>
       ) : null}
 
@@ -290,18 +380,10 @@ function ExpensesPage() {
               if (!open && editingId) {
                 setEditingId(null);
                 setForm(INITIAL_FORM);
+                setFormError(null);
               }
             }}
           >
-            <DialogTrigger asChild>
-              <Button
-                type="button"
-                onClick={() => setIsFormOpen(true)}
-                disabled={!activeBudgetId}
-              >
-                {editingId ? t("expenses.update") : t("expenses.create")}
-              </Button>
-            </DialogTrigger>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>
@@ -309,170 +391,216 @@ function ExpensesPage() {
                 </DialogTitle>
                 <DialogDescription>{t("expenses.description")}</DialogDescription>
               </DialogHeader>
-              <form className="section-stack" onSubmit={onSubmit}>
-                <p>
-                  <label>
-                    {t("expenses.fields.description")}{" "}
-                    <input
-                      type="text"
-                      value={form.description}
-                      onChange={(event) =>
-                        setForm((current) => ({
-                          ...current,
-                          description: event.target.value,
-                        }))
-                      }
-                      required
-                    />
-                  </label>
-                </p>
+              <form onSubmit={onSubmit}>
+                <FieldGroup>
+                  <Field>
+                    <FieldLabel>{t("expenses.fields.budget")}</FieldLabel>
+                    <FieldDescription>
+                      {activeBudget
+                        ? `${activeBudget.name} (${activeBudget.currency})`
+                        : t("expenses.validation.budgetRequired")}
+                    </FieldDescription>
+                  </Field>
 
-                <p>
-                  <label>
-                    {t("expenses.fields.category")}{" "}
-                    <select
-                      value={form.categoryId}
-                      onChange={(event) =>
-                        setForm((current) => ({
-                          ...current,
-                          categoryId: event.target.value,
-                        }))
-                      }
-                      required
-                    >
-                      <option value="">
-                        {t("expenses.placeholders.selectCategory")}
-                      </option>
-                      {(categoriesQuery.data ?? []).map((category) => (
-                        <option key={category.id} value={category.id}>
-                          {category.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </p>
+                  <Field>
+                    <FieldLabel htmlFor="expense-description">
+                      {t("expenses.fields.description")}
+                    </FieldLabel>
+                    <InputGroup>
+                      <InputGroupInput
+                        id="expense-description"
+                        type="text"
+                        value={form.description}
+                        onChange={(event) =>
+                          setForm((current) => ({
+                            ...current,
+                            description: event.target.value,
+                          }))
+                        }
+                        placeholder={t("expenses.fields.description")}
+                        required
+                      />
+                      <InputGroupAddon>
+                        <FileTextIcon />
+                      </InputGroupAddon>
+                    </InputGroup>
+                  </Field>
 
-                <p>
-                  <label>
-                    {t("expenses.fields.account")}{" "}
-                    <select
-                      value={form.accountId}
-                      onChange={(event) =>
-                        setForm((current) => ({
-                          ...current,
-                          accountId: event.target.value,
-                        }))
+                  <Field>
+                    <FieldLabel>{t("expenses.fields.category")}</FieldLabel>
+                    <Select
+                      value={form.categoryId || undefined}
+                      onValueChange={(value) =>
+                        setForm((current) => ({ ...current, categoryId: value ?? "" }))
                       }
                       required
                     >
-                      <option value="">{t("expenses.placeholders.selectAccount")}</option>
-                      {(accountsQuery.data ?? []).map((account) => (
-                        <option key={account.id} value={account.id}>
-                          {account.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </p>
+                      <SelectTrigger className="w-full">
+                        <SelectValue
+                          placeholder={t("expenses.placeholders.selectCategory")}
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(categoriesQuery.data ?? []).map((category) => (
+                          <SelectItem key={category.id} value={category.id}>
+                            {category.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
 
-                <p>
-                  <label>
-                    {t("expenses.fields.amount")}{" "}
-                    <input
-                      type="number"
-                      min={0}
-                      step="0.01"
-                      value={form.amount}
-                      onChange={(event) =>
-                        setForm((current) => ({
-                          ...current,
-                          amount: event.target.value,
-                        }))
-                      }
-                      required
-                    />
-                  </label>
-                </p>
-
-                <p>
-                  <label>
-                    {t("expenses.fields.currency")}{" "}
-                    <select
-                      value={form.currency}
-                      onChange={(event) =>
-                        setForm((current) => ({
-                          ...current,
-                          currency: event.target.value as "MXN" | "USD",
-                        }))
+                  <Field>
+                    <FieldLabel>{t("expenses.fields.account")}</FieldLabel>
+                    <Select
+                      value={form.accountId || undefined}
+                      onValueChange={(value) =>
+                        setForm((current) => ({ ...current, accountId: value ?? "" }))
                       }
                       required
                     >
-                      <option value="MXN">MXN</option>
-                      <option value="USD">USD</option>
-                    </select>
-                  </label>
-                </p>
+                      <SelectTrigger className="w-full">
+                        <SelectValue
+                          placeholder={t("expenses.placeholders.selectAccount")}
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(accountsQuery.data ?? []).map((account) => (
+                          <SelectItem key={account.id} value={account.id}>
+                            {account.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
 
-                {showConversionInput && activeBudget ? (
-                  <>
-                    <Alert className="border-amber-200 bg-amber-50 text-amber-900">
-                      {t("expenses.estimatedConversionWarning", {
-                        currency: activeBudget.currency,
-                      })}
-                    </Alert>
-                    <p>
-                      <label>
-                        {t("expenses.fields.amountInBudgetCurrency", {
-                          currency: activeBudget.currency,
-                        })}{" "}
-                        <input
+                  <div className="flex flex-row items-end gap-3">
+                    <Field className="min-w-0 flex-1">
+                      <FieldLabel htmlFor="expense-amount">
+                        {t("expenses.fields.amount")}
+                      </FieldLabel>
+                      <InputGroup>
+                        <InputGroupInput
+                          id="expense-amount"
                           type="number"
-                          min={0}
+                          min="0.01"
                           step="0.01"
-                          value={form.amountInBudgetCurrency}
+                          value={form.amount}
                           onChange={(event) =>
                             setForm((current) => ({
                               ...current,
-                              amountInBudgetCurrency: event.target.value,
+                              amount: event.target.value,
                             }))
                           }
-                          placeholder={t("expenses.placeholders.amountInBudgetCurrency")}
+                          required
                         />
-                      </label>
-                    </p>
-                  </>
-                ) : null}
+                        <InputGroupAddon>
+                          <WalletIcon />
+                        </InputGroupAddon>
+                      </InputGroup>
+                    </Field>
+                    <Field className="w-fit shrink-0">
+                      <FieldLabel>{t("expenses.fields.currency")}</FieldLabel>
+                      <Select
+                        value={form.currency}
+                        onValueChange={(value: "MXN" | "USD") =>
+                          setForm((current) => ({ ...current, currency: value }))
+                        }
+                      >
+                        <SelectTrigger className="min-w-20 w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="MXN">MXN</SelectItem>
+                          <SelectItem value="USD">USD</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                  </div>
 
-                <p>
-                  <label>
-                    {t("expenses.fields.date")}{" "}
-                    <input
-                      type="date"
-                      value={form.date}
-                      onChange={(event) =>
-                        setForm((current) => ({
-                          ...current,
-                          date: event.target.value,
-                        }))
-                      }
-                      required
-                    />
-                  </label>
-                </p>
-
-                <DialogFooter>
-                  {editingId ? (
-                    <Button type="button" variant="secondary" onClick={onCancelEdit}>
-                      {t("expenses.cancelEdit")}
-                    </Button>
+                  {showConversionInput && activeBudget ? (
+                    <>
+                      <Alert className="border-amber-200 bg-amber-50 text-amber-900">
+                        {t("expenses.estimatedConversionWarning", {
+                          currency: activeBudget.currency,
+                        })}
+                      </Alert>
+                      <Field>
+                        <FieldLabel htmlFor="expense-amount-budget">
+                          {t("expenses.fields.amountInBudgetCurrency", {
+                            currency: activeBudget.currency,
+                          })}
+                        </FieldLabel>
+                        <InputGroup>
+                          <InputGroupInput
+                            id="expense-amount-budget"
+                            type="number"
+                            min="0.01"
+                            step="0.01"
+                            value={form.amountInBudgetCurrency}
+                            onChange={(event) =>
+                              setForm((current) => ({
+                                ...current,
+                                amountInBudgetCurrency: event.target.value,
+                              }))
+                            }
+                            placeholder={t(
+                              "expenses.placeholders.amountInBudgetCurrency",
+                            )}
+                          />
+                          <InputGroupAddon>
+                            <WalletIcon />
+                          </InputGroupAddon>
+                        </InputGroup>
+                      </Field>
+                    </>
                   ) : null}
-                  <Button
-                    type="submit"
-                    disabled={createMutation.isPending || updateMutation.isPending}
-                  >
-                    {submitLabel}
-                  </Button>
-                </DialogFooter>
+
+                  <Field>
+                    <FieldLabel htmlFor="expense-date">
+                      {t("expenses.fields.date")}
+                    </FieldLabel>
+                    <InputGroup>
+                      <InputGroupInput
+                        id="expense-date"
+                        type="date"
+                        value={form.date}
+                        onChange={(event) =>
+                          setForm((current) => ({
+                            ...current,
+                            date: event.target.value,
+                          }))
+                        }
+                        required
+                      />
+                      <InputGroupAddon>
+                        <CalendarIcon />
+                      </InputGroupAddon>
+                    </InputGroup>
+                  </Field>
+
+                  <Field>
+                    <DialogFooter className="gap-2 pt-2">
+                      {editingId ? (
+                        <Button type="button" variant="secondary" onClick={onCancelEdit}>
+                          {t("expenses.cancelEdit")}
+                        </Button>
+                      ) : null}
+                      <Button
+                        type="submit"
+                        disabled={createMutation.isPending || updateMutation.isPending}
+                      >
+                        {createMutation.isPending || updateMutation.isPending ? (
+                          <Spinner data-icon="inline-start" />
+                        ) : null}
+                        {submitLabel}
+                      </Button>
+                    </DialogFooter>
+                  </Field>
+                  <Field>
+                    <FieldError>{formError}</FieldError>
+                  </Field>
+                </FieldGroup>
               </form>
             </DialogContent>
           </Dialog>
