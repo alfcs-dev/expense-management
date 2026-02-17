@@ -102,9 +102,12 @@ describe("API smoke", () => {
       url: "/api/trpc/budget.create",
       headers: { cookie: authCookie },
       payload: {
-        month: 2,
-        year: 2030,
         name: "Smoke Budget",
+        startDate: "2030-02-01T00:00:00.000Z",
+        endDate: "2030-02-28T23:59:59.999Z",
+        currency: "MXN",
+        budgetLimit: 200000,
+        isDefault: true,
       },
     });
     expect(budgetResponse.statusCode).toBe(200);
@@ -116,6 +119,7 @@ describe("API smoke", () => {
       url: "/api/trpc/recurringExpense.create",
       headers: { cookie: authCookie },
       payload: {
+        budgetId: budget.id,
         categoryId: category.id,
         sourceAccountId: account.id,
         description: "Smoke recurring",

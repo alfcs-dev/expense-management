@@ -49,6 +49,7 @@ Run requests in this order:
 10. `Core tRPC > Budget Planned By Category`
 
 The collection stores IDs into environment variables (`category_id`, `account_id`, `budget_id`, etc.).
+`Recurring Expense Create` now requires `budget_id` so recurring templates are budget-scoped.
 
 ## 4. Auth/session handling
 
@@ -79,5 +80,5 @@ Examples:
 ## 6. Common issues
 
 - `UNAUTHORIZED`: session cookie missing/expired; run `Sign In` again.
-- `CONFLICT` on `budget.create`: budget for `month/year` already exists; change environment `month/year` or call `budget.getOrCreateForMonth` from app UI.
+- `CONFLICT` on `budget.create`: the date range overlaps another budget for the same user. Choose a non-overlapping range or update existing budget periods.
 - Validation errors: verify required environment variables are populated from previous requests.

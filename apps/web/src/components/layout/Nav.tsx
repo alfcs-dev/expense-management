@@ -7,23 +7,49 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
 import { CreditCardIcon, LogOutIcon, SettingsIcon, UserIcon } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
+import { Avatar, AvatarFallback } from "../ui/avatar";
 import { authClient } from "@/utils/auth-client";
 import { authRouterContext } from "@/utils/auth-session";
+import {
+  NavigationMenu,
+  NavigationMenuItem,
+  NavigationMenuLink,
+  NavigationMenuList,
+} from "../ui/navigation-menu";
+import { cn } from "@/lib/utils";
 
 export function Nav({ user }: { user?: User | null }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { refetch } = authClient.useSession();
+  const displayName = user?.name?.trim() || user?.email || "User";
+  const navLinks = [
+    { to: "/", label: t("nav.home") },
+    { to: "/accounts", label: t("nav.accounts") },
+    { to: "/budgets", label: t("nav.budgets") },
+    { to: "/categories", label: t("nav.categories") },
+    { to: "/expenses", label: t("nav.expenses") },
+    { to: "/recurring-expenses", label: t("nav.recurringExpenses") },
+  ] as const;
 
-  // const onChangeLanguage = async (nextLanguage: "en" | "es") => {
-  //   if (i18n.language === nextLanguage) return;
-  //   await i18n.changeLanguage(nextLanguage);
-  // };
+  const currentLanguage: "en" | "es" = i18n.resolvedLanguage?.startsWith("es")
+    ? "es"
+    : "en";
+
+  const onChangeLanguage = async (nextLanguage: "en" | "es") => {
+    if (currentLanguage === nextLanguage) return;
+    await i18n.changeLanguage(nextLanguage);
+  };
 
   const onSignOut = async () => {
     await authClient.signOut();
@@ -33,72 +59,96 @@ export function Nav({ user }: { user?: User | null }) {
   };
 
   return user ? (
-    <header className="border-b border-slate-200 bg-white/90 backdrop-blur">
-      <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center gap-3 px-4 py-3 md:px-6">
-        <nav className="flex flex-wrap items-center gap-3 text-sm flex-1">
-          <Link to="/">{t("nav.home")}</Link>
-          <Link to="/dashboard">{t("nav.dashboard")}</Link>
-          <Link to="/accounts">{t("nav.accounts")}</Link>
-          <Link to="/budgets">{t("nav.budgets")}</Link>
-          <Link to="/categories">{t("nav.categories")}</Link>
-          <Link to="/expenses">{t("nav.expenses")}</Link>
-          <Link to="/recurring-expenses">{t("nav.recurringExpenses")}</Link>
-        </nav>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost">
-              <Avatar>
-                <AvatarImage src="https://github.com/shadcn.png" alt="shadcn" />
-                <AvatarFallback>{user.name}</AvatarFallback>
-              </Avatar>
-              {user.name}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent>
-            <DropdownMenuItem>
-              <UserIcon />
-              Profile
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <CreditCardIcon />
-              Billing
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <SettingsIcon />
-              Settings
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              variant="destructive"
-              onClick={onSignOut}
-              style={{ cursor: "pointer" }}
-            >
-              <LogOutIcon />
-              {t("session.signOut")}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-        {/* <div className="ml-auto flex items-center gap-2" title={t("language.label")}> */}
-        {/* <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={() => void onChangeLanguage("en")}
-            disabled={i18n.language.startsWith("en")}
-          >
-            {t("language.en")}
-          </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            className="rounded-full"
-            size="lg"
-            onClick={() => void onChangeLanguage("es")}
-            disabled={i18n.language.startsWith("es")}
-          >
-            {t("language.es")}
-          </Button> */}
-        {/* </div> */}
+    <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/85 backdrop-blur supports-[backdrop-filter]:bg-white/70">
+      <div className="mx-auto w-full max-w-6xl px-4 py-2 md:px-6">
+        <div className="flex items-center gap-2 md:gap-3">
+          <div className="min-w-0 flex-1 overflow-x-auto pb-1">
+            <NavigationMenu viewport={false} className="w-max min-w-full justify-start">
+              <NavigationMenuList className="flex-nowrap justify-start gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1">
+                {navLinks.map(({ to, label }) => (
+                  <NavigationMenuItem key={to}>
+                    <NavigationMenuLink asChild>
+                      <Link
+                        to={to}
+                        activeOptions={{ exact: to === "/" }}
+                        activeProps={{
+                          className:
+                            "bg-white text-slate-950 shadow-sm ring-1 ring-slate-200",
+                        }}
+                        inactiveProps={{
+                          className: "text-slate-600 hover:text-slate-900",
+                        }}
+                        className={cn(
+                          "focus-visible:ring-ring/50 rounded-lg px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-all outline-none hover:bg-white/80 focus-visible:ring-[3px] focus-visible:outline-1",
+                        )}
+                      >
+                        {label}
+                      </Link>
+                    </NavigationMenuLink>
+                  </NavigationMenuItem>
+                ))}
+              </NavigationMenuList>
+            </NavigationMenu>
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="secondary"
+                className="ml-auto max-w-[220px] shrink-0 gap-2 rounded-full pl-2"
+              >
+                <Avatar className="size-7">
+                  <AvatarFallback>
+                    <UserIcon className="size-4" />
+                  </AvatarFallback>
+                </Avatar>
+                <span className="hidden truncate text-left sm:inline">{displayName}</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem>
+                <UserIcon />
+                Profile
+              </DropdownMenuItem>
+              <DropdownMenuItem>
+                <CreditCardIcon />
+                Billing
+              </DropdownMenuItem>
+              <DropdownMenuItem>
+                <SettingsIcon />
+                Settings
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>{t("language.label")}</DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                  <DropdownMenuLabel>{t("language.label")}</DropdownMenuLabel>
+                  <DropdownMenuRadioGroup
+                    value={currentLanguage}
+                    onValueChange={(value) =>
+                      void onChangeLanguage(value === "es" ? "es" : "en")
+                    }
+                  >
+                    <DropdownMenuRadioItem value="en">
+                      {t("language.en")}
+                    </DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="es">
+                      {t("language.es")}
+                    </DropdownMenuRadioItem>
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                variant="destructive"
+                onClick={onSignOut}
+                style={{ cursor: "pointer" }}
+              >
+                <LogOutIcon />
+                {t("session.signOut")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
     </header>
   ) : null;

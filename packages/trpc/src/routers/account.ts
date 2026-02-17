@@ -1,6 +1,11 @@
 import { TRPCError } from "@trpc/server";
 import { db } from "@expense-management/db";
-import { currencySchema, idSchema, normalizeClabe, isValidClabe } from "@expense-management/shared";
+import {
+  currencySchema,
+  idSchema,
+  normalizeClabe,
+  isValidClabe,
+} from "@expense-management/shared";
 import { z } from "zod";
 import { protectedProcedure, router } from "../trpc.js";
 
@@ -15,6 +20,8 @@ const creditAccountSchema = accountBaseSchema.extend({
   type: z.literal("credit"),
   creditLimit: z.number().int().min(0),
   currentDebt: z.number().int().min(0),
+  statementClosingDay: z.number().int().min(1).max(31),
+  paymentGraceDays: z.number().int().min(1).max(60),
 });
 
 const nonCreditAccountSchema = accountBaseSchema.extend({
@@ -154,39 +161,45 @@ export const accountRouter = router({
     });
   }),
 
-  create: protectedProcedure.input(upsertAccountInputSchema).mutation(async ({ ctx, input }) => {
-    const userId = requireUserId(ctx.user);
-    const identity = await buildInstitutionAndClabe(input);
+  create: protectedProcedure
+    .input(upsertAccountInputSchema)
+    .mutation(async ({ ctx, input }) => {
+      const userId = requireUserId(ctx.user);
+      const identity = await buildInstitutionAndClabe(input);
 
-    const accountData =
-      input.type === "credit"
-        ? {
-            userId,
-            name: input.name,
-            type: input.type,
-            currency: input.currency,
-            institution: identity.institution,
-            clabe: identity.clabe,
-            balance: 0,
-            creditLimit: input.creditLimit,
-            currentDebt: input.currentDebt,
-          }
-        : {
-            userId,
-            name: input.name,
-            type: input.type,
-            currency: input.currency,
-            institution: identity.institution,
-            clabe: identity.clabe,
-            balance: input.balance,
-            creditLimit: null,
-            currentDebt: null,
-          };
+      const accountData =
+        input.type === "credit"
+          ? {
+              userId,
+              name: input.name,
+              type: input.type,
+              currency: input.currency,
+              institution: identity.institution,
+              clabe: identity.clabe,
+              balance: 0,
+              creditLimit: input.creditLimit,
+              currentDebt: input.currentDebt,
+              statementClosingDay: input.statementClosingDay,
+              paymentGraceDays: input.paymentGraceDays,
+            }
+          : {
+              userId,
+              name: input.name,
+              type: input.type,
+              currency: input.currency,
+              institution: identity.institution,
+              clabe: identity.clabe,
+              balance: input.balance,
+              creditLimit: null,
+              currentDebt: null,
+              statementClosingDay: null,
+              paymentGraceDays: null,
+            };
 
-    return db.account.create({
-      data: accountData,
-    });
-  }),
+      return db.account.create({
+        data: accountData,
+      });
+    }),
 
   update: protectedProcedure
     .input(
@@ -209,6 +222,8 @@ export const accountRouter = router({
               balance: 0,
               creditLimit: input.data.creditLimit,
               currentDebt: input.data.currentDebt,
+              statementClosingDay: input.data.statementClosingDay,
+              paymentGraceDays: input.data.paymentGraceDays,
             }
           : {
               name: input.data.name,
@@ -219,6 +234,8 @@ export const accountRouter = router({
               balance: input.data.balance,
               creditLimit: null,
               currentDebt: null,
+              statementClosingDay: null,
+              paymentGraceDays: null,
             };
 
       const updated = await db.account.updateMany({
@@ -238,19 +255,21 @@ export const accountRouter = router({
       });
     }),
 
-  delete: protectedProcedure.input(z.object({ id: idSchema })).mutation(async ({ ctx, input }) => {
-    const userId = requireUserId(ctx.user);
-    const deleted = await db.account.deleteMany({
-      where: {
-        id: input.id,
-        userId,
-      },
-    });
+  delete: protectedProcedure
+    .input(z.object({ id: idSchema }))
+    .mutation(async ({ ctx, input }) => {
+      const userId = requireUserId(ctx.user);
+      const deleted = await db.account.deleteMany({
+        where: {
+          id: input.id,
+          userId,
+        },
+      });
 
-    if (deleted.count === 0) {
-      throw new TRPCError({ code: "NOT_FOUND", message: "Account not found" });
-    }
+      if (deleted.count === 0) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Account not found" });
+      }
 
-    return { success: true };
-  }),
+      return { success: true };
+    }),
 });

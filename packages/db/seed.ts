@@ -214,7 +214,8 @@ function parseBudgetCsv(content: string): BudgetParsedCsv {
       continue;
     }
 
-    const monthlyAmountCents = parseMoneyToCents(cells[5]) ?? parseMoneyToCents(cells[1]) ?? 0;
+    const monthlyAmountCents =
+      parseMoneyToCents(cells[5]) ?? parseMoneyToCents(cells[1]) ?? 0;
     const biweeklyAmountCents = parseMoneyToCents(cells[2]);
     const annualCostCents = parseMoneyToCents(cells[4]);
     const isAnnual = parseBoolean(cells[3]);
@@ -275,7 +276,11 @@ function parseDebtCsv(content: string): DebtParsedCsv {
     }
 
     // Ignore summary/placeholder rows with no debt footprint.
-    if (totalAmountCents === 0 && monthlyPaymentCents === 0 && remainingAmountCents === 0) {
+    if (
+      totalAmountCents === 0 &&
+      monthlyPaymentCents === 0 &&
+      remainingAmountCents === 0
+    ) {
       continue;
     }
 
@@ -295,7 +300,10 @@ function parseDebtCsv(content: string): DebtParsedCsv {
   return { rows, cards: Array.from(cards) };
 }
 
-function parseAccountTypeLabel(typeLabel: string | null, accountName: string): AccountType {
+function parseAccountTypeLabel(
+  typeLabel: string | null,
+  accountName: string,
+): AccountType {
   const value = (typeLabel ?? "").toLowerCase();
   if (value.includes("credito") || value.includes("departamental")) {
     return "credit";
@@ -349,7 +357,11 @@ function parseAccountCsv(content: string): AccountParsedCsv {
 
 function inferAccountType(accountName: string): AccountType {
   const value = accountName.toLowerCase();
-  if (value.includes("inversion") || value.includes("trading") || value.includes("dolares")) {
+  if (
+    value.includes("inversion") ||
+    value.includes("trading") ||
+    value.includes("dolares")
+  ) {
     return "investment";
   }
   if (
@@ -392,7 +404,10 @@ function inferInstallmentStatus(row: DebtCsvRow): InstallmentPlanStatus {
   return "active";
 }
 
-function uniqueAccountNames(budgetRows: BudgetCsvRow[], debtRows: DebtCsvRow[]): string[] {
+function uniqueAccountNames(
+  budgetRows: BudgetCsvRow[],
+  debtRows: DebtCsvRow[],
+): string[] {
   const set = new Set<string>();
   for (const row of budgetRows) {
     if (row.sourceAccountName) set.add(row.sourceAccountName);
@@ -477,7 +492,10 @@ function makeBar(value: number, max: number, width = 24): string {
 function buildVisualization(budgetRows: BudgetCsvRow[], debtRows: DebtCsvRow[]): string {
   const sectionTotals = new Map<string, number>();
   for (const row of budgetRows) {
-    sectionTotals.set(row.section, (sectionTotals.get(row.section) ?? 0) + row.monthlyAmountCents);
+    sectionTotals.set(
+      row.section,
+      (sectionTotals.get(row.section) ?? 0) + row.monthlyAmountCents,
+    );
   }
 
   const cardRemaining = new Map<string, number>();
@@ -510,6 +528,14 @@ function buildVisualization(budgetRows: BudgetCsvRow[], debtRows: DebtCsvRow[]):
     "DEBT REMAINING BY CARD",
     ...debtLines,
   ].join("\n");
+}
+
+function startOfMonth(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), 1, 0, 0, 0, 0);
+}
+
+function endOfMonth(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59, 999);
 }
 
 async function applySeed(
@@ -566,6 +592,14 @@ async function applySeed(
   await prisma.budget.deleteMany({ where: { userId: user.id } });
 
   const seedAccounts = buildSeedAccounts(budgetRows, debtRows, accountRows);
+  const seedCreditStatementClosingDay = Number.parseInt(
+    process.env.SEED_CREDIT_STATEMENT_CLOSING_DAY ?? "15",
+    10,
+  );
+  const seedCreditPaymentGraceDays = Number.parseInt(
+    process.env.SEED_CREDIT_PAYMENT_GRACE_DAYS ?? "20",
+    10,
+  );
   const debtByCardKey = new Map<string, number>();
   for (const row of debtRows) {
     const key = toAccountKey(row.cardName);
@@ -586,6 +620,8 @@ async function applySeed(
         balance: 0,
         creditLimit: null,
         currentDebt: isCredit ? (debtByCardKey.get(accountKey) ?? 0) : null,
+        statementClosingDay: isCredit ? seedCreditStatementClosingDay : null,
+        paymentGraceDays: isCredit ? seedCreditPaymentGraceDays : null,
       },
     });
     accountByKey.set(accountKey, created.id);
@@ -608,6 +644,31 @@ async function applySeed(
     categoryByName.set(categoryName, created.id);
   }
 
+  const now = new Date();
+  const computedMonthlyRecurringLimit = budgetRows.reduce(
+    (sum, row) => sum + row.monthlyAmountCents,
+    0,
+  );
+  const seedBudgetLimit = Number.parseInt(
+    process.env.SEED_BUDGET_LIMIT_CENTS ?? String(computedMonthlyRecurringLimit),
+    10,
+  );
+  const seedBudgetCurrency =
+    (process.env.SEED_BUDGET_CURRENCY as Currency | undefined) ?? "MXN";
+  const seedBudgetName = process.env.SEED_BUDGET_NAME ?? "Default Budget";
+
+  const defaultBudget = await prisma.budget.create({
+    data: {
+      userId: user.id,
+      name: seedBudgetName,
+      startDate: startOfMonth(now),
+      endDate: endOfMonth(now),
+      currency: seedBudgetCurrency,
+      budgetLimit: seedBudgetLimit,
+      isDefault: true,
+    },
+  });
+
   for (const row of budgetRows) {
     if (!row.sourceAccountName) continue;
 
@@ -622,6 +683,7 @@ async function applySeed(
     await prisma.recurringExpense.create({
       data: {
         userId: user.id,
+        budgetId: defaultBudget.id,
         categoryId,
         sourceAccountId,
         destAccountId: destinationAccountId,
@@ -673,6 +735,7 @@ async function applySeed(
     categoriesCreated: categoryByName.size,
     recurringExpensesCreated: budgetRows.filter((row) => row.sourceAccountName).length,
     installmentPlansCreated: debtRows.length,
+    budgetsCreated: 1,
   };
 }
 
@@ -708,7 +771,10 @@ function previewData(
         name,
         recurringExpenses: count,
       })),
-      totalMonthlyCents: budgetParsed.rows.reduce((sum, row) => sum + row.monthlyAmountCents, 0),
+      totalMonthlyCents: budgetParsed.rows.reduce(
+        (sum, row) => sum + row.monthlyAmountCents,
+        0,
+      ),
     },
     installmentDebt: {
       rowsParsed: debtParsed.rows.length,
@@ -717,17 +783,26 @@ function previewData(
         plans: data.plans,
         remainingCents: data.remainingCents,
       })),
-      totalRemainingCents: debtParsed.rows.reduce((sum, row) => sum + row.remainingAmountCents, 0),
+      totalRemainingCents: debtParsed.rows.reduce(
+        (sum, row) => sum + row.remainingAmountCents,
+        0,
+      ),
       totalMonthlyDebtPaymentCents: debtParsed.rows.reduce(
         (sum, row) => sum + row.monthlyPaymentCents,
         0,
       ),
     },
-    uniqueAccountsReferenced: uniqueAccountNames(budgetParsed.rows, debtParsed.rows).sort(),
+    uniqueAccountsReferenced: uniqueAccountNames(
+      budgetParsed.rows,
+      debtParsed.rows,
+    ).sort(),
     accountCatalog: {
       rowsParsed: accountParsed.rows.length,
-      totalSeedAccounts: buildSeedAccounts(budgetParsed.rows, debtParsed.rows, accountParsed.rows)
-        .length,
+      totalSeedAccounts: buildSeedAccounts(
+        budgetParsed.rows,
+        debtParsed.rows,
+        accountParsed.rows,
+      ).length,
       sampleAccounts: accountParsed.rows.slice(0, 8).map((row) => ({
         name: row.name,
         typeLabel: row.typeLabel,

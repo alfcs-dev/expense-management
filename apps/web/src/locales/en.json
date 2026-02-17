@@ -14,6 +14,9 @@
     "notSignedIn": "Session: not signed in",
     "signOut": "Sign out"
   },
+  "common": {
+    "cancel": "Cancel"
+  },
   "home": {
     "title": "Budget Manager",
     "phase": "Phase 1 — foundation",
@@ -43,8 +46,14 @@
     "title": "Dashboard",
     "loading": "Loading…",
     "error": "Error: {{message}}",
-    "description": "Monthly overview with planned vs actual amounts by category.",
-    "overviewTitle": "Monthly overview",
+    "description": "Budget overview with planned vs actual amounts by category.",
+    "overviewTitle": "Overview",
+    "limitTitle": "Budget limit usage",
+    "limit": "Budget limit",
+    "used": "Used",
+    "remaining": "Remaining",
+    "usagePercent": "Used: {{value}}%",
+    "estimatedWarning": "{{count}} expense(s) use estimated conversion. Totals may change.",
     "plannedIncome": "Planned income",
     "actualIncome": "Actual income",
     "plannedExpense": "Planned expenses",
@@ -53,10 +62,10 @@
     "chartTitle": "Category chart",
     "chartPlannedMXN": "Planned (MXN)",
     "chartActualMXN": "Actual (MXN)",
-    "empty": "No data for selected month.",
+    "empty": "No data for selected budget.",
+    "noBudgets": "Create a budget first to see dashboard data.",
     "fields": {
-      "month": "Month",
-      "year": "Year"
+      "budget": "Budget"
     },
     "table": {
       "category": "Category",
@@ -86,6 +95,9 @@
     "creditLimitLabel": "Credit limit",
     "currentDebtLabel": "Current debt",
     "availableCreditLabel": "Available credit",
+    "statementClosingDayLabel": "Statement closing day",
+    "paymentGraceDaysLabel": "Payment grace days",
+    "estimatedDueDateLabel": "Estimated next due date",
     "institutionLabel": "Institution",
     "clabeLabel": "CLABE",
     "fields": {
@@ -95,6 +107,8 @@
       "balance": "Balance",
       "creditLimit": "Credit limit",
       "currentDebt": "Current debt",
+      "statementClosingDay": "Statement closing day",
+      "paymentGraceDays": "Payment grace days",
       "institution": "Institution",
       "clabe": "CLABE"
     },
@@ -109,7 +123,9 @@
     "errors": {
       "typeRequired": "Account type is required.",
       "debitClabeRequired": "Debit accounts require a valid CLABE to infer institution.",
-      "creditInstitutionRequired": "Credit accounts require an institution or a valid CLABE."
+      "creditInstitutionRequired": "Credit accounts require an institution or a valid CLABE.",
+      "statementClosingDayInvalid": "Statement closing day must be between 1 and 31.",
+      "paymentGraceDaysInvalid": "Payment grace days must be between 1 and 60."
     },
     "types": {
       "debit": "Debit",
@@ -157,6 +173,7 @@
     "empty": "No recurring expenses yet.",
     "inactive": "Inactive",
     "fields": {
+      "budget": "Budget",
       "description": "Description",
       "category": "Category",
       "sourceAccount": "Source account",
@@ -170,10 +187,12 @@
       "isActive": "Active"
     },
     "placeholders": {
+      "selectBudget": "Select budget",
       "selectCategory": "Select category",
       "selectSourceAccount": "Select source account",
       "none": "None"
     },
+    "budgetLabel": "Budget",
     "frequency": {
       "monthly": "Monthly",
       "biweekly": "Biweekly",
@@ -183,7 +202,7 @@
   },
   "expenses": {
     "title": "Expenses",
-    "description": "Log manual expenses for a selected month budget.",
+    "description": "Log manual expenses for the selected budget.",
     "loading": "Loading expense setup...",
     "loadingList": "Loading expenses...",
     "saving": "Saving...",
@@ -196,40 +215,50 @@
     "error": "Error: {{message}}",
     "listTitle": "Expenses in selected budget",
     "empty": "No expenses yet.",
+    "noBudgets": "Create a budget first before adding expenses.",
+    "estimatedConversionWarning": "This expense currency differs from the budget currency ({{currency}}). If you already know the converted amount, enter it now.",
+    "convertedAmount": "Budget amount: {{amount}}",
+    "estimatedTag": "estimated",
     "fields": {
-      "month": "Month",
-      "year": "Year",
+      "budget": "Budget",
       "description": "Description",
       "category": "Category",
       "account": "Account",
       "amount": "Amount",
       "currency": "Currency",
+      "amountInBudgetCurrency": "Amount in {{currency}}",
       "date": "Date"
     },
     "placeholders": {
       "selectCategory": "Select category",
-      "selectAccount": "Select account"
+      "selectAccount": "Select account",
+      "amountInBudgetCurrency": "Optional converted amount"
     }
   },
   "budgets": {
     "title": "Budgets",
-    "description": "Create and review monthly budgets before tracking expenses.",
+    "description": "Create named budgets with date ranges, currency, and spending limits.",
     "loading": "Loading budgets...",
     "saving": "Saving...",
     "create": "Create budget",
     "error": "Error: {{message}}",
-    "listTitle": "Budgets by year",
-    "empty": "No budgets for this year.",
+    "listTitle": "Your budgets",
+    "empty": "No budgets yet.",
     "openExpenses": "Open expenses",
     "openDashboard": "Open dashboard",
+    "setDefault": "Set as default",
+    "defaultTag": "Default",
     "fields": {
-      "month": "Month",
-      "year": "Year",
       "name": "Name",
-      "filterYear": "Filter year"
+      "startDate": "Start date",
+      "endDate": "End date",
+      "currency": "Budget currency",
+      "limit": "Budget limit",
+      "isDefault": "Set as default budget"
     },
     "placeholders": {
-      "name": "Optional budget name"
+      "name": "Budget name",
+      "limit": "0.00"
     }
   },
   "app": {

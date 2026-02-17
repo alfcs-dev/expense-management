@@ -1,4 +1,4 @@
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useMemo, useRef, useState } from "react";
 import { createRoute } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { protectedRoute } from "./protected";
@@ -6,6 +6,22 @@ import { trpc } from "../utils/trpc";
 import { PageShell, PageHeader, Section } from "../components/layout/page";
 import { Alert } from "../components/ui/alert";
 import { Button } from "../components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "../components/ui/popover";
+import { Field, FieldGroup, FieldLabel } from "../components/ui/field";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "../components/ui/input-group";
+import { PaletteIcon, PlusIcon, TagIcon } from "lucide-react";
+import { Spinner } from "../components/ui/spinner";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select";
 
 type CategoryFormValues = {
   name: string;
@@ -19,6 +35,37 @@ const INITIAL_FORM: CategoryFormValues = {
   color: "",
 };
 
+const CATEGORY_ICON_OPTIONS = [
+  "🍔",
+  "🛒",
+  "🏠",
+  "🚗",
+  "💊",
+  "🎓",
+  "🎬",
+  "✈️",
+  "💼",
+  "💡",
+  "🏋️",
+  "🎁",
+] as const;
+
+function normalizeHexColor(value: string): string | null {
+  const trimmed = value.trim();
+  const shortMatch = /^#([0-9a-fA-F]{3})$/.exec(trimmed);
+  if (shortMatch) {
+    const [r, g, b] = shortMatch[1].split("");
+    return `#${r}${r}${g}${g}${b}${b}`.toLowerCase();
+  }
+
+  const fullMatch = /^#([0-9a-fA-F]{6})$/.exec(trimmed);
+  if (fullMatch) {
+    return `#${fullMatch[1].toLowerCase()}`;
+  }
+
+  return null;
+}
+
 export const categoriesRoute = createRoute({
   getParentRoute: () => protectedRoute,
   path: "/categories",
@@ -31,12 +78,15 @@ function CategoriesPage() {
 
   const [form, setForm] = useState<CategoryFormValues>(INITIAL_FORM);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const colorInputRef = useRef<HTMLInputElement | null>(null);
 
   const listQuery = trpc.category.list.useQuery(undefined, { retry: false });
   const createMutation = trpc.category.create.useMutation({
     onSuccess: async () => {
       await utils.category.list.invalidate();
       setForm(INITIAL_FORM);
+      setIsFormOpen(false);
     },
   });
   const updateMutation = trpc.category.update.useMutation({
@@ -44,6 +94,7 @@ function CategoriesPage() {
       await utils.category.list.invalidate();
       setForm(INITIAL_FORM);
       setEditingId(null);
+      setIsFormOpen(false);
     },
   });
   const deleteMutation = trpc.category.delete.useMutation({
@@ -77,6 +128,13 @@ function CategoriesPage() {
     return editingId ? t("categories.update") : t("categories.create");
   }, [createMutation.isPending, editingId, t, updateMutation.isPending]);
 
+  const isFormValid = useMemo(() => {
+    const hasName = form.name.trim().length > 0;
+    const hasValidColor =
+      form.color.trim().length === 0 || Boolean(normalizeHexColor(form.color));
+    return hasName && hasValidColor;
+  }, [form.color, form.name]);
+
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -108,11 +166,13 @@ function CategoriesPage() {
       icon: category.icon ?? "",
       color: category.color ?? "",
     });
+    setIsFormOpen(true);
   };
 
   const onCancelEdit = () => {
     setEditingId(null);
     setForm(INITIAL_FORM);
+    setIsFormOpen(false);
   };
 
   const onDelete = async (id: string) => {
@@ -151,66 +211,153 @@ function CategoriesPage() {
 
   return (
     <PageShell>
-      <PageHeader
-        title={t("categories.title")}
-        description={t("categories.description")}
-      />
-
-      <Section>
-        <form className="section-stack" onSubmit={onSubmit}>
-          <p>
-            <label>
-              {t("categories.fields.name")}{" "}
-              <input
-                type="text"
-                value={form.name}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, name: event.target.value }))
-                }
-                required
-              />
-            </label>
-          </p>
-
-          <p>
-            <label>
-              {t("categories.fields.icon")}{" "}
-              <input
-                type="text"
-                value={form.icon}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, icon: event.target.value }))
-                }
-              />
-            </label>
-          </p>
-
-          <p>
-            <label>
-              {t("categories.fields.color")}{" "}
-              <input
-                type="text"
-                placeholder="#1A2B3C"
-                value={form.color}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, color: event.target.value }))
-                }
-              />
-            </label>
-          </p>
-
-          <div className="form-actions">
-            <Button type="submit" disabled={isSubmitting}>
-              {submitLabel}
+      <div className="flex items-start justify-between gap-3">
+        <PageHeader
+          title={t("categories.title")}
+          description={t("categories.description")}
+        />
+        <Popover
+          open={isFormOpen}
+          onOpenChange={(open) => {
+            setIsFormOpen(open);
+            if (!open && editingId) {
+              setEditingId(null);
+              setForm(INITIAL_FORM);
+            }
+          }}
+        >
+          <PopoverTrigger asChild>
+            <Button type="button">
+              <PlusIcon />
+              {editingId ? t("categories.update") : t("categories.create")}
             </Button>
-            {editingId ? (
-              <Button type="button" variant="secondary" onClick={onCancelEdit}>
-                {t("categories.cancelEdit")}
-              </Button>
-            ) : null}
-          </div>
-        </form>
-      </Section>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-[420px]">
+            <div className="mb-4">
+              <h3 className="text-base font-semibold">
+                {editingId ? t("categories.update") : t("categories.create")}
+              </h3>
+              <p className="text-muted-foreground text-sm">
+                {t("categories.description")}
+              </p>
+            </div>
+
+            <form onSubmit={onSubmit}>
+              <FieldGroup>
+                <div className="grid grid-cols-[1fr_128px] items-start gap-3">
+                  <Field>
+                    <FieldLabel htmlFor="category-name">
+                      {t("categories.fields.name")}
+                    </FieldLabel>
+                    <InputGroup>
+                      <InputGroupInput
+                        id="category-name"
+                        type="text"
+                        value={form.name}
+                        onChange={(event) =>
+                          setForm((current) => ({
+                            ...current,
+                            name: event.target.value,
+                          }))
+                        }
+                        required
+                        placeholder={t("categories.fields.name")}
+                      />
+                      <InputGroupAddon>
+                        <TagIcon />
+                      </InputGroupAddon>
+                    </InputGroup>
+                  </Field>
+
+                  <Field>
+                    <FieldLabel htmlFor="category-icon">
+                      {t("categories.fields.icon")}
+                    </FieldLabel>
+                    <Select
+                      value={form.icon || "__none"}
+                      onValueChange={(value) =>
+                        setForm((current) => ({
+                          ...current,
+                          icon: value === "__none" ? "" : value,
+                        }))
+                      }
+                    >
+                      <SelectTrigger className="w-full" id="category-icon">
+                        <SelectValue placeholder={t("categories.fields.icon")} />
+                      </SelectTrigger>
+                      <SelectContent position="popper">
+                        <SelectItem value="__none">No icon</SelectItem>
+                        {CATEGORY_ICON_OPTIONS.map((icon) => (
+                          <SelectItem key={icon} value={icon}>
+                            {icon}
+                          </SelectItem>
+                        ))}
+                        {form.icon &&
+                        !CATEGORY_ICON_OPTIONS.includes(
+                          form.icon as (typeof CATEGORY_ICON_OPTIONS)[number],
+                        ) ? (
+                          <SelectItem value={form.icon}>{form.icon}</SelectItem>
+                        ) : null}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                </div>
+
+                <Field>
+                  <FieldLabel htmlFor="category-color">
+                    {t("categories.fields.color")}
+                  </FieldLabel>
+                  <div className="flex items-center gap-2">
+                    <input
+                      ref={colorInputRef}
+                      type="color"
+                      aria-label={t("categories.fields.color")}
+                      value={normalizeHexColor(form.color) ?? "#64748b"}
+                      onChange={(event) =>
+                        setForm((current) => ({
+                          ...current,
+                          color: event.target.value,
+                        }))
+                      }
+                      className="border-input bg-input/30 h-9 w-12 cursor-pointer rounded-2xl border p-1"
+                    />
+                    <InputGroup>
+                      <InputGroupInput
+                        id="category-color"
+                        type="text"
+                        placeholder="#1A2B3C"
+                        value={form.color}
+                        onClick={() => colorInputRef.current?.click()}
+                        onChange={(event) =>
+                          setForm((current) => ({
+                            ...current,
+                            color: event.target.value,
+                          }))
+                        }
+                      />
+                      <InputGroupAddon>
+                        <PaletteIcon />
+                      </InputGroupAddon>
+                    </InputGroup>
+                  </div>
+                </Field>
+
+                <Field>
+                  <div className="flex items-center justify-end gap-2">
+                    <Button type="button" variant="secondary" onClick={onCancelEdit}>
+                      {editingId ? t("categories.cancelEdit") : t("common.cancel")}
+                    </Button>
+                    <Button type="submit" disabled={isSubmitting || !isFormValid}>
+                      {isSubmitting ? <Spinner data-icon="inline-start" /> : null}
+                      {submitLabel}
+                    </Button>
+                  </div>
+                </Field>
+              </FieldGroup>
+            </form>
+          </PopoverContent>
+        </Popover>
+      </div>
 
       {activeError ? (
         <Alert className="border-red-200 bg-red-50 text-red-700">

@@ -174,19 +174,19 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"month\": {{month}},\n  \"year\": {{year}},\n  \"name\": \"Postman Budget\"\n}"
+              "raw": "{\n  \"name\": \"Postman Budget\",\n  \"startDate\": \"{{budget_start_date}}\",\n  \"endDate\": \"{{budget_end_date}}\",\n  \"currency\": \"{{budget_currency}}\",\n  \"budgetLimit\": {{budget_limit}},\n  \"isDefault\": true\n}"
             },
             "url": "{{base_url}}/api/trpc/budget.create"
           }
         },
         {
-          "name": "Budget List By Year",
+          "name": "Budget List",
           "request": {
             "method": "GET",
             "header": [
               { "key": "Cookie", "value": "{{session_cookie}}" }
             ],
-            "url": "{{base_url}}/api/trpc/budget.listByYear?input=%7B%22year%22%3A{{year}}%7D"
+            "url": "{{base_url}}/api/trpc/budget.list"
           }
         },
         {
@@ -211,7 +211,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"categoryId\": \"{{category_id}}\",\n  \"sourceAccountId\": \"{{account_id}}\",\n  \"description\": \"Internet bill\",\n  \"amount\": 49900,\n  \"currency\": \"MXN\",\n  \"frequency\": \"monthly\",\n  \"isAnnual\": false,\n  \"isActive\": true\n}"
+              "raw": "{\n  \"budgetId\": \"{{budget_id}}\",\n  \"categoryId\": \"{{category_id}}\",\n  \"sourceAccountId\": \"{{account_id}}\",\n  \"description\": \"Internet bill\",\n  \"amount\": 49900,\n  \"currency\": \"MXN\",\n  \"frequency\": \"monthly\",\n  \"isAnnual\": false,\n  \"isActive\": true\n}"
             },
             "url": "{{base_url}}/api/trpc/recurringExpense.create"
           }

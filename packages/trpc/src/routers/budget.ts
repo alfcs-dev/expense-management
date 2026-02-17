@@ -4,9 +4,21 @@ import { idSchema } from "@expense-management/shared";
 import { z } from "zod";
 import { protectedProcedure, router } from "../trpc.js";
 
-const monthYearSchema = z.object({
-  month: z.number().int().min(1).max(12),
-  year: z.number().int().min(2000).max(2100),
+const createBudgetSchema = z.object({
+  name: z.string().trim().min(1).max(100),
+  startDate: z.coerce.date(),
+  endDate: z.coerce.date(),
+  currency: z.enum(["MXN", "USD"]),
+  budgetLimit: z.number().int().nonnegative(),
+  isDefault: z.boolean().optional(),
+});
+
+const setDefaultBudgetSchema = z.object({
+  id: idSchema,
+});
+
+const resolveForDateSchema = z.object({
+  date: z.coerce.date(),
 });
 
 function requireUserId(user: { id: string } | null): string {
@@ -15,6 +27,69 @@ function requireUserId(user: { id: string } | null): string {
   }
 
   return user.id;
+}
+
+function startOfDay(date: Date): Date {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+}
+
+function endOfDay(date: Date): Date {
+  return new Date(
+    Date.UTC(
+      date.getUTCFullYear(),
+      date.getUTCMonth(),
+      date.getUTCDate(),
+      23,
+      59,
+      59,
+      999,
+    ),
+  );
+}
+
+function assertDateRange(startDate: Date, endDate: Date): void {
+  if (startDate > endDate) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "Budget startDate must be before or equal to endDate",
+    });
+  }
+}
+
+async function assertNoRangeOverlap(
+  userId: string,
+  startDate: Date,
+  endDate: Date,
+  excludeBudgetId?: string,
+): Promise<void> {
+  const overlapping = await db.budget.findFirst({
+    where: {
+      userId,
+      id: excludeBudgetId ? { not: excludeBudgetId } : undefined,
+      startDate: { lte: endDate },
+      endDate: { gte: startDate },
+    },
+    select: { id: true, name: true },
+  });
+
+  if (overlapping) {
+    throw new TRPCError({
+      code: "CONFLICT",
+      message: `Budget range overlaps with existing budget: ${overlapping.name}`,
+    });
+  }
+}
+
+function monthsInclusive(startDate: Date, endDate: Date): number {
+  const start = startOfDay(startDate);
+  const end = startOfDay(endDate);
+
+  const months =
+    (end.getUTCFullYear() - start.getUTCFullYear()) * 12 +
+    (end.getUTCMonth() - start.getUTCMonth()) +
+    1;
+
+  return Math.max(months, 1);
 }
 
 function plannedMonthlyAmountForTemplate(template: {
@@ -41,74 +116,127 @@ function plannedMonthlyAmountForTemplate(template: {
 
 export const budgetRouter = router({
   create: protectedProcedure
-    .input(
-      monthYearSchema.extend({
-        name: z.string().trim().min(1).max(100).optional(),
-      }),
-    )
+    .input(createBudgetSchema)
+    .mutation(async ({ ctx, input }) => {
+      const userId = requireUserId(ctx.user);
+      const startDate = startOfDay(input.startDate);
+      const endDate = endOfDay(input.endDate);
+
+      assertDateRange(startDate, endDate);
+      await assertNoRangeOverlap(userId, startDate, endDate);
+
+      const existingCount = await db.budget.count({ where: { userId } });
+      const shouldBeDefault = input.isDefault ?? existingCount === 0;
+
+      return db.$transaction(async (tx) => {
+        if (shouldBeDefault) {
+          await tx.budget.updateMany({
+            where: {
+              userId,
+              isDefault: true,
+            },
+            data: {
+              isDefault: false,
+            },
+          });
+        }
+
+        return tx.budget.create({
+          data: {
+            userId,
+            name: input.name.trim(),
+            startDate,
+            endDate,
+            currency: input.currency,
+            budgetLimit: input.budgetLimit,
+            isDefault: shouldBeDefault,
+          },
+        });
+      });
+    }),
+
+  list: protectedProcedure.query(async ({ ctx }) => {
+    const userId = requireUserId(ctx.user);
+
+    return db.budget.findMany({
+      where: { userId },
+      orderBy: [{ isDefault: "desc" }, { startDate: "asc" }, { createdAt: "asc" }],
+    });
+  }),
+
+  getDefault: protectedProcedure.query(async ({ ctx }) => {
+    const userId = requireUserId(ctx.user);
+
+    return db.budget.findFirst({
+      where: {
+        userId,
+        isDefault: true,
+      },
+      orderBy: [{ createdAt: "asc" }],
+    });
+  }),
+
+  setDefault: protectedProcedure
+    .input(setDefaultBudgetSchema)
     .mutation(async ({ ctx, input }) => {
       const userId = requireUserId(ctx.user);
 
-      const existing = await db.budget.findUnique({
+      const budget = await db.budget.findFirst({
         where: {
-          userId_month_year: {
-            userId,
-            month: input.month,
-            year: input.year,
-          },
+          id: input.id,
+          userId,
         },
+        select: { id: true },
       });
 
-      if (existing) {
-        throw new TRPCError({
-          code: "CONFLICT",
-          message: "Budget already exists for this month",
-        });
+      if (!budget) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Budget not found" });
       }
 
-      return db.budget.create({
-        data: {
-          userId,
-          month: input.month,
-          year: input.year,
-          name: input.name?.trim() || `${input.year}-${String(input.month).padStart(2, "0")}`,
-        },
+      return db.$transaction(async (tx) => {
+        await tx.budget.updateMany({
+          where: {
+            userId,
+            isDefault: true,
+          },
+          data: {
+            isDefault: false,
+          },
+        });
+
+        return tx.budget.update({
+          where: { id: input.id },
+          data: { isDefault: true },
+        });
       });
     }),
 
-  listByYear: protectedProcedure
-    .input(z.object({ year: z.number().int().min(2000).max(2100) }))
+  resolveForDate: protectedProcedure
+    .input(resolveForDateSchema)
     .query(async ({ ctx, input }) => {
       const userId = requireUserId(ctx.user);
-      return db.budget.findMany({
+      const date = startOfDay(input.date);
+
+      const inRange = await db.budget.findFirst({
         where: {
           userId,
-          year: input.year,
+          startDate: { lte: date },
+          endDate: { gte: date },
         },
-        orderBy: [{ month: "asc" }],
+        orderBy: [{ isDefault: "desc" }, { startDate: "asc" }, { createdAt: "asc" }],
+      });
+
+      if (inRange) {
+        return inRange;
+      }
+
+      return db.budget.findFirst({
+        where: {
+          userId,
+          isDefault: true,
+        },
       });
     }),
-
-  getOrCreateForMonth: protectedProcedure.input(monthYearSchema).query(async ({ ctx, input }) => {
-    const userId = requireUserId(ctx.user);
-
-    return db.budget.upsert({
-      where: {
-        userId_month_year: {
-          userId,
-          month: input.month,
-          year: input.year,
-        },
-      },
-      update: {},
-      create: {
-        userId,
-        month: input.month,
-        year: input.year,
-        name: `${input.year}-${String(input.month).padStart(2, "0")}`,
-      },
-    });
-  }),
 
   getPlannedByCategory: protectedProcedure
     .input(z.object({ budgetId: idSchema }))
@@ -122,8 +250,12 @@ export const budgetRouter = router({
         },
         select: {
           id: true,
-          month: true,
-          year: true,
+          name: true,
+          startDate: true,
+          endDate: true,
+          currency: true,
+          budgetLimit: true,
+          isDefault: true,
         },
       });
 
@@ -134,6 +266,7 @@ export const budgetRouter = router({
       const templates = await db.recurringExpense.findMany({
         where: {
           userId,
+          budgetId: budget.id,
           isActive: true,
         },
         include: {
@@ -145,6 +278,8 @@ export const budgetRouter = router({
           },
         },
       });
+
+      const periodMonthCount = monthsInclusive(budget.startDate, budget.endDate);
 
       const plannedByCategory = new Map<
         string,
@@ -158,6 +293,8 @@ export const budgetRouter = router({
 
       for (const template of templates) {
         const monthlyPlanned = plannedMonthlyAmountForTemplate(template);
+        const periodPlanned = monthlyPlanned * periodMonthCount;
+
         const current = plannedByCategory.get(template.categoryId) ?? {
           categoryId: template.categoryId,
           categoryName: template.category.name,
@@ -166,7 +303,7 @@ export const budgetRouter = router({
         };
 
         current.templateCount += 1;
-        current.planned[template.currency] += monthlyPlanned;
+        current.planned[template.currency] += periodPlanned;
         plannedByCategory.set(template.categoryId, current);
       }
 
@@ -185,6 +322,7 @@ export const budgetRouter = router({
 
       return {
         budget,
+        periodMonthCount,
         categories,
         totals,
       };

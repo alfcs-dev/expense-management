@@ -1,11 +1,16 @@
 import { TRPCError } from "@trpc/server";
 import { db } from "@expense-management/db";
-import { currencySchema, idSchema, recurringFrequencySchema } from "@expense-management/shared";
+import {
+  currencySchema,
+  idSchema,
+  recurringFrequencySchema,
+} from "@expense-management/shared";
 import { z } from "zod";
 import { protectedProcedure, router } from "../trpc.js";
 
 const recurringExpenseInputSchema = z
   .object({
+    budgetId: idSchema,
     categoryId: idSchema,
     sourceAccountId: idSchema,
     destAccountId: idSchema.optional(),
@@ -44,11 +49,17 @@ function requireUserId(user: { id: string } | null): string {
   return user.id;
 }
 
-async function assertOwnedCategoryAndAccounts(
+async function assertOwnedBudgetCategoryAndAccounts(
   userId: string,
   input: z.infer<typeof recurringExpenseInputSchema>,
 ): Promise<void> {
-  const [categoryCount, accountCount] = await Promise.all([
+  const [budgetCount, categoryCount, accountCount] = await Promise.all([
+    db.budget.count({
+      where: {
+        id: input.budgetId,
+        userId,
+      },
+    }),
     db.category.count({
       where: {
         id: input.categoryId,
@@ -66,6 +77,13 @@ async function assertOwnedCategoryAndAccounts(
       },
     }),
   ]);
+
+  if (budgetCount === 0) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "Budget not found for current user",
+    });
+  }
 
   if (categoryCount === 0) {
     throw new TRPCError({
@@ -87,6 +105,7 @@ function toPersistedData(input: z.infer<typeof recurringExpenseInputSchema>) {
   const isAnnual = input.isAnnual ?? false;
 
   return {
+    budgetId: input.budgetId,
     categoryId: input.categoryId,
     sourceAccountId: input.sourceAccountId,
     destAccountId: input.destAccountId ?? null,
@@ -114,6 +133,14 @@ export const recurringExpenseRouter = router({
             name: true,
           },
         },
+        budget: {
+          select: {
+            id: true,
+            name: true,
+            currency: true,
+            isDefault: true,
+          },
+        },
         sourceAccount: {
           select: {
             id: true,
@@ -133,18 +160,20 @@ export const recurringExpenseRouter = router({
     });
   }),
 
-  create: protectedProcedure.input(recurringExpenseInputSchema).mutation(async ({ ctx, input }) => {
-    const userId = requireUserId(ctx.user);
+  create: protectedProcedure
+    .input(recurringExpenseInputSchema)
+    .mutation(async ({ ctx, input }) => {
+      const userId = requireUserId(ctx.user);
 
-    await assertOwnedCategoryAndAccounts(userId, input);
+      await assertOwnedBudgetCategoryAndAccounts(userId, input);
 
-    return db.recurringExpense.create({
-      data: {
-        userId,
-        ...toPersistedData(input),
-      },
-    });
-  }),
+      return db.recurringExpense.create({
+        data: {
+          userId,
+          ...toPersistedData(input),
+        },
+      });
+    }),
 
   update: protectedProcedure
     .input(
@@ -156,7 +185,7 @@ export const recurringExpenseRouter = router({
     .mutation(async ({ ctx, input }) => {
       const userId = requireUserId(ctx.user);
 
-      await assertOwnedCategoryAndAccounts(userId, input.data);
+      await assertOwnedBudgetCategoryAndAccounts(userId, input.data);
 
       const updated = await db.recurringExpense.updateMany({
         where: {
@@ -178,23 +207,25 @@ export const recurringExpenseRouter = router({
       });
     }),
 
-  delete: protectedProcedure.input(z.object({ id: idSchema })).mutation(async ({ ctx, input }) => {
-    const userId = requireUserId(ctx.user);
+  delete: protectedProcedure
+    .input(z.object({ id: idSchema }))
+    .mutation(async ({ ctx, input }) => {
+      const userId = requireUserId(ctx.user);
 
-    const deleted = await db.recurringExpense.deleteMany({
-      where: {
-        id: input.id,
-        userId,
-      },
-    });
-
-    if (deleted.count === 0) {
-      throw new TRPCError({
-        code: "NOT_FOUND",
-        message: "Recurring expense not found",
+      const deleted = await db.recurringExpense.deleteMany({
+        where: {
+          id: input.id,
+          userId,
+        },
       });
-    }
 
-    return { success: true };
-  }),
+      if (deleted.count === 0) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Recurring expense not found",
+        });
+      }
+
+      return { success: true };
+    }),
 });

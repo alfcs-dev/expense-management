@@ -224,6 +224,14 @@ Keep a single `.env` at the repo root and use **`pnpm db:migrate`** for migratio
 - Start it: `docker compose up -d postgres`.
 - Check: `docker compose ps` or `docker ps` and confirm the postgres container is up.
 
+### tRPC says "No procedure found on path ..."
+
+- This usually means a stale workspace build for shared backend packages.
+- Use `pnpm dev` from repo root (it now starts watch tasks for `@expense-management/shared` and `@expense-management/trpc`).
+- If the error persists, fully stop all dev processes and start again with:
+  - `pnpm dev`
+  - then hard refresh the browser.
+
 ### TypeScript / IDE shows many errors
 
 - The repo uses a **base tsconfig** (`tsconfig.base.json` at root). Each app and package extends it so options are consistent.

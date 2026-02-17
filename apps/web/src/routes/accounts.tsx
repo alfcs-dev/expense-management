@@ -8,6 +8,13 @@ import { trpc } from "../utils/trpc";
 import { PageShell, PageHeader, Section } from "../components/layout/page";
 import { Alert } from "../components/ui/alert";
 import { Button } from "../components/ui/button";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "../components/ui/sheet";
 
 const ACCOUNT_TYPES = ["debit", "credit", "investment", "cash"] as const;
 const CURRENCIES = ["MXN", "USD"] as const;
@@ -31,6 +38,8 @@ type AccountFormValues = {
   balance: string;
   creditLimit: string;
   currentDebt: string;
+  statementClosingDay: string;
+  paymentGraceDays: string;
 };
 
 const INITIAL_FORM: AccountFormValues = {
@@ -42,6 +51,8 @@ const INITIAL_FORM: AccountFormValues = {
   balance: "0",
   creditLimit: "0",
   currentDebt: "0",
+  statementClosingDay: "15",
+  paymentGraceDays: "20",
 };
 
 function centsToDisplay(cents: number): string {
@@ -53,6 +64,35 @@ function parseDisplayToCents(value: string): number {
   const parsed = Number.parseFloat(normalized);
   if (!Number.isFinite(parsed)) return 0;
   return Math.round(parsed * 100);
+}
+
+function clampDay(day: number, year: number, monthIndex: number): number {
+  const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+  return Math.max(1, Math.min(day, daysInMonth));
+}
+
+function estimateNextDueDate(
+  statementClosingDay: number,
+  paymentGraceDays: number,
+): Date {
+  const now = new Date();
+  const currentClosing = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    clampDay(statementClosingDay, now.getFullYear(), now.getMonth()),
+  );
+  const cycleClosing =
+    now <= currentClosing
+      ? currentClosing
+      : new Date(
+          now.getFullYear(),
+          now.getMonth() + 1,
+          clampDay(statementClosingDay, now.getFullYear(), now.getMonth() + 1),
+        );
+
+  const due = new Date(cycleClosing);
+  due.setDate(due.getDate() + paymentGraceDays);
+  return due;
 }
 
 function getPreferredInstitutionForBankCode(
@@ -93,6 +133,7 @@ function AccountsPage() {
   const [form, setForm] = useState<AccountFormValues>(INITIAL_FORM);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const [isFormOpen, setIsFormOpen] = useState(false);
 
   const listQuery = trpc.account.list.useQuery(undefined, { retry: false });
   const institutionsQuery = trpc.account.institutions.useQuery(undefined, {
@@ -123,6 +164,7 @@ function AccountsPage() {
       await utils.account.list.invalidate();
       setForm(INITIAL_FORM);
       setFormError(null);
+      setIsFormOpen(false);
     },
   });
   const updateMutation = trpc.account.update.useMutation({
@@ -131,6 +173,7 @@ function AccountsPage() {
       setForm(INITIAL_FORM);
       setFormError(null);
       setEditingId(null);
+      setIsFormOpen(false);
     },
   });
   const deleteMutation = trpc.account.delete.useMutation({
@@ -197,6 +240,27 @@ function AccountsPage() {
       return;
     }
 
+    if (form.type === "credit") {
+      const statementClosingDay = Number.parseInt(form.statementClosingDay, 10);
+      const paymentGraceDays = Number.parseInt(form.paymentGraceDays, 10);
+      if (
+        !Number.isInteger(statementClosingDay) ||
+        statementClosingDay < 1 ||
+        statementClosingDay > 31
+      ) {
+        setFormError(t("accounts.errors.statementClosingDayInvalid"));
+        return;
+      }
+      if (
+        !Number.isInteger(paymentGraceDays) ||
+        paymentGraceDays < 1 ||
+        paymentGraceDays > 60
+      ) {
+        setFormError(t("accounts.errors.paymentGraceDaysInvalid"));
+        return;
+      }
+    }
+
     const institutionValue =
       (inferredInstitution ?? form.institution.trim()) || undefined;
     const clabeValue = normalizedClabe || undefined;
@@ -216,6 +280,8 @@ function AccountsPage() {
             type: "credit" as const,
             creditLimit: parseDisplayToCents(form.creditLimit),
             currentDebt: parseDisplayToCents(form.currentDebt),
+            statementClosingDay: Number.parseInt(form.statementClosingDay, 10),
+            paymentGraceDays: Number.parseInt(form.paymentGraceDays, 10),
           }
         : {
             ...basePayload,
@@ -243,13 +309,17 @@ function AccountsPage() {
       balance: centsToDisplay(account.balance),
       creditLimit: centsToDisplay(account.creditLimit ?? 0),
       currentDebt: centsToDisplay(account.currentDebt ?? 0),
+      statementClosingDay: String(account.statementClosingDay ?? 15),
+      paymentGraceDays: String(account.paymentGraceDays ?? 20),
     });
+    setIsFormOpen(true);
   };
 
   const onCancelEdit = () => {
     setEditingId(null);
     setForm(INITIAL_FORM);
     setFormError(null);
+    setIsFormOpen(false);
   };
 
   const onDelete = async (id: string) => {
@@ -272,187 +342,273 @@ function AccountsPage() {
     <PageShell>
       <PageHeader title={t("accounts.title")} description={t("accounts.description")} />
       <Section>
-        <form className="section-stack" onSubmit={onSubmit}>
-          <p>
-            <label>
-              {t("accounts.fields.name")}{" "}
-              <input
-                type="text"
-                value={form.name}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, name: event.target.value }))
-                }
-                required
-              />
-            </label>
-          </p>
-
-          <p>
-            <label>
-              {t("accounts.fields.type")}{" "}
-              <select
-                value={form.type}
-                onChange={(event) => {
-                  const nextType = event.target.value as SelectableAccountType;
-                  setForm((current) => ({
-                    ...current,
-                    type: nextType,
-                    institution: nextType ? current.institution : "",
-                    clabe:
-                      nextType === "debit" || nextType === "credit" ? current.clabe : "",
-                  }));
-                }}
-                required
-              >
-                <option value="">{t("accounts.placeholders.selectType")}</option>
-                {ACCOUNT_TYPES.map((type) => (
-                  <option key={type} value={type}>
-                    {t(`accounts.types.${type}`)}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </p>
-
-          <p>
-            <label>
-              {t("accounts.fields.currency")}{" "}
-              <select
-                value={form.currency}
-                onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    currency: event.target.value as Currency,
-                  }))
-                }
-              >
-                {CURRENCIES.map((currency) => (
-                  <option key={currency} value={currency}>
-                    {currency}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </p>
-
-          {isClabeVisible ? (
-            <p>
-              <label>
-                {t("accounts.fields.clabe")}{" "}
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={18}
-                  value={form.clabe}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      clabe: normalizeClabe(event.target.value),
-                    }))
-                  }
-                  required={form.type === "debit"}
-                />
-              </label>
-              <br />
-              <small>
-                {form.type === "debit"
-                  ? t("accounts.hints.debitClabe")
-                  : t("accounts.hints.creditClabe")}
-              </small>
-            </p>
-          ) : null}
-
-          {form.type === "credit" ? (
-            <>
+        <div className="flex items-center justify-between gap-3">
+          <p className="muted">{t("accounts.description")}</p>
+          <Button
+            type="button"
+            onClick={() => {
+              setEditingId(null);
+              setForm(INITIAL_FORM);
+              setFormError(null);
+              setIsFormOpen(true);
+            }}
+          >
+            {t("accounts.create")}
+          </Button>
+        </div>
+        <Sheet
+          open={isFormOpen}
+          onOpenChange={(open) => {
+            setIsFormOpen(open);
+            if (!open && editingId) {
+              setEditingId(null);
+              setForm(INITIAL_FORM);
+              setFormError(null);
+            }
+          }}
+        >
+          <SheetContent side="right" className="overflow-y-auto">
+            <SheetHeader>
+              <SheetTitle>
+                {editingId ? t("accounts.update") : t("accounts.create")}
+              </SheetTitle>
+              <SheetDescription>{t("accounts.description")}</SheetDescription>
+            </SheetHeader>
+            <form className="section-stack mt-6" onSubmit={onSubmit}>
               <p>
                 <label>
-                  {t("accounts.fields.creditLimit")}{" "}
+                  {t("accounts.fields.name")}{" "}
                   <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={form.creditLimit}
+                    type="text"
+                    value={form.name}
                     onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        creditLimit: event.target.value,
-                      }))
+                      setForm((current) => ({ ...current, name: event.target.value }))
                     }
                     required
                   />
                 </label>
               </p>
+
               <p>
                 <label>
-                  {t("accounts.fields.currentDebt")}{" "}
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={form.currentDebt}
+                  {t("accounts.fields.type")}{" "}
+                  <select
+                    value={form.type}
+                    onChange={(event) => {
+                      const nextType = event.target.value as SelectableAccountType;
+                      setForm((current) => ({
+                        ...current,
+                        type: nextType,
+                        institution: nextType ? current.institution : "",
+                        clabe:
+                          nextType === "debit" || nextType === "credit"
+                            ? current.clabe
+                            : "",
+                      }));
+                    }}
+                    required
+                  >
+                    <option value="">{t("accounts.placeholders.selectType")}</option>
+                    {ACCOUNT_TYPES.map((type) => (
+                      <option key={type} value={type}>
+                        {t(`accounts.types.${type}`)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </p>
+
+              <p>
+                <label>
+                  {t("accounts.fields.currency")}{" "}
+                  <select
+                    value={form.currency}
                     onChange={(event) =>
                       setForm((current) => ({
                         ...current,
-                        currentDebt: event.target.value,
+                        currency: event.target.value as Currency,
                       }))
                     }
-                    required
-                  />
+                  >
+                    {CURRENCIES.map((currency) => (
+                      <option key={currency} value={currency}>
+                        {currency}
+                      </option>
+                    ))}
+                  </select>
                 </label>
               </p>
-            </>
-          ) : form.type ? (
-            <p>
-              <label>
-                {t("accounts.fields.balance")}{" "}
-                <input
-                  type="number"
-                  step="0.01"
-                  value={form.balance}
-                  onChange={(event) =>
-                    setForm((current) => ({ ...current, balance: event.target.value }))
-                  }
-                  required
-                />
-              </label>
-            </p>
-          ) : null}
 
-          <p>
-            <label>
-              {t("accounts.fields.institution")}{" "}
-              <select
-                value={form.institution}
-                onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    institution: event.target.value,
-                  }))
-                }
-                disabled={isInstitutionDisabled}
-                required={form.type === "debit" || form.type === "credit"}
-              >
-                <option value="">{t("accounts.placeholders.selectInstitution")}</option>
-                {institutions.map((institution) => (
-                  <option key={institution.code} value={institution.name}>
-                    {institution.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </p>
+              {isClabeVisible ? (
+                <p>
+                  <label>
+                    {t("accounts.fields.clabe")}{" "}
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={18}
+                      value={form.clabe}
+                      onChange={(event) =>
+                        setForm((current) => ({
+                          ...current,
+                          clabe: normalizeClabe(event.target.value),
+                        }))
+                      }
+                      required={form.type === "debit"}
+                    />
+                  </label>
+                  <br />
+                  <small>
+                    {form.type === "debit"
+                      ? t("accounts.hints.debitClabe")
+                      : t("accounts.hints.creditClabe")}
+                  </small>
+                </p>
+              ) : null}
 
-          <div className="form-actions">
-            <Button type="submit" disabled={isSubmitting}>
-              {submitLabel}
-            </Button>{" "}
-            {editingId ? (
-              <Button type="button" variant="secondary" onClick={onCancelEdit}>
-                {t("accounts.cancelEdit")}
-              </Button>
-            ) : null}
-          </div>
-        </form>
+              {form.type === "credit" ? (
+                <>
+                  <p>
+                    <label>
+                      {t("accounts.fields.creditLimit")}{" "}
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={form.creditLimit}
+                        onChange={(event) =>
+                          setForm((current) => ({
+                            ...current,
+                            creditLimit: event.target.value,
+                          }))
+                        }
+                        required
+                      />
+                    </label>
+                  </p>
+                  <p>
+                    <label>
+                      {t("accounts.fields.currentDebt")}{" "}
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={form.currentDebt}
+                        onChange={(event) =>
+                          setForm((current) => ({
+                            ...current,
+                            currentDebt: event.target.value,
+                          }))
+                        }
+                        required
+                      />
+                    </label>
+                  </p>
+                  <p>
+                    <label>
+                      {t("accounts.fields.statementClosingDay")}{" "}
+                      <input
+                        type="number"
+                        min="1"
+                        max="31"
+                        value={form.statementClosingDay}
+                        onChange={(event) =>
+                          setForm((current) => ({
+                            ...current,
+                            statementClosingDay: event.target.value,
+                          }))
+                        }
+                        required
+                      />
+                    </label>
+                  </p>
+                  <p>
+                    <label>
+                      {t("accounts.fields.paymentGraceDays")}{" "}
+                      <input
+                        type="number"
+                        min="1"
+                        max="60"
+                        value={form.paymentGraceDays}
+                        onChange={(event) =>
+                          setForm((current) => ({
+                            ...current,
+                            paymentGraceDays: event.target.value,
+                          }))
+                        }
+                        required
+                      />
+                    </label>
+                  </p>
+                </>
+              ) : form.type ? (
+                <p>
+                  <label>
+                    {t("accounts.fields.balance")}{" "}
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={form.balance}
+                      onChange={(event) =>
+                        setForm((current) => ({
+                          ...current,
+                          balance: event.target.value,
+                        }))
+                      }
+                      required
+                    />
+                  </label>
+                </p>
+              ) : null}
+
+              <p>
+                <label>
+                  {t("accounts.fields.institution")}{" "}
+                  <select
+                    value={form.institution}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        institution: event.target.value,
+                      }))
+                    }
+                    disabled={isInstitutionDisabled}
+                    required={form.type === "debit" || form.type === "credit"}
+                  >
+                    <option value="">
+                      {t("accounts.placeholders.selectInstitution")}
+                    </option>
+                    {institutions.map((institution) => (
+                      <option key={institution.code} value={institution.name}>
+                        {institution.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </p>
+
+              <div className="form-actions">
+                <Button type="submit" disabled={isSubmitting}>
+                  {submitLabel}
+                </Button>{" "}
+                {editingId ? (
+                  <Button type="button" variant="secondary" onClick={onCancelEdit}>
+                    {t("accounts.cancelEdit")}
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => setIsFormOpen(false)}
+                    disabled={isSubmitting}
+                  >
+                    {t("common.cancel")}
+                  </Button>
+                )}
+              </div>
+            </form>
+          </SheetContent>
+        </Sheet>
       </Section>
 
       {activeError ? (
@@ -502,6 +658,27 @@ function AccountsPage() {
                         i18n.language,
                       )}
                     </span>{" "}
+                    <span>
+                      {t("accounts.statementClosingDayLabel")}:{" "}
+                      {account.statementClosingDay ?? "-"}
+                    </span>{" "}
+                    <span>
+                      {t("accounts.paymentGraceDaysLabel")}:{" "}
+                      {account.paymentGraceDays ?? "-"}
+                    </span>{" "}
+                    {account.statementClosingDay && account.paymentGraceDays ? (
+                      <span>
+                        {t("accounts.estimatedDueDateLabel")}:{" "}
+                        {new Intl.DateTimeFormat(i18n.language, {
+                          dateStyle: "medium",
+                        }).format(
+                          estimateNextDueDate(
+                            account.statementClosingDay,
+                            account.paymentGraceDays,
+                          ),
+                        )}
+                      </span>
+                    ) : null}{" "}
                   </>
                 ) : (
                   <span>

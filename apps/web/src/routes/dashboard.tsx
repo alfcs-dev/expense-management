@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createRoute } from "@tanstack/react-router";
 import {
   Bar,
@@ -12,9 +12,10 @@ import {
 } from "recharts";
 import { useTranslation } from "react-i18next";
 import { protectedRoute } from "./protected";
-import { formatCurrencyByLanguage } from "../utils/locale";
+import { formatCurrencyByLanguage, formatDateByLanguage } from "../utils/locale";
 import { trpc } from "../utils/trpc";
 import { PageShell, PageHeader, Section } from "../components/layout/page";
+import { Alert } from "../components/ui/alert";
 
 type DashboardCategoryRow = {
   categoryId: string;
@@ -23,6 +24,15 @@ type DashboardCategoryRow = {
   actual: { MXN: number; USD: number };
   variance: { MXN: number; USD: number };
   isIncome: boolean;
+};
+
+type DashboardExpenseItem = {
+  categoryId: string;
+  amount: number;
+  currency: "MXN" | "USD";
+  amountInBudgetCurrency: number | null;
+  conversionStatus: "none" | "estimated" | "confirmed";
+  category: { name: string };
 };
 
 function isIncomeCategory(categoryName: string): boolean {
@@ -38,25 +48,26 @@ export const dashboardRoute = createRoute({
 function DashboardPage() {
   const { t, i18n } = useTranslation();
 
-  const today = new Date();
   const search = new URLSearchParams(window.location.search);
-  const initialMonth = Number.parseInt(search.get("month") ?? "", 10);
-  const initialYear = Number.parseInt(search.get("year") ?? "", 10);
-  const [month, setMonth] = useState<number>(
-    Number.isFinite(initialMonth) && initialMonth >= 1 && initialMonth <= 12
-      ? initialMonth
-      : today.getMonth() + 1,
-  );
-  const [year, setYear] = useState<number>(
-    Number.isFinite(initialYear) && initialYear >= 2000 && initialYear <= 2100
-      ? initialYear
-      : today.getFullYear(),
-  );
-  const budgetQuery = trpc.budget.getOrCreateForMonth.useQuery(
-    { month, year },
-    { retry: false },
-  );
-  const budgetId = budgetQuery.data?.id ?? null;
+  const initialBudgetId = search.get("budgetId") ?? "";
+  const [selectedBudgetId, setSelectedBudgetId] = useState<string>(initialBudgetId);
+
+  const budgetsQuery = trpc.budget.list.useQuery(undefined, { retry: false });
+  const defaultBudgetQuery = trpc.budget.getDefault.useQuery(undefined, { retry: false });
+
+  useEffect(() => {
+    if (selectedBudgetId) return;
+    if (defaultBudgetQuery.data?.id) {
+      setSelectedBudgetId(defaultBudgetQuery.data.id);
+    }
+  }, [defaultBudgetQuery.data?.id, selectedBudgetId]);
+
+  const budgetId = selectedBudgetId || defaultBudgetQuery.data?.id || null;
+  const activeBudget = useMemo(() => {
+    if (!budgetId) return null;
+    return (budgetsQuery.data ?? []).find((budget) => budget.id === budgetId) ?? null;
+  }, [budgetId, budgetsQuery.data]);
+
   const plannedQuery = trpc.budget.getPlannedByCategory.useQuery(
     { budgetId: budgetId ?? "" },
     { enabled: Boolean(budgetId), retry: false },
@@ -66,9 +77,17 @@ function DashboardPage() {
     { enabled: Boolean(budgetId), retry: false },
   );
 
-  const activeError = budgetQuery.error ?? plannedQuery.error ?? expenseQuery.error;
+  const activeError =
+    budgetsQuery.error ??
+    defaultBudgetQuery.error ??
+    plannedQuery.error ??
+    expenseQuery.error;
   const isLoading =
-    budgetQuery.isLoading || plannedQuery.isLoading || expenseQuery.isLoading;
+    budgetsQuery.isLoading ||
+    defaultBudgetQuery.isLoading ||
+    plannedQuery.isLoading ||
+    expenseQuery.isLoading;
+  const expenses = (expenseQuery.data ?? []) as DashboardExpenseItem[];
 
   const rows = useMemo<DashboardCategoryRow[]>(() => {
     const map = new Map<string, DashboardCategoryRow>();
@@ -86,7 +105,7 @@ function DashboardPage() {
       });
     }
 
-    for (const expense of expenseQuery.data ?? []) {
+    for (const expense of expenses) {
       const current = map.get(expense.categoryId) ?? {
         categoryId: expense.categoryId,
         categoryName: expense.category.name,
@@ -109,7 +128,7 @@ function DashboardPage() {
         },
       }))
       .sort((a, b) => a.categoryName.localeCompare(b.categoryName));
-  }, [expenseQuery.data, plannedQuery.data?.categories]);
+  }, [expenses, plannedQuery.data?.categories]);
 
   const totals = useMemo(() => {
     return rows.reduce(
@@ -137,14 +156,44 @@ function DashboardPage() {
     );
   }, [rows]);
 
+  const usage = useMemo(() => {
+    if (!activeBudget) {
+      return {
+        used: 0,
+        estimatedCount: 0,
+        remaining: 0,
+        usagePercent: 0,
+      };
+    }
+
+    const used = expenses.reduce((acc, expense) => {
+      return acc + (expense.amountInBudgetCurrency ?? 0);
+    }, 0);
+
+    const estimatedCount = expenses.filter(
+      (expense) => expense.conversionStatus === "estimated",
+    ).length;
+
+    const remaining = activeBudget.budgetLimit - used;
+    const usagePercent =
+      activeBudget.budgetLimit > 0
+        ? Math.min((used / activeBudget.budgetLimit) * 100, 999)
+        : 0;
+
+    return {
+      used,
+      estimatedCount,
+      remaining,
+      usagePercent,
+    };
+  }, [activeBudget, expenses]);
+
   const chartData = useMemo(
     () =>
       rows.map((row) => ({
         name: row.categoryName,
         plannedMXN: row.planned.MXN / 100,
         actualMXN: row.actual.MXN / 100,
-        plannedUSD: row.planned.USD / 100,
-        actualUSD: row.actual.USD / 100,
       })),
     [rows],
   );
@@ -169,30 +218,73 @@ function DashboardPage() {
     <PageShell>
       <PageHeader title={t("dashboard.title")} description={t("dashboard.description")} />
 
+      {!budgetsQuery.data?.length ? (
+        <Alert className="border-amber-200 bg-amber-50 text-amber-800">
+          {t("dashboard.noBudgets")}
+        </Alert>
+      ) : null}
+
       <Section>
         <div className="inline-row">
           <label>
-            {t("dashboard.fields.month")}{" "}
-            <input
-              type="number"
-              min={1}
-              max={12}
-              value={month}
-              onChange={(event) => setMonth(Number(event.target.value))}
-            />
-          </label>{" "}
-          <label>
-            {t("dashboard.fields.year")}{" "}
-            <input
-              type="number"
-              min={2000}
-              max={2100}
-              value={year}
-              onChange={(event) => setYear(Number(event.target.value))}
-            />
+            {t("dashboard.fields.budget")}{" "}
+            <select
+              value={budgetId ?? ""}
+              onChange={(event) => setSelectedBudgetId(event.target.value)}
+            >
+              {(budgetsQuery.data ?? []).map((budget) => (
+                <option key={budget.id} value={budget.id}>
+                  {budget.name}
+                  {budget.isDefault ? ` (${t("budgets.defaultTag")})` : ""}
+                </option>
+              ))}
+            </select>
           </label>
         </div>
+        {activeBudget ? (
+          <p className="muted mt-2">
+            {formatDateByLanguage(activeBudget.startDate, i18n.language)} -{" "}
+            {formatDateByLanguage(activeBudget.endDate, i18n.language)} ·{" "}
+            {activeBudget.currency}
+          </p>
+        ) : null}
       </Section>
+
+      {activeBudget ? (
+        <Section>
+          <h2>{t("dashboard.limitTitle")}</h2>
+          <ul>
+            <li>
+              {t("dashboard.limit")}:{" "}
+              {formatCurrencyByLanguage(
+                activeBudget.budgetLimit,
+                activeBudget.currency,
+                i18n.language,
+              )}
+            </li>
+            <li>
+              {t("dashboard.used")}:{" "}
+              {formatCurrencyByLanguage(usage.used, activeBudget.currency, i18n.language)}
+            </li>
+            <li>
+              {t("dashboard.remaining")}:{" "}
+              {formatCurrencyByLanguage(
+                usage.remaining,
+                activeBudget.currency,
+                i18n.language,
+              )}
+            </li>
+            <li>
+              {t("dashboard.usagePercent", { value: usage.usagePercent.toFixed(1) })}
+            </li>
+          </ul>
+          {usage.estimatedCount > 0 ? (
+            <Alert className="mt-2 border-amber-200 bg-amber-50 text-amber-900">
+              {t("dashboard.estimatedWarning", { count: usage.estimatedCount })}
+            </Alert>
+          ) : null}
+        </Section>
+      ) : null}
 
       <Section>
         <h2>{t("dashboard.overviewTitle")}</h2>

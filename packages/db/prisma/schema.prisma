@@ -63,6 +63,12 @@ enum ReconciliationStatus {
   full
 }
 
+enum ConversionStatus {
+  none
+  estimated
+  confirmed
+}
+
 // ─── User (Better Auth–compatible; session/account tables added when integrating) ───
 model User {
   id            String   @id @default(cuid())
@@ -146,6 +152,8 @@ model Account {
   balance      Int         @default(0) // centavos/cents
   creditLimit  Int?        // centavos/cents; for credit accounts
   currentDebt  Int?        // centavos/cents; for credit accounts
+  statementClosingDay Int? // 1-31; for credit accounts
+  paymentGraceDays Int?    // days after statement close; for credit accounts
   institution  String?
   bankLinkId   String?
   createdAt    DateTime   @default(now())
@@ -176,17 +184,22 @@ model InstitutionCatalog {
 model Budget {
   id        String   @id @default(cuid())
   userId    String
-  name      String?
-  month     Int      // 1-12
-  year      Int
+  name      String
+  startDate DateTime
+  endDate   DateTime
+  isDefault Boolean  @default(false)
+  currency  Currency
+  budgetLimit Int
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   user       User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   expenses   Expense[]
+  recurringExpenses RecurringExpense[]
   collaborators BudgetCollaborator[]
 
-  @@unique([userId, month, year])
+  @@index([userId, startDate, endDate])
+  @@index([userId, isDefault])
 }
 
 model Category {
@@ -208,6 +221,7 @@ model Category {
 model RecurringExpense {
   id               String            @id @default(cuid())
   userId           String
+  budgetId         String
   categoryId       String
   sourceAccountId  String
   destAccountId    String?
@@ -223,6 +237,7 @@ model RecurringExpense {
   updatedAt        DateTime         @updatedAt
 
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  budget        Budget   @relation(fields: [budgetId], references: [id], onDelete: Cascade)
   category      Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   sourceAccount Account  @relation("RecurringSourceAccount", fields: [sourceAccountId], references: [id], onDelete: Cascade)
   destAccount   Account? @relation("RecurringDestAccount", fields: [destAccountId], references: [id], onDelete: SetNull)
@@ -239,6 +254,8 @@ model Expense {
   description             String
   amount                  Int                 // centavos/cents
   currency                Currency
+  amountInBudgetCurrency  Int?
+  conversionStatus        ConversionStatus    @default(none)
   date                    DateTime
   installmentNumber       Int?
   source                  ExpenseSource       @default(manual)

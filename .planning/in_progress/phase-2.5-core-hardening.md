@@ -200,6 +200,27 @@ Each reintroduced feature must ship as vertical slice with:
 ## 8. In Progress Log
 
 **Achievements**
+- 2026-02-17: Scoped recurring templates to explicit budgets.
+  - Added required `budgetId` on `RecurringExpense` and linked each template to a single budget.
+  - Updated recurring API create/update validation to enforce budget ownership for the authenticated user.
+  - Updated recurring list payloads to include budget metadata and updated UI to require/select budget in recurring template forms.
+  - Updated budget planned aggregation so dashboard planned totals only include recurring templates assigned to the selected budget.
+  - Updated seed flow and API testing assets to include budget assignment for recurring template creation.
+- 2026-02-17: Added credit-account billing cycle support and seed alignment for the budget model.
+  - Added credit billing fields to `Account`: `statementClosingDay` and `paymentGraceDays`.
+  - Updated account API create/update validation and persistence for the new fields.
+  - Updated `/accounts` UI for credit cards with `fecha de corte` and `días de gracia` inputs plus estimated next due-date display.
+  - Updated EN/ES i18n account labels/errors for billing-cycle UX.
+  - Updated seed flow to create one default ranged budget (`name/startDate/endDate/currency/budgetLimit/isDefault`) so post-seed expense flows have an active budget.
+  - Added seed defaults for credit card billing cycle values (`SEED_CREDIT_STATEMENT_CLOSING_DAY`, `SEED_CREDIT_PAYMENT_GRACE_DAYS`).
+- 2026-02-17: Reworked core budget model from month/year containers to named ranged budgets with explicit limit currency.
+  - Prisma `Budget` now stores required `name`, `startDate`, `endDate`, `currency`, `budgetLimit`, and `isDefault`.
+  - Added overlap protection in budget API creation so a user cannot create overlapping budget periods.
+  - Added `budget.list`, `budget.getDefault`, `budget.setDefault`, and `budget.resolveForDate` procedures; removed reliance on month/year APIs in web routes.
+  - Added expense conversion persistence fields (`amountInBudgetCurrency`, `conversionStatus`) and automatic estimated conversion fallback when expense currency differs from budget currency.
+  - Updated `/budgets`, `/expenses`, and `/dashboard` UX to select active budget by `budgetId`, default to user default budget, and surface estimated conversion warnings.
+  - Updated API smoke test payloads and Postman assets for new budget inputs.
+  - Updated schema visualization and API testing docs to reflect the new budget model.
 - 2026-02-14: Phase 2.5 plan created; baseline reset to `main` and core-hardening track initiated.
 - 2026-02-14: Slice A completed on branch `phase-2.5-core-hardening`.
   - Added budget API procedures: `budget.create` and `budget.listByYear`.
@@ -260,12 +281,29 @@ Each reintroduced feature must ship as vertical slice with:
   - Root cause: `@expense-management/shared` exported Zod v3 schemas while tRPC routers used Zod v4.
   - Updated `packages/shared/package.json` to `zod@^4.3.6` and refreshed lockfile via `pnpm install`.
   - Verified runtime schema composition (`z.object({ budgetId: idSchema })`) succeeds with shared `idSchema`.
+- 2026-02-16: Implemented mixed form-surface UX model for CRUD entities.
+  - Added reusable UI surface primitives in `apps/web/src/components/ui`: `dialog.tsx` (modal), `sheet.tsx` (drawer), and `popover.tsx`.
+  - Migrated `categories` form to controlled popover flow for create/edit while preserving reorder and delete actions.
+  - Migrated `budgets` form to modal create flow with preserved year filtering/list behavior.
+  - Migrated `expenses` form to modal create/edit flow while preserving selected month/year budget context and list interactions.
+  - Migrated `accounts` and `recurring-expenses` forms to drawer-based create/edit flows with existing validation/conditional logic preserved.
+  - Added shared locale key `common.cancel` in EN/ES and documented form-surface decisions in `docs/FORMS_UX.md`.
+  - Validation complete for web package: `pnpm --filter @expense-management/web lint` and `pnpm --filter @expense-management/web typecheck` pass.
 
 **Decisions**
+- 2026-02-17: Chosen recurring-template budget ownership model is one-template-to-one-budget (not shared templates) to keep planned totals deterministic per budget and simplify UX.
+- 2026-02-17: Modeled credit-card payment timing with `statementClosingDay` + `paymentGraceDays` (instead of fixed due-date day) to support month-length variability and issuer-specific grace periods.
+- 2026-02-17: Adopted a single-currency budget limit model (`budget.currency` + `budget.budgetLimit`) instead of dual-currency budget limits.
+- 2026-02-17: Kept original expense currency immutable while storing a budget-currency amount for progress tracking with explicit `estimated` vs `confirmed` conversion state.
+- 2026-02-17: Chose an allow-and-warn policy for cross-currency expenses so users can log transactions immediately and reconcile exact converted amounts later.
 - 2026-02-14: Keep `shadcn/ui` direction for this phase; do not migrate component library.
 - 2026-02-14: Postman-first API testing selected over Swagger-first for immediate execution speed.
 - 2026-02-14: Vertical-slice delivery selected over backend-first or dual-track mock divergence.
 - 2026-02-14: UI styling quality is an equal priority with backend functionality in Phase 2.5.
+- 2026-02-16: Adopted form-surface policy by entity complexity.
+  - Drawer-first default for medium/complex forms.
+  - Exceptions: expenses + budgets use modal; categories use popover.
+  - Tags deferred to a dedicated future schema/API/UI phase.
 
 **Roadblocks**
 - None yet.

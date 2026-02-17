@@ -34,6 +34,7 @@ erDiagram
 
     %% ── Budget structure ──
     BUDGET ||--o{ EXPENSE : contains
+    BUDGET ||--o{ RECURRING_EXPENSE : plans
     BUDGET ||--o{ BUDGET_COLLABORATOR : shared_with
 
     %% ── Category ──
@@ -83,6 +84,10 @@ erDiagram
         string currency "MXN | USD"
         string clabe UK "nullable"
         int balance "centavos/cents"
+        int creditLimit "nullable — credit accounts only"
+        int currentDebt "nullable — credit accounts only"
+        int statementClosingDay "nullable — 1..31"
+        int paymentGraceDays "nullable — days after cutoff"
         string institution "nullable — HSBC, Nu, etc."
         string bankLinkId FK "nullable — banking API link"
         datetime createdAt
@@ -92,9 +97,12 @@ erDiagram
     BUDGET {
         string id PK
         string userId FK
-        string name "nullable — auto: Jan 2026"
-        int month "1-12"
-        int year "2026"
+        string name "required"
+        datetime startDate
+        datetime endDate
+        boolean isDefault "only one true budget per user"
+        string currency "MXN | USD"
+        int budgetLimit "centavos/cents in budget currency"
         datetime createdAt
         datetime updatedAt
     }
@@ -112,6 +120,7 @@ erDiagram
     RECURRING_EXPENSE {
         string id PK
         string userId FK
+        string budgetId FK
         string categoryId FK
         string sourceAccountId FK "Cuenta Cargo"
         string destAccountId FK "nullable — Cuenta Deposito"
@@ -138,6 +147,8 @@ erDiagram
         string description
         int amount "centavos/cents"
         string currency "MXN | USD"
+        int amountInBudgetCurrency "nullable — stored in budget currency"
+        string conversionStatus "none | estimated | confirmed"
         datetime date
         int installmentNumber "nullable — e.g. 3 of 12"
         string source "manual | banking_api | cfdi | csv | recurring | installment | objective"
