@@ -264,6 +264,177 @@
           }
         }
       ]
+    },
+    {
+      "name": "Finance V2 tRPC",
+      "item": [
+        {
+          "name": "Budget Period Create",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const id = pm.response.json()?.result?.data?.json?.id;",
+                  "if (id) pm.environment.set('budget_period_id', id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Cookie", "value": "{{session_cookie}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"month\": \"{{budget_period_month}}\",\n  \"currency\": \"{{budget_currency}}\",\n  \"expectedIncomeAmount\": {{budget_period_expected_income}},\n  \"notes\": \"Postman finance v2 period\"\n}"
+            },
+            "url": "{{base_url}}/api/trpc/budgetPeriod.create"
+          }
+        },
+        {
+          "name": "Budget Period List",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "{{session_cookie}}" }
+            ],
+            "url": "{{base_url}}/api/trpc/budgetPeriod.list"
+          }
+        },
+        {
+          "name": "Budget Period Get By Month",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "{{session_cookie}}" }
+            ],
+            "url": "{{base_url}}/api/trpc/budgetPeriod.getByMonth?input=%7B%22month%22%3A%22{{budget_period_month}}%22%7D"
+          }
+        },
+        {
+          "name": "Income Plan Item Create",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const id = pm.response.json()?.result?.data?.json?.id;",
+                  "if (id) pm.environment.set('income_plan_item_id', id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Cookie", "value": "{{session_cookie}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"budgetPeriodId\": \"{{budget_period_id}}\",\n  \"source\": \"Salary\",\n  \"amount\": {{budget_period_expected_income}},\n  \"accountId\": \"{{account_id}}\",\n  \"isRecurring\": true\n}"
+            },
+            "url": "{{base_url}}/api/trpc/incomePlanItem.create"
+          }
+        },
+        {
+          "name": "Budget Rule Create (fixed)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const id = pm.response.json()?.result?.data?.json?.id;",
+                  "if (id) pm.environment.set('budget_rule_id', id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Cookie", "value": "{{session_cookie}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Fixed Rule\",\n  \"categoryId\": \"{{category_id}}\",\n  \"ruleType\": \"fixed\",\n  \"value\": {{budget_rule_fixed_value}},\n  \"applyOrder\": 0\n}"
+            },
+            "url": "{{base_url}}/api/trpc/budgetRule.create"
+          }
+        },
+        {
+          "name": "Budget Rule Create (percent)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Cookie", "value": "{{session_cookie}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Percent Rule\",\n  \"categoryId\": \"{{category_id}}\",\n  \"ruleType\": \"percent_of_income\",\n  \"value\": {{budget_rule_percent_bps}},\n  \"applyOrder\": 1\n}"
+            },
+            "url": "{{base_url}}/api/trpc/budgetRule.create"
+          }
+        },
+        {
+          "name": "Budget Rule List",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "{{session_cookie}}" }
+            ],
+            "url": "{{base_url}}/api/trpc/budgetRule.list"
+          }
+        },
+        {
+          "name": "Budget Allocation Generate For Period",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Cookie", "value": "{{session_cookie}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"budgetPeriodId\": \"{{budget_period_id}}\"\n}"
+            },
+            "url": "{{base_url}}/api/trpc/budgetAllocation.generateForPeriod"
+          }
+        },
+        {
+          "name": "Budget Allocation List",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "{{session_cookie}}" }
+            ],
+            "url": "{{base_url}}/api/trpc/budgetAllocation.list?input=%7B%22budgetPeriodId%22%3A%22{{budget_period_id}}%22%7D"
+          }
+        },
+        {
+          "name": "Budget Allocation Set Override",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Cookie", "value": "{{session_cookie}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"budgetPeriodId\": \"{{budget_period_id}}\",\n  \"categoryId\": \"{{category_id}}\",\n  \"plannedAmount\": {{budget_allocation_override_value}}\n}"
+            },
+            "url": "{{base_url}}/api/trpc/budgetAllocation.setOverride"
+          }
+        }
+      ]
     }
   ]
 }
