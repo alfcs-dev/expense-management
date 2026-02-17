@@ -51,6 +51,19 @@ Run requests in this order:
 The collection stores IDs into environment variables (`category_id`, `account_id`, `budget_id`, etc.).
 `Recurring Expense Create` now requires `budget_id` so recurring templates are budget-scoped.
 
+## Finance V2 endpoints (new foundation)
+
+The API now also exposes planning and statement-cycle procedures:
+
+- `budgetPeriod.list|create|update|delete|getByMonth`
+- `incomePlanItem.list|create|delete`
+- `budgetRule.list|create|update|delete`
+- `budgetAllocation.list|setOverride|generateForPeriod`
+- `creditCardStatement.list|close|recordPayment`
+- `installment.listByPlan|generateSchedule|progress`
+
+These are additive and can be tested directly using the same tRPC request style.
+
 ## 4. Auth/session handling
 
 - `Sign Up` and `Sign In` requests capture `Set-Cookie` and save `session_cookie`.

@@ -538,6 +538,12 @@ function endOfMonth(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59, 999);
 }
 
+function addMonths(date: Date, months: number): Date {
+  const next = new Date(date);
+  next.setMonth(next.getMonth() + months);
+  return next;
+}
+
 async function applySeed(
   budgetRows: BudgetCsvRow[],
   debtRows: DebtCsvRow[],
@@ -584,6 +590,33 @@ async function applySeed(
     },
   });
 
+  await prisma.statementPayment.deleteMany({
+    where: {
+      statement: {
+        account: {
+          userId: user.id,
+        },
+      },
+    },
+  });
+  await prisma.creditCardStatement.deleteMany({
+    where: {
+      account: {
+        userId: user.id,
+      },
+    },
+  });
+  await prisma.incomePlanItem.deleteMany({
+    where: {
+      budgetPeriod: {
+        userId: user.id,
+      },
+    },
+  });
+  await prisma.budgetAllocation.deleteMany({ where: { userId: user.id } });
+  await prisma.budgetRule.deleteMany({ where: { userId: user.id } });
+  await prisma.budgetPeriod.deleteMany({ where: { userId: user.id } });
+  await prisma.installment.deleteMany({ where: { userId: user.id } });
   await prisma.expense.deleteMany({ where: { userId: user.id } });
   await prisma.installmentPlan.deleteMany({ where: { userId: user.id } });
   await prisma.recurringExpense.deleteMany({ where: { userId: user.id } });
@@ -669,6 +702,57 @@ async function applySeed(
     },
   });
 
+  const budgetPeriodMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const budgetPeriod = await prisma.budgetPeriod.create({
+    data: {
+      userId: user.id,
+      month: budgetPeriodMonth,
+      currency: seedBudgetCurrency,
+      expectedIncomeAmount: seedBudgetLimit,
+      notes: "Seeded period for finance-v2 planning features",
+    },
+  });
+
+  const salarySourceAccount = accountByKey.values().next().value ?? null;
+  await prisma.incomePlanItem.create({
+    data: {
+      budgetPeriodId: budgetPeriod.id,
+      date: startOfMonth(now),
+      source: "Salary",
+      amount: seedBudgetLimit,
+      accountId: salarySourceAccount,
+      isRecurring: true,
+    },
+  });
+
+  const generatedAllocationIds = new Set<string>();
+  for (const categoryName of PLAN_DEFAULT_CATEGORIES.slice(0, 3)) {
+    const categoryId = categoryByName.get(categoryName);
+    if (!categoryId) continue;
+    const rule = await prisma.budgetRule.create({
+      data: {
+        userId: user.id,
+        name: `Seed ${categoryName} fixed`,
+        categoryId,
+        ruleType: "fixed",
+        value: Math.round(seedBudgetLimit / 12),
+        applyOrder: generatedAllocationIds.size,
+      },
+    });
+    generatedAllocationIds.add(rule.id);
+
+    await prisma.budgetAllocation.create({
+      data: {
+        userId: user.id,
+        budgetPeriodId: budgetPeriod.id,
+        categoryId,
+        plannedAmount: Math.round(seedBudgetLimit / 12),
+        generatedFromRuleId: rule.id,
+        isOverride: false,
+      },
+    });
+  }
+
   for (const row of budgetRows) {
     if (!row.sourceAccountName) continue;
 
@@ -711,7 +795,7 @@ async function applySeed(
     const accountId = accountByKey.get(toAccountKey(row.cardName));
     if (!accountId) continue;
 
-    await prisma.installmentPlan.create({
+    const plan = await prisma.installmentPlan.create({
       data: {
         userId: user.id,
         accountId,
@@ -725,6 +809,20 @@ async function applySeed(
         status: inferInstallmentStatus(row),
       },
     });
+
+    await prisma.installment.createMany({
+      data: Array.from({ length: row.months }, (_, idx) => ({
+        userId: user.id,
+        installmentPlanId: plan.id,
+        installmentNumber: idx + 1,
+        dueDate: addMonths(defaultStartDate, idx),
+        amount:
+          idx === row.months - 1
+            ? row.totalAmountCents -
+              Math.floor(row.totalAmountCents / row.months) * (row.months - 1)
+            : Math.floor(row.totalAmountCents / row.months),
+      })),
+    });
   }
 
   return {
@@ -735,6 +833,9 @@ async function applySeed(
     categoriesCreated: categoryByName.size,
     recurringExpensesCreated: budgetRows.filter((row) => row.sourceAccountName).length,
     installmentPlansCreated: debtRows.length,
+    budgetPeriodsCreated: 1,
+    budgetRulesCreated: generatedAllocationIds.size,
+    budgetAllocationsCreated: generatedAllocationIds.size,
     budgetsCreated: 1,
   };
 }

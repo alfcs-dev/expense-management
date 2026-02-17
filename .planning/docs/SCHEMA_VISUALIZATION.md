@@ -4,6 +4,8 @@ This document contains the Mermaid ER diagram for the Budget Manager database.
 It reflects all resolved decisions from [PLAN.md](../PLAN.md) and includes the
 shared objectives feature design.
 
+> Finance V2 planning/cycle entities are documented in `docs/ERD_FINANCE_V2.md`.
+
 > **Conventions:**
 > - All monetary amounts are stored as **integers** (centavos/cents) to avoid
 >   floating-point errors. The app converts to/from display format.

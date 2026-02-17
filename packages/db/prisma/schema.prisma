@@ -69,6 +69,19 @@ enum ConversionStatus {
   confirmed
 }
 
+enum CreditCardStatementStatus {
+  open
+  closed
+  partial
+  paid
+  overdue
+}
+
+enum BudgetRuleType {
+  fixed
+  percent_of_income
+}
+
 // ─── User (Better Auth–compatible; session/account tables added when integrating) ───
 model User {
   id            String   @id @default(cuid())
@@ -87,11 +100,15 @@ model User {
   expenses            Expense[]
   transfers           Transfer[]
   installmentPlans    InstallmentPlan[]
+  installments        Installment[]
+  budgetPeriods       BudgetPeriod[]
+  budgetRules         BudgetRule[]
+  budgetAllocations   BudgetAllocation[]
   savingsGoals        SavingsGoal[]
   budgetCollaborators BudgetCollaborator[]
   bankLinks           BankLink[]
-  authSessions        AuthSession[] @relation("AuthUserSessions")
-  authAccounts        AuthAccount[] @relation("AuthUserAccounts")
+  authSessions        AuthSession[]        @relation("AuthUserSessions")
+  authAccounts        AuthAccount[]        @relation("AuthUserAccounts")
 }
 
 model AuthSession {
@@ -110,7 +127,7 @@ model AuthSession {
 }
 
 model AuthAccount {
-  id                    String   @id @default(cuid())
+  id                    String    @id @default(cuid())
   userId                String
   accountId             String
   providerId            String
@@ -121,13 +138,13 @@ model AuthAccount {
   scope                 String?
   idToken               String?
   password              String?
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
   user User @relation("AuthUserAccounts", fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
   @@unique([providerId, accountId])
+  @@index([userId])
 }
 
 model AuthVerification {
@@ -143,31 +160,33 @@ model AuthVerification {
 
 // ─── Core ───────────────────────────────────────────────────────────────
 model Account {
-  id           String      @id @default(cuid())
-  userId       String
-  name         String
-  type         AccountType
-  currency     Currency
-  clabe        String?     @unique
-  balance      Int         @default(0) // centavos/cents
-  creditLimit  Int?        // centavos/cents; for credit accounts
-  currentDebt  Int?        // centavos/cents; for credit accounts
+  id                  String      @id @default(cuid())
+  userId              String
+  name                String
+  type                AccountType
+  currency            Currency
+  clabe               String?     @unique
+  balance             Int         @default(0) // centavos/cents
+  creditLimit         Int? // centavos/cents; for credit accounts
+  currentDebt         Int? // centavos/cents; for credit accounts
   statementClosingDay Int? // 1-31; for credit accounts
-  paymentGraceDays Int?    // days after statement close; for credit accounts
-  institution  String?
-  bankLinkId   String?
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  paymentGraceDays    Int? // days after statement close; for credit accounts
+  institution         String?
+  bankLinkId          String?
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
 
-  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  expenses          Expense[]          @relation("ExpenseAccount")
-  recurringExpensesSource RecurringExpense[] @relation("RecurringSourceAccount")
-  recurringExpensesDest   RecurringExpense[] @relation("RecurringDestAccount")
-  transfersFrom     Transfer[]         @relation("TransferSource")
-  transfersTo       Transfer[]         @relation("TransferDest")
-  installmentPlans  InstallmentPlan[]
-  savingsGoals      SavingsGoal[]
-  bankLink          BankLink?     @relation(fields: [bankLinkId], references: [id], onDelete: SetNull)
+  user                    User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expenses                Expense[]             @relation("ExpenseAccount")
+  recurringExpensesSource RecurringExpense[]    @relation("RecurringSourceAccount")
+  recurringExpensesDest   RecurringExpense[]    @relation("RecurringDestAccount")
+  transfersFrom           Transfer[]            @relation("TransferSource")
+  transfersTo             Transfer[]            @relation("TransferDest")
+  installmentPlans        InstallmentPlan[]
+  creditCardStatements    CreditCardStatement[]
+  incomePlanItems         IncomePlanItem[]
+  savingsGoals            SavingsGoal[]
+  bankLink                BankLink?             @relation(fields: [bankLinkId], references: [id], onDelete: SetNull)
 }
 
 model InstitutionCatalog {
@@ -182,21 +201,21 @@ model InstitutionCatalog {
 }
 
 model Budget {
-  id        String   @id @default(cuid())
-  userId    String
-  name      String
-  startDate DateTime
-  endDate   DateTime
-  isDefault Boolean  @default(false)
-  currency  Currency
+  id          String   @id @default(cuid())
+  userId      String
+  name        String
+  startDate   DateTime
+  endDate     DateTime
+  isDefault   Boolean  @default(false)
+  currency    Currency
   budgetLimit Int
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  user       User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  expenses   Expense[]
+  user              User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expenses          Expense[]
   recurringExpenses RecurringExpense[]
-  collaborators BudgetCollaborator[]
+  collaborators     BudgetCollaborator[]
 
   @@index([userId, startDate, endDate])
   @@index([userId, isDefault])
@@ -215,26 +234,28 @@ model Category {
   expenses          Expense[]
   recurringExpenses RecurringExpense[]
   installmentPlans  InstallmentPlan[]
+  budgetRules       BudgetRule[]
+  budgetAllocations BudgetAllocation[]
 }
 
 // ─── Expense tracking ────────────────────────────────────────────────────
 model RecurringExpense {
-  id               String            @id @default(cuid())
-  userId           String
-  budgetId         String
-  categoryId       String
-  sourceAccountId  String
-  destAccountId    String?
-  description      String
-  amount           Int               // centavos, monthly equivalent
-  currency         Currency
-  frequency        RecurringFrequency
-  isAnnual         Boolean           @default(false)
-  annualCost       Int?              // centavos
-  notes            String?
-  isActive         Boolean           @default(true)
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
+  id              String             @id @default(cuid())
+  userId          String
+  budgetId        String
+  categoryId      String
+  sourceAccountId String
+  destAccountId   String?
+  description     String
+  amount          Int // centavos, monthly equivalent
+  currency        Currency
+  frequency       RecurringFrequency
+  isAnnual        Boolean            @default(false)
+  annualCost      Int? // centavos
+  notes           String?
+  isActive        Boolean            @default(true)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
 
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   budget        Budget   @relation(fields: [budgetId], references: [id], onDelete: Cascade)
@@ -244,34 +265,41 @@ model RecurringExpense {
 }
 
 model Expense {
-  id                      String              @id @default(cuid())
+  id                      String                @id @default(cuid())
   userId                  String
   budgetId                String
   categoryId              String
   accountId               String
   installmentPlanId       String?
-  objectiveContributionId String?             // FK added in Phase 7 when ObjectiveContribution exists
+  objectiveContributionId String? // FK added in Phase 7 when ObjectiveContribution exists
   description             String
-  amount                  Int                 // centavos/cents
+  amount                  Int // centavos/cents
   currency                Currency
   amountInBudgetCurrency  Int?
-  conversionStatus        ConversionStatus    @default(none)
+  conversionStatus        ConversionStatus      @default(none)
+  statementId             String?
+  installmentId           String?
   date                    DateTime
   installmentNumber       Int?
-  source                  ExpenseSource       @default(manual)
-  bankingApiTransactionId String?             @unique
-  cfdiUuid                String?             @unique
+  source                  ExpenseSource         @default(manual)
+  bankingApiTransactionId String?               @unique
+  cfdiUuid                String?               @unique
   cfdiData                Json?
   reconciliationStatus    ReconciliationStatus? @default(unmatched)
-  isVerified              Boolean             @default(false)
-  createdAt               DateTime            @default(now())
-  updatedAt               DateTime            @updatedAt
+  isVerified              Boolean               @default(false)
+  createdAt               DateTime              @default(now())
+  updatedAt               DateTime              @updatedAt
 
-  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  budget           Budget           @relation(fields: [budgetId], references: [id], onDelete: Cascade)
-  category         Category         @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  account          Account          @relation("ExpenseAccount", fields: [accountId], references: [id], onDelete: Cascade)
-  installmentPlan  InstallmentPlan? @relation(fields: [installmentPlanId], references: [id], onDelete: SetNull)
+  user            User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  budget          Budget               @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  category        Category             @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  account         Account              @relation("ExpenseAccount", fields: [accountId], references: [id], onDelete: Cascade)
+  installmentPlan InstallmentPlan?     @relation(fields: [installmentPlanId], references: [id], onDelete: SetNull)
+  statement       CreditCardStatement? @relation(fields: [statementId], references: [id], onDelete: SetNull)
+  installment     Installment?         @relation(fields: [installmentId], references: [id], onDelete: SetNull)
+
+  @@index([statementId])
+  @@index([installmentId])
 }
 
 model InstallmentPlan {
@@ -280,35 +308,171 @@ model InstallmentPlan {
   accountId    String
   categoryId   String
   description  String
-  totalAmount  Int                   // centavos
+  totalAmount  Int // centavos
   currency     Currency
   months       Int
   interestRate Float                 @default(0)
   startDate    DateTime
   status       InstallmentPlanStatus @default(active)
-  createdAt    DateTime             @default(now())
-  updatedAt    DateTime             @updatedAt
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
 
-  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  account  Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  category Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  expenses Expense[]
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account      Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  category     Category      @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  expenses     Expense[]
+  installments Installment[]
+
+  @@index([userId, status])
+}
+
+model Installment {
+  id                String   @id @default(cuid())
+  userId            String
+  installmentPlanId String
+  installmentNumber Int
+  dueDate           DateTime
+  amount            Int
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  installmentPlan InstallmentPlan @relation(fields: [installmentPlanId], references: [id], onDelete: Cascade)
+  expenses        Expense[]
+
+  @@unique([installmentPlanId, installmentNumber])
+  @@index([userId, dueDate])
+}
+
+model CreditCardStatement {
+  id               String                    @id @default(cuid())
+  accountId        String
+  periodStart      DateTime
+  periodEnd        DateTime
+  closingDate      DateTime
+  dueDate          DateTime
+  statementBalance Int                       @default(0)
+  paymentsApplied  Int                       @default(0)
+  status           CreditCardStatementStatus @default(open)
+  closedAt         DateTime?
+  paidAt           DateTime?
+  createdAt        DateTime                  @default(now())
+  updatedAt        DateTime                  @updatedAt
+
+  account           Account            @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  expenses          Expense[]
+  statementPayments StatementPayment[]
+
+  @@unique([accountId, periodStart, periodEnd])
+  @@index([accountId, dueDate])
+}
+
+model StatementPayment {
+  id            String   @id @default(cuid())
+  statementId   String
+  transferId    String
+  amountApplied Int
+  createdAt     DateTime @default(now())
+
+  statement CreditCardStatement @relation(fields: [statementId], references: [id], onDelete: Cascade)
+  transfer  Transfer            @relation(fields: [transferId], references: [id], onDelete: Cascade)
+
+  @@index([statementId])
+  @@index([transferId])
+}
+
+model BudgetPeriod {
+  id                   String   @id @default(cuid())
+  userId               String
+  month                String
+  currency             Currency
+  expectedIncomeAmount Int      @default(0)
+  notes                String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  incomePlanItems   IncomePlanItem[]
+  budgetAllocations BudgetAllocation[]
+
+  @@unique([userId, month])
+  @@index([userId, month])
+}
+
+model IncomePlanItem {
+  id             String    @id @default(cuid())
+  budgetPeriodId String
+  date           DateTime?
+  source         String
+  amount         Int
+  accountId      String?
+  isRecurring    Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  budgetPeriod BudgetPeriod @relation(fields: [budgetPeriodId], references: [id], onDelete: Cascade)
+  account      Account?     @relation(fields: [accountId], references: [id], onDelete: SetNull)
+
+  @@index([budgetPeriodId])
+}
+
+model BudgetRule {
+  id         String         @id @default(cuid())
+  userId     String
+  name       String
+  categoryId String
+  ruleType   BudgetRuleType
+  value      Int
+  applyOrder Int            @default(0)
+  minAmount  Int?
+  capAmount  Int?
+  activeFrom String?
+  activeTo   String?
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category    Category           @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  allocations BudgetAllocation[]
+
+  @@index([userId, categoryId, activeFrom, activeTo])
+}
+
+model BudgetAllocation {
+  id                  String   @id @default(cuid())
+  userId              String
+  budgetPeriodId      String
+  categoryId          String
+  plannedAmount       Int
+  generatedFromRuleId String?
+  isOverride          Boolean  @default(false)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  budgetPeriod      BudgetPeriod @relation(fields: [budgetPeriodId], references: [id], onDelete: Cascade)
+  category          Category     @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  generatedFromRule BudgetRule?  @relation(fields: [generatedFromRuleId], references: [id], onDelete: SetNull)
+
+  @@unique([budgetPeriodId, categoryId])
+  @@index([userId, budgetPeriodId])
 }
 
 model Transfer {
-  id                 String   @id @default(cuid())
-  userId             String
-  sourceAccountId    String
-  destAccountId      String
-  amount             Int      // centavos
-  currency           Currency
-  date               DateTime
-  notes              String?
-  createdAt          DateTime @default(now())
+  id              String   @id @default(cuid())
+  userId          String
+  sourceAccountId String
+  destAccountId   String
+  amount          Int // centavos
+  currency        Currency
+  date            DateTime
+  notes           String?
+  createdAt       DateTime @default(now())
 
-  user          User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  sourceAccount Account @relation("TransferSource", fields: [sourceAccountId], references: [id], onDelete: Cascade)
-  destAccount   Account @relation("TransferDest", fields: [destAccountId], references: [id], onDelete: Cascade)
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourceAccount     Account            @relation("TransferSource", fields: [sourceAccountId], references: [id], onDelete: Cascade)
+  destAccount       Account            @relation("TransferDest", fields: [destAccountId], references: [id], onDelete: Cascade)
+  statementPayments StatementPayment[]
 }
 
 // ─── Goals ──────────────────────────────────────────────────────────────
@@ -318,7 +482,7 @@ model SavingsGoal {
   accountId        String
   name             String
   targetPercentage Float?
-  targetAmount     Int?     // centavos
+  targetAmount     Int? // centavos
   currency         Currency
   notes            String?
   createdAt        DateTime @default(now())
@@ -334,7 +498,7 @@ model BudgetCollaborator {
   budgetId  String
   userId    String
   role      BudgetCollaboratorRole
-  createdAt DateTime              @default(now())
+  createdAt DateTime               @default(now())
 
   budget Budget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -343,14 +507,14 @@ model BudgetCollaborator {
 }
 
 model BankLink {
-  id              String         @id @default(cuid())
-  userId          String
-  provider        String         // e.g. belvo, syncfy
-  externalLinkId  String
-  status          BankLinkStatus @default(active)
-  lastSyncAt      DateTime?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id             String         @id @default(cuid())
+  userId         String
+  provider       String // e.g. belvo, syncfy
+  externalLinkId String
+  status         BankLinkStatus @default(active)
+  lastSyncAt     DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
 
   user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   accounts Account[]

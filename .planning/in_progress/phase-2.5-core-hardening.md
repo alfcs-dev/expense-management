@@ -200,6 +200,12 @@ Each reintroduced feature must ship as vertical slice with:
 ## 8. In Progress Log
 
 **Achievements**
+- 2026-02-17: Introduced Finance V2 schema/API foundation (auth-preserving).
+  - Added Prisma entities for credit statement lifecycle (`CreditCardStatement`, `StatementPayment`) and linked `Expense.statementId`.
+  - Added installment schedule entity (`Installment`) and linked `Expense.installmentId`.
+  - Added planning entities (`BudgetPeriod`, `IncomePlanItem`, `BudgetRule`, `BudgetAllocation`) for salary-driven category allocations.
+  - Added tRPC routers for new planning/cycle/installment surfaces: `budgetPeriod`, `budgetRule`, `budgetAllocation`, `incomePlanItem`, `creditCardStatement`, `installment`.
+  - Added architecture/diagram docs for agent-readable Finance V2 implementation context.
 - 2026-02-17: Hardened manual expense form UX and required-field validation.
   - Updated `/expenses` budget selector and create flow layout for better readability.
   - Added explicit client-side validation for required expense inputs (budget/category/account/description/amount/date) and positive amount constraints.

@@ -219,6 +219,14 @@ Keep a single `.env` at the repo root and use **`pnpm db:migrate`** for migratio
 - After pulling schema changes: from root, run `pnpm db:migrate` to apply new migrations.
 - To regenerate the client only: `pnpm db:generate` or `pnpm build`.
 
+### Finance V2 baseline changes (pre-launch)
+
+- Finance V2 introduces new planning/statement/installment tables while keeping auth tables.
+- If your local DB has heavy drift from older budget migrations, run:
+  - `pnpm db:reset`
+  - `pnpm db:seed`
+- Then restart dev with `pnpm dev`.
+
 ### Postgres not running
 
 - Start it: `docker compose up -d postgres`.
