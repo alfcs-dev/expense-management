@@ -200,6 +200,12 @@ Each reintroduced feature must ship as vertical slice with:
 ## 8. In Progress Log
 
 **Achievements**
+- 2026-02-17: Executed hard schema cutover to `transactions`-first finance domain (pre-launch reset path).
+  - Preserved auth/user models and removed legacy finance model chain from Prisma migrations.
+  - Replaced `Expense`-centric schema with `transactions`-centric schema and V2 seam entities (`planned_transfers`, `income_events`, `bills`, `account_balance_snapshots`, `account_transfer_profiles`).
+  - Standardized monetary storage on integer cents (`Int`) across new finance entities.
+  - Rebuilt migration history to a single clean baseline (`20260217160000_initial_auth_and_transactions`) and validated reset + seed.
+  - Rewrote DB seed to create minimal but complete scenarios for planning, statement cycle, installments, transfers, bills, and snapshots.
 - 2026-02-17: Introduced Finance V2 schema/API foundation (auth-preserving).
   - Added Prisma entities for credit statement lifecycle (`CreditCardStatement`, `StatementPayment`) and linked `Expense.statementId`.
   - Added installment schedule entity (`Installment`) and linked `Expense.installmentId`.

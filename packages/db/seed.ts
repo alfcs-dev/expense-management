@@ -1,99 +1,19 @@
-import fs from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { hashPassword } from "better-auth/crypto";
 import {
   PrismaClient,
   type AccountType,
+  type BillAmountType,
+  type BudgetRuleType,
+  type CategoryKind,
   type Currency,
+  type IncomeSource,
   type InstallmentPlanStatus,
-  type RecurringFrequency,
+  type PlannedTransferStatus,
+  type ProjectStatus,
+  type SnapshotSource,
 } from "@prisma/client";
 
-type BudgetCsvRow = {
-  section: string;
-  name: string;
-  monthlyAmountCents: number;
-  biweeklyAmountCents: number | null;
-  isAnnual: boolean;
-  annualCostCents: number | null;
-  notes: string | null;
-  sourceAccountName: string | null;
-  destinationAccountName: string | null;
-  currency: Currency;
-};
-
-type DebtCsvRow = {
-  concept: string;
-  totalAmountCents: number;
-  months: number;
-  monthsPaid: number;
-  monthlyPaymentCents: number;
-  remainingAmountCents: number;
-  cardName: string;
-  currency: Currency;
-};
-
-type BudgetParsedCsv = {
-  rows: BudgetCsvRow[];
-  sections: string[];
-};
-
-type DebtParsedCsv = {
-  rows: DebtCsvRow[];
-  cards: string[];
-};
-
-type AccountCsvRow = {
-  name: string;
-  typeLabel: string | null;
-  referenceCode: string | null;
-  accountOrCard: string | null;
-  clabe: string | null;
-  type: AccountType;
-  currency: Currency;
-  institution: string | null;
-};
-
-type AccountParsedCsv = {
-  rows: AccountCsvRow[];
-};
-
-type SeedAccount = {
-  name: string;
-  type: AccountType;
-  currency: Currency;
-  institution: string | null;
-  clabe: string | null;
-  referenceCode: string | null;
-  accountOrCard: string | null;
-};
-
 const prisma = new PrismaClient();
-
-const currentDir = path.dirname(fileURLToPath(import.meta.url));
-const defaultBudgetCsvPath = path.resolve(
-  currentDir,
-  "../../.planning/docs/Estimated expenses Mexico - September.csv",
-);
-const defaultDebtCsvPath = path.resolve(
-  currentDir,
-  "../../.planning/docs/Estimated expenses Mexico - Deuda.csv",
-);
-const defaultAccountsCsvPath = path.resolve(
-  currentDir,
-  "../../.planning/docs/Estimated expenses Mexico - Cuentas.csv",
-);
-
-const PLAN_DEFAULT_CATEGORIES = [
-  "Kids",
-  "Subscriptions",
-  "Telecom",
-  "Savings",
-  "Auto",
-  "Home/Zuhause",
-  "Miscellaneous",
-] as const;
 
 function parseArgs() {
   const args = new Set(process.argv.slice(2));
@@ -103,465 +23,59 @@ function parseArgs() {
   };
 }
 
-function normalizeCell(value: string | undefined): string {
-  return (value ?? "").trim();
-}
-
-function normalizeAccountName(value: string | undefined): string | null {
-  const normalized = normalizeCell(value);
-  if (!normalized) return null;
-  return normalized.replace(/\s+/g, " ");
-}
-
-function toAccountKey(value: string): string {
-  return value.toLowerCase();
-}
-
-function normalizeDigits(value: string | undefined): string | null {
-  const normalized = normalizeCell(value).replace(/\D/g, "");
-  return normalized || null;
-}
-
-function parseMoneyToCents(raw: string | undefined): number | null {
-  const value = normalizeCell(raw);
-  if (!value) return null;
-  const normalized = value.replace(/[$,\s]/g, "");
-  if (!normalized) return null;
-  const parsed = Number.parseFloat(normalized);
-  if (!Number.isFinite(parsed)) return null;
-  return Math.round(parsed * 100);
-}
-
-function parseInteger(raw: string | undefined): number | null {
-  const value = normalizeCell(raw);
-  if (!value) return null;
-  const parsed = Number.parseInt(value, 10);
-  if (!Number.isFinite(parsed)) return null;
-  return parsed;
-}
-
-function parseBoolean(raw: string | undefined): boolean {
-  return normalizeCell(raw).toUpperCase() === "TRUE";
-}
-
-function parseCsvLine(line: string): string[] {
-  const cells: string[] = [];
-  let current = "";
-  let inQuotes = false;
-
-  for (let i = 0; i < line.length; i += 1) {
-    const char = line[i];
-
-    if (char === '"') {
-      if (inQuotes && line[i + 1] === '"') {
-        current += '"';
-        i += 1;
-      } else {
-        inQuotes = !inQuotes;
-      }
-      continue;
-    }
-
-    if (char === "," && !inQuotes) {
-      cells.push(current);
-      current = "";
-      continue;
-    }
-
-    current += char;
-  }
-
-  cells.push(current);
-  return cells;
-}
-
-function isBudgetSectionRow(cells: string[]): boolean {
-  const first = normalizeCell(cells[0]);
-  if (!first) return false;
-  if (first === "Nombre" || first === "Total") return false;
-  const rest = cells.slice(1, 10).every((cell) => normalizeCell(cell) === "");
-  return rest;
-}
-
-function parseBudgetCsv(content: string): BudgetParsedCsv {
-  const lines = content.split(/\r?\n/).filter((line) => line.length > 0);
-  const sections: string[] = [];
-  const rows: BudgetCsvRow[] = [];
-  let currentSection = "General";
-  let inDataTable = false;
-
-  for (const line of lines) {
-    const cells = parseCsvLine(line);
-    const name = normalizeCell(cells[0]);
-
-    if (!name && inDataTable) {
-      continue;
-    }
-
-    if (isBudgetSectionRow(cells)) {
-      currentSection = name;
-      sections.push(currentSection);
-      inDataTable = false;
-      continue;
-    }
-
-    if (name === "Nombre") {
-      inDataTable = true;
-      continue;
-    }
-
-    if (!inDataTable || !name || name === "Total") {
-      continue;
-    }
-
-    const monthlyAmountCents =
-      parseMoneyToCents(cells[5]) ?? parseMoneyToCents(cells[1]) ?? 0;
-    const biweeklyAmountCents = parseMoneyToCents(cells[2]);
-    const annualCostCents = parseMoneyToCents(cells[4]);
-    const isAnnual = parseBoolean(cells[3]);
-
-    rows.push({
-      section: currentSection,
-      name,
-      monthlyAmountCents,
-      biweeklyAmountCents,
-      isAnnual,
-      annualCostCents,
-      notes: normalizeCell(cells[6]) || null,
-      sourceAccountName: normalizeAccountName(cells[7]),
-      destinationAccountName: normalizeAccountName(cells[8]),
-      currency: "MXN",
-    });
-  }
-
-  return { rows, sections };
-}
-
-function parseDebtCsv(content: string): DebtParsedCsv {
-  const lines = content.split(/\r?\n/).filter((line) => line.length > 0);
-  const rows: DebtCsvRow[] = [];
-  const cards = new Set<string>();
-  let inDataTable = false;
-
-  for (const line of lines) {
-    const cells = parseCsvLine(line);
-    const first = normalizeCell(cells[0]);
-
-    if (first === "Concepto") {
-      inDataTable = true;
-      continue;
-    }
-
-    if (!inDataTable) {
-      continue;
-    }
-
-    if (!first) {
-      continue;
-    }
-
-    if (first.startsWith("Total")) {
-      break;
-    }
-
-    const totalAmountCents = parseMoneyToCents(cells[1]) ?? 0;
-    const months = parseInteger(cells[2]) ?? 0;
-    const monthsPaid = parseInteger(cells[3]) ?? 0;
-    const monthlyPaymentCents = parseMoneyToCents(cells[4]) ?? 0;
-    const remainingAmountCents = parseMoneyToCents(cells[5]) ?? 0;
-    const cardName = normalizeAccountName(cells[6]);
-
-    if (!cardName) {
-      continue;
-    }
-
-    // Ignore summary/placeholder rows with no debt footprint.
-    if (
-      totalAmountCents === 0 &&
-      monthlyPaymentCents === 0 &&
-      remainingAmountCents === 0
-    ) {
-      continue;
-    }
-
-    rows.push({
-      concept: first,
-      totalAmountCents,
-      months: Math.max(1, months),
-      monthsPaid: Math.max(0, monthsPaid),
-      monthlyPaymentCents,
-      remainingAmountCents,
-      cardName,
-      currency: "MXN",
-    });
-    cards.add(cardName);
-  }
-
-  return { rows, cards: Array.from(cards) };
-}
-
-function parseAccountTypeLabel(
-  typeLabel: string | null,
-  accountName: string,
-): AccountType {
-  const value = (typeLabel ?? "").toLowerCase();
-  if (value.includes("credito") || value.includes("departamental")) {
-    return "credit";
-  }
-  if (value.includes("inversion")) {
-    return "investment";
-  }
-  if (value.includes("ahorro") || value.includes("visible")) {
-    return "debit";
-  }
-  return inferAccountType(accountName);
-}
-
-function parseAccountCsv(content: string): AccountParsedCsv {
-  const lines = content.split(/\r?\n/).filter((line) => line.length > 0);
-  const rows: AccountCsvRow[] = [];
-
-  for (const line of lines) {
-    const cells = parseCsvLine(line);
-    const first = normalizeCell(cells[0]);
-
-    if (!first || first === "Nombre cuenta") {
-      continue;
-    }
-
-    const normalizedName = normalizeAccountName(cells[0]);
-    if (!normalizedName) {
-      continue;
-    }
-
-    const typeLabel = normalizeCell(cells[1]) || null;
-    const referenceCode = normalizeCell(cells[2]) || null;
-    const accountOrCard = normalizeDigits(cells[3]);
-    const clabe = normalizeDigits(cells[4]);
-    const institution = normalizedName.split(" ")[0] || null;
-
-    rows.push({
-      name: normalizedName,
-      typeLabel,
-      referenceCode,
-      accountOrCard,
-      clabe,
-      type: parseAccountTypeLabel(typeLabel, normalizedName),
-      currency: "MXN",
-      institution,
-    });
-  }
-
-  return { rows };
-}
-
-function inferAccountType(accountName: string): AccountType {
-  const value = accountName.toLowerCase();
-  if (
-    value.includes("inversion") ||
-    value.includes("trading") ||
-    value.includes("dolares")
-  ) {
-    return "investment";
-  }
-  if (
-    value.includes("world elite") ||
-    value.includes("2now") ||
-    value.includes("stori") ||
-    value.includes("amex") ||
-    value.includes("credito") ||
-    value.includes("liverpool") ||
-    value.includes("palacio") ||
-    value.includes("tarjeta")
-  ) {
-    return "credit";
-  }
-  if (value.includes("efectivo")) {
-    return "cash";
-  }
-  return "debit";
-}
-
-function inferFrequency(row: BudgetCsvRow): RecurringFrequency {
-  if (row.isAnnual && row.annualCostCents) {
-    return "annual";
-  }
-  if (
-    row.biweeklyAmountCents &&
-    row.biweeklyAmountCents > 0 &&
-    row.monthlyAmountCents > 0 &&
-    Math.abs(row.biweeklyAmountCents * 2 - row.monthlyAmountCents) <= 100
-  ) {
-    return "biweekly";
-  }
-  return "monthly";
-}
-
-function inferInstallmentStatus(row: DebtCsvRow): InstallmentPlanStatus {
-  if (row.remainingAmountCents <= 0 || row.monthsPaid >= row.months) {
-    return "completed";
-  }
-  return "active";
-}
-
-function uniqueAccountNames(
-  budgetRows: BudgetCsvRow[],
-  debtRows: DebtCsvRow[],
-): string[] {
-  const set = new Set<string>();
-  for (const row of budgetRows) {
-    if (row.sourceAccountName) set.add(row.sourceAccountName);
-    if (row.destinationAccountName) set.add(row.destinationAccountName);
-  }
-  for (const row of debtRows) {
-    set.add(row.cardName);
-  }
-  return Array.from(set);
-}
-
-function buildSeedAccounts(
-  budgetRows: BudgetCsvRow[],
-  debtRows: DebtCsvRow[],
-  accountRows: AccountCsvRow[],
-): SeedAccount[] {
-  const byKey = new Map<string, SeedAccount>();
-  const merge = (name: string, incoming: Partial<SeedAccount>) => {
-    const key = toAccountKey(name);
-    const previous = byKey.get(key);
-    const next: SeedAccount = {
-      name: previous?.name ?? name,
-      type: incoming.type ?? previous?.type ?? inferAccountType(name),
-      currency: incoming.currency ?? previous?.currency ?? "MXN",
-      institution: incoming.institution ?? previous?.institution ?? null,
-      clabe: incoming.clabe ?? previous?.clabe ?? null,
-      referenceCode: incoming.referenceCode ?? previous?.referenceCode ?? null,
-      accountOrCard: incoming.accountOrCard ?? previous?.accountOrCard ?? null,
-    };
-    byKey.set(key, next);
-  };
-
-  for (const row of accountRows) {
-    merge(row.name, {
-      name: row.name,
-      type: row.type,
-      currency: row.currency,
-      institution: row.institution,
-      clabe: row.clabe,
-      referenceCode: row.referenceCode,
-      accountOrCard: row.accountOrCard,
-    });
-  }
-
-  for (const accountName of uniqueAccountNames(budgetRows, debtRows)) {
-    merge(accountName, {
-      name: accountName,
-      type: inferAccountType(accountName),
-      currency: "MXN",
-      institution: accountName.split(" ")[0] || null,
-    });
-  }
-
-  const clabeCounts = new Map<string, number>();
-  for (const account of byKey.values()) {
-    if (!account.clabe) continue;
-    clabeCounts.set(account.clabe, (clabeCounts.get(account.clabe) ?? 0) + 1);
-  }
-  for (const [key, account] of byKey.entries()) {
-    if (!account.clabe) continue;
-    if ((clabeCounts.get(account.clabe) ?? 0) > 1) {
-      byKey.set(key, { ...account, clabe: null });
-    }
-  }
-
-  return Array.from(byKey.values()).sort((a, b) => a.name.localeCompare(b.name));
-}
-
-function formatMoney(cents: number): string {
-  return (cents / 100).toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
-
-function makeBar(value: number, max: number, width = 24): string {
-  if (max <= 0) return "".padEnd(width, "-");
-  const filled = Math.max(0, Math.min(width, Math.round((value / max) * width)));
-  return `${"#".repeat(filled)}${"-".repeat(width - filled)}`;
-}
-
-function buildVisualization(budgetRows: BudgetCsvRow[], debtRows: DebtCsvRow[]): string {
-  const sectionTotals = new Map<string, number>();
-  for (const row of budgetRows) {
-    sectionTotals.set(
-      row.section,
-      (sectionTotals.get(row.section) ?? 0) + row.monthlyAmountCents,
-    );
-  }
-
-  const cardRemaining = new Map<string, number>();
-  for (const row of debtRows) {
-    cardRemaining.set(
-      row.cardName,
-      (cardRemaining.get(row.cardName) ?? 0) + row.remainingAmountCents,
-    );
-  }
-
-  const sectionEntries = Array.from(sectionTotals.entries()).sort((a, b) => b[1] - a[1]);
-  const cardEntries = Array.from(cardRemaining.entries()).sort((a, b) => b[1] - a[1]);
-  const maxSection = sectionEntries[0]?.[1] ?? 0;
-  const maxCard = cardEntries[0]?.[1] ?? 0;
-
-  const budgetLines = sectionEntries.map(([name, amount]) => {
-    const bar = makeBar(amount, maxSection);
-    return `${name.padEnd(20)} | ${bar} | MXN ${formatMoney(amount)}`;
-  });
-
-  const debtLines = cardEntries.map(([name, amount]) => {
-    const bar = makeBar(amount, maxCard);
-    return `${name.padEnd(20)} | ${bar} | MXN ${formatMoney(amount)}`;
-  });
-
-  return [
-    "BUDGET MONTHLY TOTAL BY SECTION",
-    ...budgetLines,
-    "",
-    "DEBT REMAINING BY CARD",
-    ...debtLines,
-  ].join("\n");
-}
-
 function startOfMonth(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth(), 1, 0, 0, 0, 0);
+  return new Date(date.getFullYear(), date.getMonth(), 1, 12, 0, 0, 0);
 }
 
-function endOfMonth(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59, 999);
+function monthKey(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
 }
 
-function addMonths(date: Date, months: number): Date {
+function addDays(date: Date, days: number): Date {
   const next = new Date(date);
-  next.setMonth(next.getMonth() + months);
+  next.setDate(next.getDate() + days);
   return next;
 }
 
-async function applySeed(
-  budgetRows: BudgetCsvRow[],
-  debtRows: DebtCsvRow[],
-  accountRows: AccountCsvRow[],
-) {
-  if (process.env.NODE_ENV === "production" && process.env.ALLOW_PROD_SEED !== "true") {
-    throw new Error(
-      "Refusing to run seed in production. Set ALLOW_PROD_SEED=true to override explicitly.",
-    );
-  }
+type SeedAccount = {
+  name: string;
+  type: AccountType;
+  currency: Currency;
+};
 
-  const seedUserEmail = process.env.SEED_USER_EMAIL ?? "seed@local.dev";
-  const seedUserName = process.env.SEED_USER_NAME ?? "Seed User";
-  const seedUserPassword = process.env.SEED_USER_PASSWORD ?? "SeedPass123!";
+type SeedCategory = {
+  name: string;
+  kind: CategoryKind;
+  parentName?: string;
+};
+
+const seedAccounts: SeedAccount[] = [
+  { name: "Main Checking", type: "checking", currency: "MXN" },
+  { name: "Cash Wallet", type: "cash", currency: "MXN" },
+  { name: "HSBC World Elite", type: "credit_card", currency: "MXN" },
+];
+
+const seedCategories: SeedCategory[] = [
+  { name: "Income", kind: "income" },
+  { name: "Expenses", kind: "expense" },
+  { name: "Food", kind: "expense", parentName: "Expenses" },
+  { name: "Transport", kind: "expense", parentName: "Expenses" },
+  { name: "Debt", kind: "debt" },
+  { name: "Buffer", kind: "savings" },
+  { name: "Transfers", kind: "transfer" },
+];
+
+async function applySeed() {
+  const seedUserEmail = process.env.SEED_USER_EMAIL ?? "dev.seed@local.dev";
+  const seedUserName = process.env.SEED_USER_NAME ?? "Dev Seed";
+  const seedUserPassword = process.env.SEED_USER_PASSWORD ?? "DevSeed!234";
 
   const user = await prisma.user.upsert({
     where: { email: seedUserEmail },
-    update: { name: seedUserName },
+    update: {
+      name: seedUserName,
+      emailVerified: true,
+    },
     create: {
       email: seedUserEmail,
       name: seedUserName,
@@ -590,394 +104,382 @@ async function applySeed(
     },
   });
 
-  await prisma.statementPayment.deleteMany({
-    where: {
-      statement: {
-        account: {
-          userId: user.id,
-        },
-      },
-    },
-  });
-  await prisma.creditCardStatement.deleteMany({
-    where: {
-      account: {
-        userId: user.id,
-      },
-    },
-  });
-  await prisma.incomePlanItem.deleteMany({
-    where: {
-      budgetPeriod: {
-        userId: user.id,
-      },
-    },
-  });
-  await prisma.budgetAllocation.deleteMany({ where: { userId: user.id } });
-  await prisma.budgetRule.deleteMany({ where: { userId: user.id } });
-  await prisma.budgetPeriod.deleteMany({ where: { userId: user.id } });
+  await prisma.statementPayment.deleteMany({ where: { userId: user.id } });
+  await prisma.transfer.deleteMany({ where: { userId: user.id } });
+  await prisma.transaction.deleteMany({ where: { userId: user.id } });
+  await prisma.plannedTransfer.deleteMany({ where: { userId: user.id } });
+  await prisma.accountBalanceSnapshot.deleteMany({ where: { userId: user.id } });
+  await prisma.bill.deleteMany({ where: { userId: user.id } });
   await prisma.installment.deleteMany({ where: { userId: user.id } });
-  await prisma.expense.deleteMany({ where: { userId: user.id } });
   await prisma.installmentPlan.deleteMany({ where: { userId: user.id } });
-  await prisma.recurringExpense.deleteMany({ where: { userId: user.id } });
-  await prisma.category.deleteMany({ where: { userId: user.id } });
-  await prisma.account.deleteMany({ where: { userId: user.id } });
+  await prisma.creditCardStatement.deleteMany({ where: { userId: user.id } });
+  await prisma.creditCardSettings.deleteMany({
+    where: { account: { userId: user.id } },
+  });
   await prisma.budget.deleteMany({ where: { userId: user.id } });
+  await prisma.budgetRule.deleteMany({ where: { userId: user.id } });
+  await prisma.incomePlanItem.deleteMany({ where: { userId: user.id } });
+  await prisma.incomeEvent.deleteMany({ where: { userId: user.id } });
+  await prisma.budgetPeriod.deleteMany({ where: { userId: user.id } });
+  await prisma.project.deleteMany({ where: { userId: user.id } });
+  await prisma.category.deleteMany({ where: { userId: user.id } });
+  await prisma.accountTransferProfile.deleteMany({
+    where: { account: { userId: user.id } },
+  });
+  await prisma.account.deleteMany({ where: { userId: user.id } });
 
-  const seedAccounts = buildSeedAccounts(budgetRows, debtRows, accountRows);
-  const seedCreditStatementClosingDay = Number.parseInt(
-    process.env.SEED_CREDIT_STATEMENT_CLOSING_DAY ?? "15",
-    10,
-  );
-  const seedCreditPaymentGraceDays = Number.parseInt(
-    process.env.SEED_CREDIT_PAYMENT_GRACE_DAYS ?? "20",
-    10,
-  );
-  const debtByCardKey = new Map<string, number>();
-  for (const row of debtRows) {
-    const key = toAccountKey(row.cardName);
-    debtByCardKey.set(key, (debtByCardKey.get(key) ?? 0) + row.remainingAmountCents);
-  }
-  const accountByKey = new Map<string, string>();
+  const accountByName = new Map<string, string>();
   for (const account of seedAccounts) {
-    const accountKey = toAccountKey(account.name);
-    const isCredit = account.type === "credit";
     const created = await prisma.account.create({
       data: {
         userId: user.id,
         name: account.name,
         type: account.type,
         currency: account.currency,
-        clabe: account.clabe,
-        institution: account.institution,
-        balance: 0,
-        creditLimit: null,
-        currentDebt: isCredit ? (debtByCardKey.get(accountKey) ?? 0) : null,
-        statementClosingDay: isCredit ? seedCreditStatementClosingDay : null,
-        paymentGraceDays: isCredit ? seedCreditPaymentGraceDays : null,
       },
     });
-    accountByKey.set(accountKey, created.id);
+    accountByName.set(account.name, created.id);
   }
 
-  const categoryByName = new Map<string, string>();
-  const recurringCategories = Array.from(new Set(budgetRows.map((row) => row.section)));
-  const allCategories = Array.from(
-    new Set([...recurringCategories, ...PLAN_DEFAULT_CATEGORIES, "Deuda MSI"]),
-  );
+  const checkingAccountId = accountByName.get("Main Checking");
+  const creditAccountId = accountByName.get("HSBC World Elite");
 
-  for (const [index, categoryName] of allCategories.entries()) {
+  if (!checkingAccountId || !creditAccountId) {
+    throw new Error("Required seed accounts were not created");
+  }
+
+  await prisma.accountTransferProfile.create({
+    data: {
+      accountId: checkingAccountId,
+      clabe: "012180004180123456",
+      beneficiaryName: "Main Checking",
+      bankName: "BBVA",
+      isProgrammable: true,
+    },
+  });
+
+  await prisma.creditCardSettings.create({
+    data: {
+      accountId: creditAccountId,
+      statementDay: 15,
+      dueDay: 5,
+      graceDays: 20,
+    },
+  });
+
+  const categoryByName = new Map<string, string>();
+  for (const category of seedCategories) {
+    const parentId = category.parentName
+      ? (categoryByName.get(category.parentName) ?? null)
+      : null;
     const created = await prisma.category.create({
       data: {
         userId: user.id,
-        name: categoryName,
-        sortOrder: index,
+        name: category.name,
+        kind: category.kind,
+        parentId,
       },
     });
-    categoryByName.set(categoryName, created.id);
+    categoryByName.set(category.name, created.id);
+  }
+
+  const foodCategoryId = categoryByName.get("Food");
+  const debtCategoryId = categoryByName.get("Debt");
+  const bufferCategoryId = categoryByName.get("Buffer");
+  if (!foodCategoryId || !debtCategoryId || !bufferCategoryId) {
+    throw new Error("Required seed categories were not created");
   }
 
   const now = new Date();
-  const computedMonthlyRecurringLimit = budgetRows.reduce(
-    (sum, row) => sum + row.monthlyAmountCents,
-    0,
-  );
-  const seedBudgetLimit = Number.parseInt(
-    process.env.SEED_BUDGET_LIMIT_CENTS ?? String(computedMonthlyRecurringLimit),
-    10,
-  );
-  const seedBudgetCurrency =
-    (process.env.SEED_BUDGET_CURRENCY as Currency | undefined) ?? "MXN";
-  const seedBudgetName = process.env.SEED_BUDGET_NAME ?? "Default Budget";
+  const periodMonth = monthKey(now);
+  const periodStart = startOfMonth(now);
 
-  const defaultBudget = await prisma.budget.create({
-    data: {
-      userId: user.id,
-      name: seedBudgetName,
-      startDate: startOfMonth(now),
-      endDate: endOfMonth(now),
-      currency: seedBudgetCurrency,
-      budgetLimit: seedBudgetLimit,
-      isDefault: true,
-    },
-  });
-
-  const budgetPeriodMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   const budgetPeriod = await prisma.budgetPeriod.create({
     data: {
       userId: user.id,
-      month: budgetPeriodMonth,
-      currency: seedBudgetCurrency,
-      expectedIncomeAmount: seedBudgetLimit,
-      notes: "Seeded period for finance-v2 planning features",
+      month: periodMonth,
+      currency: "MXN",
+      expectedIncomeAmount: 120_000_00,
+      notes: "Seeded monthly plan",
     },
   });
 
-  const salarySourceAccount = accountByKey.values().next().value ?? null;
   await prisma.incomePlanItem.create({
     data: {
+      userId: user.id,
       budgetPeriodId: budgetPeriod.id,
-      date: startOfMonth(now),
-      source: "Salary",
-      amount: seedBudgetLimit,
-      accountId: salarySourceAccount,
+      date: periodStart,
+      source: "Salary plan",
+      amount: 120_000_00,
+      accountId: checkingAccountId,
       isRecurring: true,
     },
   });
 
-  const generatedAllocationIds = new Set<string>();
-  for (const categoryName of PLAN_DEFAULT_CATEGORIES.slice(0, 3)) {
-    const categoryId = categoryByName.get(categoryName);
-    if (!categoryId) continue;
-    const rule = await prisma.budgetRule.create({
-      data: {
-        userId: user.id,
-        name: `Seed ${categoryName} fixed`,
-        categoryId,
-        ruleType: "fixed",
-        value: Math.round(seedBudgetLimit / 12),
-        applyOrder: generatedAllocationIds.size,
-      },
-    });
-    generatedAllocationIds.add(rule.id);
+  const incomeEvent = await prisma.incomeEvent.create({
+    data: {
+      userId: user.id,
+      date: periodStart,
+      amount: 120_000_00,
+      accountId: checkingAccountId,
+      budgetPeriodId: budgetPeriod.id,
+      source: "salary" satisfies IncomeSource,
+      notes: "Seed paycheck",
+    },
+  });
 
-    await prisma.budgetAllocation.create({
-      data: {
+  const fixedRule = await prisma.budgetRule.create({
+    data: {
+      userId: user.id,
+      name: "Food fixed",
+      categoryId: foodCategoryId,
+      ruleType: "fixed" satisfies BudgetRuleType,
+      value: 18_000_00,
+      applyOrder: 0,
+    },
+  });
+
+  const percentRule = await prisma.budgetRule.create({
+    data: {
+      userId: user.id,
+      name: "Buffer 10%",
+      categoryId: bufferCategoryId,
+      ruleType: "percent_of_income" satisfies BudgetRuleType,
+      value: 1000,
+      applyOrder: 1,
+    },
+  });
+
+  await prisma.budget.createMany({
+    data: [
+      {
         userId: user.id,
         budgetPeriodId: budgetPeriod.id,
-        categoryId,
-        plannedAmount: Math.round(seedBudgetLimit / 12),
-        generatedFromRuleId: rule.id,
-        isOverride: false,
+        categoryId: foodCategoryId,
+        plannedAmount: 18_000_00,
+        generatedFromRuleId: fixedRule.id,
       },
-    });
-  }
-
-  for (const row of budgetRows) {
-    if (!row.sourceAccountName) continue;
-
-    const sourceAccountId = accountByKey.get(toAccountKey(row.sourceAccountName));
-    const categoryId = categoryByName.get(row.section);
-    if (!sourceAccountId || !categoryId) continue;
-
-    const destinationAccountId = row.destinationAccountName
-      ? (accountByKey.get(toAccountKey(row.destinationAccountName)) ?? null)
-      : null;
-
-    await prisma.recurringExpense.create({
-      data: {
+      {
         userId: user.id,
-        budgetId: defaultBudget.id,
-        categoryId,
-        sourceAccountId,
-        destAccountId: destinationAccountId,
-        description: row.name,
-        amount: row.monthlyAmountCents,
-        currency: row.currency,
-        frequency: inferFrequency(row),
-        isAnnual: row.isAnnual,
-        annualCost: row.annualCostCents,
-        notes: row.notes,
+        budgetPeriodId: budgetPeriod.id,
+        categoryId: bufferCategoryId,
+        plannedAmount: 12_000_00,
+        generatedFromRuleId: percentRule.id,
       },
-    });
-  }
+    ],
+  });
 
-  const installmentCategoryId = categoryByName.get("Deuda MSI");
-  if (!installmentCategoryId) {
-    throw new Error("Installment category missing");
-  }
+  const project = await prisma.project.create({
+    data: {
+      userId: user.id,
+      name: "Vacation Fund",
+      status: "active" satisfies ProjectStatus,
+      startDate: periodStart,
+    },
+  });
 
-  const defaultStartDate = process.env.SEED_DEBT_START_DATE
-    ? new Date(process.env.SEED_DEBT_START_DATE)
-    : new Date();
+  const installmentPlan = await prisma.installmentPlan.create({
+    data: {
+      userId: user.id,
+      accountId: creditAccountId,
+      name: "Laptop MSI",
+      purchaseDate: periodStart,
+      principalAmount: 24_000_00,
+      installmentCountTotal: 12,
+      installmentAmount: 2_000_00,
+      status: "active" satisfies InstallmentPlanStatus,
+      categoryId: debtCategoryId,
+      projectId: project.id,
+    },
+  });
 
-  for (const row of debtRows) {
-    const accountId = accountByKey.get(toAccountKey(row.cardName));
-    if (!accountId) continue;
+  const firstInstallment = await prisma.installment.create({
+    data: {
+      userId: user.id,
+      planId: installmentPlan.id,
+      installmentNumber: 1,
+      dueDate: addDays(periodStart, 5),
+      amount: 2_000_00,
+    },
+  });
 
-    const plan = await prisma.installmentPlan.create({
-      data: {
+  const statement = await prisma.creditCardStatement.create({
+    data: {
+      userId: user.id,
+      accountId: creditAccountId,
+      periodStart,
+      periodEnd: addDays(periodStart, 30),
+      closingDate: addDays(periodStart, 30),
+      dueDate: addDays(periodStart, 45),
+      statementBalance: 4_200_00,
+      paymentsApplied: 0,
+      status: "closed",
+    },
+  });
+
+  await prisma.transaction.create({
+    data: {
+      userId: user.id,
+      date: addDays(periodStart, 8),
+      description: "Groceries card purchase",
+      amount: 2_200_00,
+      accountId: creditAccountId,
+      categoryId: foodCategoryId,
+      statementId: statement.id,
+      installmentId: firstInstallment.id,
+      notes: "Seed transaction",
+    },
+  });
+
+  await prisma.transaction.create({
+    data: {
+      userId: user.id,
+      date: periodStart,
+      description: "Salary deposit",
+      amount: 120_000_00,
+      accountId: checkingAccountId,
+      categoryId: categoryByName.get("Income")!,
+      notes: "Seed income",
+    },
+  });
+
+  const transferOutflowTxn = await prisma.transaction.create({
+    data: {
+      userId: user.id,
+      date: addDays(periodStart, 12),
+      description: "Card payment outflow",
+      amount: -4_200_00,
+      accountId: checkingAccountId,
+      categoryId: categoryByName.get("Transfers")!,
+      notes: "Seed transfer outflow",
+    },
+  });
+
+  const transferInflowTxn = await prisma.transaction.create({
+    data: {
+      userId: user.id,
+      date: addDays(periodStart, 12),
+      description: "Card payment inflow",
+      amount: 4_200_00,
+      accountId: creditAccountId,
+      categoryId: categoryByName.get("Transfers")!,
+      notes: "Seed transfer inflow",
+    },
+  });
+
+  const plannedTransfer = await prisma.plannedTransfer.create({
+    data: {
+      userId: user.id,
+      plannedDate: addDays(periodStart, 12),
+      fromAccountId: checkingAccountId,
+      toAccountId: creditAccountId,
+      amount: 4_200_00,
+      status: "executed" satisfies PlannedTransferStatus,
+      incomeEventId: incomeEvent.id,
+      note: "Planned card payment",
+    },
+  });
+
+  const transfer = await prisma.transfer.create({
+    data: {
+      userId: user.id,
+      date: addDays(periodStart, 12),
+      fromAccountId: checkingAccountId,
+      toAccountId: creditAccountId,
+      amount: 4_200_00,
+      note: "Card payment",
+      outflowTransactionId: transferOutflowTxn.id,
+      inflowTransactionId: transferInflowTxn.id,
+      plannedTransferId: plannedTransfer.id,
+    },
+  });
+
+  await prisma.statementPayment.create({
+    data: {
+      userId: user.id,
+      statementId: statement.id,
+      transferId: transfer.id,
+      amountApplied: 4_200_00,
+    },
+  });
+
+  await prisma.bill.create({
+    data: {
+      userId: user.id,
+      name: "Internet",
+      categoryId: foodCategoryId,
+      amountType: "fixed" satisfies BillAmountType,
+      defaultAmount: 600_00,
+      dueDay: 10,
+      payingAccountId: checkingAccountId,
+      fundingAccountId: null,
+      isActive: true,
+      notes: "Seed monthly bill",
+    },
+  });
+
+  await prisma.accountBalanceSnapshot.createMany({
+    data: [
+      {
         userId: user.id,
-        accountId,
-        categoryId: installmentCategoryId,
-        description: row.concept,
-        totalAmount: row.totalAmountCents,
-        currency: row.currency,
-        months: row.months,
-        interestRate: 0,
-        startDate: defaultStartDate,
-        status: inferInstallmentStatus(row),
+        accountId: checkingAccountId,
+        asOfDate: periodStart,
+        balance: 115_800_00,
+        source: "manual" satisfies SnapshotSource,
       },
-    });
-
-    await prisma.installment.createMany({
-      data: Array.from({ length: row.months }, (_, idx) => ({
+      {
         userId: user.id,
-        installmentPlanId: plan.id,
-        installmentNumber: idx + 1,
-        dueDate: addMonths(defaultStartDate, idx),
-        amount:
-          idx === row.months - 1
-            ? row.totalAmountCents -
-              Math.floor(row.totalAmountCents / row.months) * (row.months - 1)
-            : Math.floor(row.totalAmountCents / row.months),
-      })),
-    });
-  }
+        accountId: creditAccountId,
+        asOfDate: periodStart,
+        balance: -2_200_00,
+        source: "manual" satisfies SnapshotSource,
+      },
+    ],
+  });
 
   return {
     userId: user.id,
     email: user.email,
     password: seedUserPassword,
-    accountsCreated: accountByKey.size,
-    categoriesCreated: categoryByName.size,
-    recurringExpensesCreated: budgetRows.filter((row) => row.sourceAccountName).length,
-    installmentPlansCreated: debtRows.length,
-    budgetPeriodsCreated: 1,
-    budgetRulesCreated: generatedAllocationIds.size,
-    budgetAllocationsCreated: generatedAllocationIds.size,
-    budgetsCreated: 1,
+    accountsCreated: seedAccounts.length,
+    categoriesCreated: seedCategories.length,
+    transactionsCreated: 4,
+    budgetsCreated: 2,
+    statementsCreated: 1,
+    installmentPlansCreated: 1,
   };
 }
 
-function previewData(
-  budgetCsvPath: string,
-  debtCsvPath: string,
-  accountsCsvPath: string,
-  budgetParsed: BudgetParsedCsv,
-  debtParsed: DebtParsedCsv,
-  accountParsed: AccountParsedCsv,
-) {
-  const recurringBySection = new Map<string, number>();
-  for (const row of budgetParsed.rows) {
-    recurringBySection.set(row.section, (recurringBySection.get(row.section) ?? 0) + 1);
-  }
-
-  const debtByCard = new Map<string, { plans: number; remainingCents: number }>();
-  for (const row of debtParsed.rows) {
-    const prev = debtByCard.get(row.cardName) ?? { plans: 0, remainingCents: 0 };
-    debtByCard.set(row.cardName, {
-      plans: prev.plans + 1,
-      remainingCents: prev.remainingCents + row.remainingAmountCents,
-    });
-  }
-
-  const preview = {
-    budgetCsvPath,
-    debtCsvPath,
-    accountsCsvPath,
-    recurringExpenses: {
-      rowsParsed: budgetParsed.rows.length,
-      sections: Array.from(recurringBySection.entries()).map(([name, count]) => ({
-        name,
-        recurringExpenses: count,
-      })),
-      totalMonthlyCents: budgetParsed.rows.reduce(
-        (sum, row) => sum + row.monthlyAmountCents,
-        0,
-      ),
-    },
-    installmentDebt: {
-      rowsParsed: debtParsed.rows.length,
-      cards: Array.from(debtByCard.entries()).map(([name, data]) => ({
-        name,
-        plans: data.plans,
-        remainingCents: data.remainingCents,
-      })),
-      totalRemainingCents: debtParsed.rows.reduce(
-        (sum, row) => sum + row.remainingAmountCents,
-        0,
-      ),
-      totalMonthlyDebtPaymentCents: debtParsed.rows.reduce(
-        (sum, row) => sum + row.monthlyPaymentCents,
-        0,
-      ),
-    },
-    uniqueAccountsReferenced: uniqueAccountNames(
-      budgetParsed.rows,
-      debtParsed.rows,
-    ).sort(),
-    accountCatalog: {
-      rowsParsed: accountParsed.rows.length,
-      totalSeedAccounts: buildSeedAccounts(
-        budgetParsed.rows,
-        debtParsed.rows,
-        accountParsed.rows,
-      ).length,
-      sampleAccounts: accountParsed.rows.slice(0, 8).map((row) => ({
-        name: row.name,
-        typeLabel: row.typeLabel,
-        type: row.type,
-        clabe: row.clabe,
-        accountOrCard: row.accountOrCard,
-        referenceCode: row.referenceCode,
-      })),
-    },
-    sampleRecurringExpenses: budgetParsed.rows.slice(0, 6).map((row) => ({
-      section: row.section,
-      description: row.name,
-      monthlyAmountCents: row.monthlyAmountCents,
-      biweeklyAmountCents: row.biweeklyAmountCents,
-      isAnnual: row.isAnnual,
-      annualCostCents: row.annualCostCents,
-      frequency: inferFrequency(row),
-      sourceAccount: row.sourceAccountName,
-      destinationAccount: row.destinationAccountName,
-      notes: row.notes,
-    })),
-    sampleInstallmentPlans: debtParsed.rows.slice(0, 8).map((row) => ({
-      description: row.concept,
-      cardName: row.cardName,
-      totalAmountCents: row.totalAmountCents,
-      months: row.months,
-      monthsPaid: row.monthsPaid,
-      monthlyPaymentCents: row.monthlyPaymentCents,
-      remainingAmountCents: row.remainingAmountCents,
-      status: inferInstallmentStatus(row),
-    })),
-    visualization: buildVisualization(budgetParsed.rows, debtParsed.rows),
+function previewData() {
+  return {
+    accounts: seedAccounts.map((a) => a.name),
+    categories: seedCategories.map((c) => c.name),
+    notes: [
+      "Seed will create one monthly budget period with rules and generated budgets.",
+      "Seed will create a credit statement with a linked payment transfer.",
+      "Seed will create one installment plan with first installment linked to transaction.",
+    ],
   };
-
-  console.log(JSON.stringify(preview, null, 2));
 }
 
 async function main() {
-  const args = parseArgs();
-  const budgetCsvPath =
-    process.env.SEED_BUDGET_CSV_PATH ?? process.env.SEED_CSV_PATH ?? defaultBudgetCsvPath;
-  const debtCsvPath = process.env.SEED_DEBT_CSV_PATH ?? defaultDebtCsvPath;
-  const accountsCsvPath = process.env.SEED_ACCOUNTS_CSV_PATH ?? defaultAccountsCsvPath;
+  const { apply, preview } = parseArgs();
 
-  const budgetCsvContent = fs.readFileSync(budgetCsvPath, "utf8");
-  const debtCsvContent = fs.readFileSync(debtCsvPath, "utf8");
-  const accountsCsvContent = fs.readFileSync(accountsCsvPath, "utf8");
-
-  const budgetParsed = parseBudgetCsv(budgetCsvContent);
-  const debtParsed = parseDebtCsv(debtCsvContent);
-  const accountParsed = parseAccountCsv(accountsCsvContent);
-
-  if (args.preview) {
-    previewData(
-      budgetCsvPath,
-      debtCsvPath,
-      accountsCsvPath,
-      budgetParsed,
-      debtParsed,
-      accountParsed,
-    );
+  if (preview) {
+    console.log(JSON.stringify(previewData(), null, 2));
   }
 
-  if (!args.apply) {
+  if (!apply) {
     return;
   }
 
-  const result = await applySeed(budgetParsed.rows, debtParsed.rows, accountParsed.rows);
+  const result = await applySeed();
   console.log("Seed applied:", JSON.stringify(result, null, 2));
 }
 
 main()
   .catch((error) => {
-    console.error("Seed failed:", error);
+    console.error(error);
     process.exitCode = 1;
   })
   .finally(async () => {

@@ -227,6 +227,14 @@ Keep a single `.env` at the repo root and use **`pnpm db:migrate`** for migratio
   - `pnpm db:seed`
 - Then restart dev with `pnpm dev`.
 
+### Transactions-first cutover (breaking for old finance tables)
+
+- The DB schema now uses `transactions` as the canonical ledger and removes old `Expense`-centric tables from migration history.
+- This requires a one-time local reset for all developers after pulling the cutover branch:
+  - `pnpm exec dotenv -e .env -- pnpm --filter @expense-management/db exec prisma migrate reset --force --skip-seed`
+  - `pnpm db:seed`
+- Auth/user seed credentials remain available through `SEED_USER_EMAIL` / `SEED_USER_PASSWORD`.
+
 ### Postgres not running
 
 - Start it: `docker compose up -d postgres`.
