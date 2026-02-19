@@ -3,8 +3,8 @@ import { Link, createRoute, useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { rootRoute } from "./__root";
 import { authClient } from "../utils/auth-client";
-import { SignupWrapper } from "../components/layout/page";
-import { Button } from "../components/ui/button";
+import { SignupWrapper } from "@components/layout/Page";
+import { Button } from "@components/ui/Button";
 import { SubmitHandler, useForm } from "react-hook-form";
 import {
   Card,
@@ -12,16 +12,12 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
+} from "@components/ui/Card";
 import { cn } from "@/utils/cn";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from "@/components/ui/input-group";
+import { Field, FieldGroup, FieldLabel } from "@components/ui/Field";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@components/ui/InputGroup";
 import { EyeClosed, EyeIcon, LockIcon, MailIcon, UserIcon } from "lucide-react";
-import { Spinner } from "@/components/ui/spinner";
+import { Spinner } from "@components/ui/Spinner";
 import { resolvePostAuthPath, toCallbackURL } from "../utils/auth-session";
 
 export const registerRoute = createRoute({

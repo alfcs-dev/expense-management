@@ -3,9 +3,9 @@ import { Link, createRoute, useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { rootRoute } from "./__root";
 import { authClient } from "../utils/auth-client";
-import { SignupWrapper } from "../components/layout/page";
-import { Button } from "../components/ui/button";
-import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { SignupWrapper } from "@components/layout/Page";
+import { Button } from "@components/ui/Button";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@components/ui/Field";
 import { SubmitHandler, useForm } from "react-hook-form";
 import {
   Card,
@@ -13,14 +13,10 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
+} from "@components/ui/Card";
 import { cn } from "@/lib/utils";
-import { Spinner } from "@/components/ui/spinner";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from "@/components/ui/input-group";
+import { Spinner } from "@components/ui/Spinner";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@components/ui/InputGroup";
 import { EyeClosed, EyeIcon, LockIcon, MailIcon } from "lucide-react";
 import { resolvePostAuthPath, toCallbackURL } from "../utils/auth-session";
 

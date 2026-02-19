@@ -2,7 +2,7 @@ import { User } from "@expense-management/trpc";
 import { Link, useNavigate } from "@tanstack/react-router";
 
 import { useTranslation } from "react-i18next";
-import { Button } from "../ui/button";
+import { Button } from "@components/ui/Button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,9 +15,9 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
-} from "../ui/dropdown-menu";
+} from "@components/ui/DropdownMenu";
 import { CreditCardIcon, LogOutIcon, SettingsIcon, UserIcon } from "lucide-react";
-import { Avatar, AvatarFallback } from "../ui/avatar";
+import { Avatar, AvatarFallback } from "@components/ui/Avatar";
 import { authClient } from "@/utils/auth-client";
 import { authRouterContext } from "@/utils/auth-session";
 import {
@@ -25,7 +25,7 @@ import {
   NavigationMenuItem,
   NavigationMenuLink,
   NavigationMenuList,
-} from "../ui/navigation-menu";
+} from "@components/ui/NavigationMenu";
 import { cn } from "@/lib/utils";
 
 export function Nav({ user }: { user?: User | null }) {
@@ -33,14 +33,7 @@ export function Nav({ user }: { user?: User | null }) {
   const navigate = useNavigate();
   const { refetch } = authClient.useSession();
   const displayName = user?.name?.trim() || user?.email || "User";
-  const navLinks = [
-    { to: "/", label: t("nav.home") },
-    { to: "/accounts", label: t("nav.accounts") },
-    { to: "/budgets", label: t("nav.budgets") },
-    { to: "/categories", label: t("nav.categories") },
-    { to: "/expenses", label: t("nav.expenses") },
-    { to: "/recurring-expenses", label: t("nav.recurringExpenses") },
-  ] as const;
+  const navLinks = [{ to: "/dashboard", label: t("dashboard.title") }] as const;
 
   const currentLanguage: "en" | "es" = i18n.resolvedLanguage?.startsWith("es")
     ? "es"
@@ -70,7 +63,7 @@ export function Nav({ user }: { user?: User | null }) {
                     <NavigationMenuLink asChild>
                       <Link
                         to={to}
-                        activeOptions={{ exact: to === "/" }}
+                        activeOptions={{ exact: to === "/dashboard" }}
                         activeProps={{
                           className:
                             "bg-white text-slate-950 shadow-sm ring-1 ring-slate-200",
