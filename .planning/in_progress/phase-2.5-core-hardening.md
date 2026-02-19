@@ -200,6 +200,71 @@ Each reintroduced feature must ship as vertical slice with:
 ## 8. In Progress Log
 
 **Achievements**
+- 2026-02-19: Removed stale `packages/db/dist2` artifact and added guardrails.
+  - Removed legacy `dist2` build output directory from `packages/db` workspace content.
+  - Added `.gitignore` rule `packages/db/dist2/` to prevent future accidental tracking of duplicate build artifacts.
+- 2026-02-19: Generated full-schema ERD image artifacts from Prisma schema.
+  - Added auto-generated Mermaid source at `docs/diagrams/full-schema-erd.mmd` from `packages/db/prisma/schema.prisma` (25 models).
+  - Exported full-schema diagram images to `docs/diagrams/full-schema-erd.svg` and `docs/diagrams/full-schema-erd.png`.
+  - Kept existing conceptual ERD docs unchanged and stored full-schema output as separate diagram artifacts.
+- 2026-02-19: Resolved component import mismatches and introduced `@components` alias.
+  - Removed stale duplicate file `apps/web/src/components/accounts/account-form.tsx` that conflicted with `AccountForm.tsx`.
+  - Added TypeScript path alias `@components/* -> ./src/components/*` in `apps/web/tsconfig.json`.
+  - Added Vite resolve alias for `@components` (with precedence over `@`) in `apps/web/vite.config.ts`.
+  - Replaced web component imports to use `@components/...` instead of relative component paths.
+  - Validation complete for web package: `pnpm --filter @expense-management/web typecheck` and `pnpm --filter @expense-management/web lint` pass.
+- 2026-02-19: Applied React/web naming convention across `apps/web` component files.
+  - Renamed component modules to `PascalCase` in `src/components/ui`, `src/components/layout`, and `src/components/accounts`.
+  - Updated route/component import paths to match renamed files (including alias-based `@/components/...` imports).
+  - Validation complete for web package: `pnpm --filter @expense-management/web typecheck` and `pnpm --filter @expense-management/web lint` pass.
+- 2026-02-19: Standardized React/web naming conventions for agent tooling.
+  - Added explicit naming convention rules in `AGENTS.md` for component files, non-component files, folders, and custom hooks.
+  - Added Cursor rule `.cursor/rules/react-web-file-naming-conventions.mdc` with `apps/web/src` globs and always-apply behavior.
+  - Added app-local Cursor rule mirror at `apps/web/.cursor/rules/react-web-file-naming-conventions.mdc` with `src/**/*` globs.
+  - Aligned Codex and Cursor guidance to reduce file naming drift in web changes.
+- 2026-02-19: Expanded institution catalog seed coverage and populated local catalog dataset.
+  - Updated `packages/db/seed.ts` with a 94-entry institution list from manual catalog input.
+  - Standardized `bankCode` derivation as the last 3 digits of `code` (`code.slice(-3).padStart(3, "0")`) to avoid drift.
+  - Applied non-destructive upserts to `institution_catalog` locally and verified counts (`94` total, `94` active).
+- 2026-02-19: Extracted `/accounts` form into a dedicated component module.
+  - Moved account create/edit form JSX into `apps/web/src/components/accounts/account-form.tsx`.
+  - Kept route-level submission and mutation logic in `apps/web/src/routes/accounts.tsx` and passed state/actions via props.
+  - Preserved existing field validation and conditional card/credit-cycle form behavior.
+- 2026-02-19: Restored drawer-based account create/edit form surface.
+  - Replaced `/accounts` create/edit `Popover` form container with right-side `Sheet` drawer.
+  - Kept account form validation, institution inference, and card/credit settings logic unchanged.
+  - Improved mobile usability for account form by moving long form fields into a scrollable drawer layout.
+- 2026-02-18: Switched institution relationships to UUID-based catalog IDs.
+  - Updated `institution_catalog` to use UUID primary key (`id`) while keeping `code` and `bankCode` as catalog attributes.
+  - Updated `accounts` relation from `institution_code -> institution_catalog.code` to `institution_id -> institution_catalog.id`.
+  - Added migration `20260218050153_institution_catalog_uuid_fk` with in-place UUID backfill and account FK remap.
+  - Updated account tRPC inputs to support `institutionId` (with compatibility handling for legacy `institutionCode` payloads).
+  - Updated accounts UI to select/store institution by UUID and keep CLABE bank-code inference behavior.
+  - Updated seed + Postman + docs for the new relation model.
+- 2026-02-18: Added account metadata validation and institution catalog integration path.
+  - Integrated `clabe-validator` in shared CLABE utilities with checksum fallback for resilience.
+  - Added `card-validator` driven account form UX for brand + last4 capture (no full PAN persistence).
+  - Added Prisma entities and account relations for `institution_catalog` and `account_card_profiles`.
+  - Added `institutionCatalog` tRPC router and expanded `account.create/update/list` include/input shape.
+  - Updated Postman/API docs and added dependency fallback doc for library maintenance scenarios.
+- 2026-02-17: Expanded account type model to support broader account semantics.
+  - Updated `AccountType` enum to `debit | savings | investment | credit_card | credit | cash`.
+  - Added migration `20260217233928_account_type_enum_expansion` with explicit `checking -> debit` data mapping.
+  - Updated shared account schema/types, seed data, and web account form options to new enum set.
+- 2026-02-17: Temporarily reduced web route surface to three core screens for branch stabilization.
+  - Kept only auth entry screens (`/sign-in`, `/register`) plus protected `/dashboard`.
+  - Added root redirect route (`/`) to forward to `/sign-in` or `/dashboard` based on session.
+  - Removed legacy route screens (`accounts`, `budgets`, `categories`, `expenses`, `recurring-expenses`) from current branch UI.
+- 2026-02-17: Consolidated Finance V2 cutover documentation for agent handoff and implementation tracking.
+  - Added `docs/FINANCE_V2_CHANGELOG.md` with schema, migration, seed, tRPC, and breaking-change summary.
+  - Linked architecture doc to changelog for faster cross-reference during implementation.
+  - Refreshed API testing guidance to align with transaction-first tRPC surface.
+- 2026-02-17: Rewired tRPC layer for transactions-first schema.
+  - Updated `account` and `category` routers to new account/category enums and relation fields.
+  - Reworked planning routers to `budget_periods` + `budget_rules` + `budgets` table semantics.
+  - Reworked credit statement and installment routers to `transactions` and new naming (`fromAccountId`, `planId`, etc.).
+  - Replaced legacy expense behavior with `transaction` router surface and kept `expense` as temporary alias.
+  - Marked recurring-expense router as deprecated in API behavior after schema cutover.
 - 2026-02-17: Executed hard schema cutover to `transactions`-first finance domain (pre-launch reset path).
   - Preserved auth/user models and removed legacy finance model chain from Prisma migrations.
   - Replaced `Expense`-centric schema with `transactions`-centric schema and V2 seam entities (`planned_transfers`, `income_events`, `bills`, `account_balance_snapshots`, `account_transfer_profiles`).

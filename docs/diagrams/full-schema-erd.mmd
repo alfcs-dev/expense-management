@@ -1,0 +1,146 @@
+erDiagram
+  USER {
+    string _
+  }
+  AUTH_SESSION {
+    string _
+  }
+  AUTH_ACCOUNT {
+    string _
+  }
+  AUTH_VERIFICATION {
+    string _
+  }
+  ACCOUNT {
+    string _
+  }
+  ACCOUNT_TRANSFER_PROFILE {
+    string _
+  }
+  ACCOUNT_CARD_PROFILE {
+    string _
+  }
+  INSTITUTION_CATALOG {
+    string _
+  }
+  CATEGORY {
+    string _
+  }
+  PROJECT {
+    string _
+  }
+  CREDIT_CARD_SETTINGS {
+    string _
+  }
+  CREDIT_CARD_STATEMENT {
+    string _
+  }
+  INSTALLMENT_PLAN {
+    string _
+  }
+  INSTALLMENT {
+    string _
+  }
+  BUDGET_PERIOD {
+    string _
+  }
+  INCOME_PLAN_ITEM {
+    string _
+  }
+  INCOME_EVENT {
+    string _
+  }
+  BUDGET_RULE {
+    string _
+  }
+  BUDGET {
+    string _
+  }
+  PLANNED_TRANSFER {
+    string _
+  }
+  TRANSACTION {
+    string _
+  }
+  TRANSFER {
+    string _
+  }
+  STATEMENT_PAYMENT {
+    string _
+  }
+  BILL {
+    string _
+  }
+  ACCOUNT_BALANCE_SNAPSHOT {
+    string _
+  }
+  USER ||--o{ AUTH_SESSION : authSessions
+  USER ||--o{ AUTH_ACCOUNT : authAccounts
+  AUTH_SESSION ||--|| USER : user
+  AUTH_ACCOUNT ||--|| USER : user
+  ACCOUNT ||--|| USER : user
+  ACCOUNT o|--|| INSTITUTION_CATALOG : institution
+  ACCOUNT o|--|| ACCOUNT_TRANSFER_PROFILE : transferProfile
+  ACCOUNT o|--|| ACCOUNT_CARD_PROFILE : cardProfile
+  ACCOUNT o|--|| CREDIT_CARD_SETTINGS : creditCardSettings
+  ACCOUNT ||--o{ TRANSFER : incomingTransfers
+  ACCOUNT ||--o{ TRANSFER : outgoingTransfers
+  ACCOUNT ||--o{ BILL : billsPaidFrom
+  ACCOUNT ||--o{ BILL : billsFundedFrom
+  ACCOUNT ||--o{ PLANNED_TRANSFER : plannedTransfersFrom
+  ACCOUNT ||--o{ PLANNED_TRANSFER : plannedTransfersTo
+  ACCOUNT_TRANSFER_PROFILE ||--|| ACCOUNT : account
+  ACCOUNT_CARD_PROFILE ||--|| ACCOUNT : account
+  CATEGORY ||--|| USER : user
+  CATEGORY o|--|| CATEGORY : parent
+  CATEGORY ||--o{ CATEGORY : children
+  PROJECT ||--|| USER : user
+  CREDIT_CARD_SETTINGS ||--|| ACCOUNT : account
+  CREDIT_CARD_STATEMENT ||--|| USER : user
+  CREDIT_CARD_STATEMENT ||--|| ACCOUNT : account
+  INSTALLMENT_PLAN ||--|| USER : user
+  INSTALLMENT_PLAN ||--|| ACCOUNT : account
+  INSTALLMENT_PLAN o|--|| CATEGORY : category
+  INSTALLMENT_PLAN o|--|| PROJECT : project
+  INSTALLMENT ||--|| USER : user
+  INSTALLMENT ||--|| INSTALLMENT_PLAN : plan
+  BUDGET_PERIOD ||--|| USER : user
+  INCOME_PLAN_ITEM ||--|| USER : user
+  INCOME_PLAN_ITEM ||--|| BUDGET_PERIOD : budgetPeriod
+  INCOME_PLAN_ITEM o|--|| ACCOUNT : account
+  INCOME_EVENT ||--|| USER : user
+  INCOME_EVENT ||--|| ACCOUNT : account
+  INCOME_EVENT o|--|| BUDGET_PERIOD : budgetPeriod
+  BUDGET_RULE ||--|| USER : user
+  BUDGET_RULE ||--|| CATEGORY : category
+  BUDGET ||--|| USER : user
+  BUDGET ||--|| BUDGET_PERIOD : budgetPeriod
+  BUDGET ||--|| CATEGORY : category
+  BUDGET o|--|| BUDGET_RULE : generatedFromRule
+  PLANNED_TRANSFER ||--|| USER : user
+  PLANNED_TRANSFER ||--|| ACCOUNT : fromAccount
+  PLANNED_TRANSFER ||--|| ACCOUNT : toAccount
+  PLANNED_TRANSFER o|--|| INCOME_EVENT : incomeEvent
+  TRANSACTION ||--|| USER : user
+  TRANSACTION ||--|| ACCOUNT : account
+  TRANSACTION ||--|| CATEGORY : category
+  TRANSACTION o|--|| PROJECT : project
+  TRANSACTION o|--|| CREDIT_CARD_STATEMENT : statement
+  TRANSACTION o|--|| INSTALLMENT : installment
+  TRANSACTION ||--o{ TRANSFER : transferOutflow
+  TRANSACTION ||--o{ TRANSFER : transferInflow
+  TRANSFER ||--|| USER : user
+  TRANSFER ||--|| ACCOUNT : fromAccount
+  TRANSFER ||--|| ACCOUNT : toAccount
+  TRANSFER o|--|| TRANSACTION : outflowTransaction
+  TRANSFER o|--|| TRANSACTION : inflowTransaction
+  TRANSFER o|--|| PLANNED_TRANSFER : plannedTransfer
+  STATEMENT_PAYMENT ||--|| USER : user
+  STATEMENT_PAYMENT ||--|| CREDIT_CARD_STATEMENT : statement
+  STATEMENT_PAYMENT ||--|| TRANSFER : transfer
+  BILL ||--|| USER : user
+  BILL ||--|| CATEGORY : category
+  BILL o|--|| ACCOUNT : payingAccount
+  BILL o|--|| ACCOUNT : fundingAccount
+  ACCOUNT_BALANCE_SNAPSHOT ||--|| USER : user
+  ACCOUNT_BALANCE_SNAPSHOT ||--|| ACCOUNT : account

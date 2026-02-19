@@ -1,0 +1,22 @@
+---
+description: React/web file and folder naming conventions
+globs: src/**/*.ts,src/**/*.tsx,src/**/*.js,src/**/*.jsx
+alwaysApply: true
+---
+
+# React/web naming conventions
+
+Apply these primary naming conventions for React/web files:
+
+| Element | Convention | Example | Rationale |
+|---|---|---|---|
+| Component files | `PascalCase` | `UserProfile.tsx` | Aligns with component names in JSX (`<UserProfile />`) and distinguishes components from non-component files. |
+| Non-component files | `kebab-case` or `camelCase` | `format-date.ts` or `formatDate.ts` | Aligns with standard JavaScript function and variable naming conventions. |
+| Folders | `kebab-case` | `user-profile/` | Improves readability and avoids cross-platform case-sensitivity issues. |
+| Custom hooks | `camelCase` prefixed with `use` | `useAuth.ts` | Matches React hook rules and makes hooks easy to identify. |
+
+## Enforcement guidance
+
+- Use `PascalCase` only for files that export React components as the primary module content.
+- Do not place component files in `kebab-case` or `snake_case`.
+- Keep hook filenames prefixed with `use` and colocate them near the feature folder when possible.

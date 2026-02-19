@@ -26,6 +26,11 @@ Run from repository root unless noted.
 - Language: TypeScript (ES modules, `strict` mode via `tsconfig.base.json`).
 - Use 2-space indentation, semicolons, and double quotes to match existing files.
 - Naming: `camelCase` for variables/functions, `PascalCase` for React components/types, lowercase folder names.
+- React/web file naming convention (primary):
+  - Component files: `PascalCase` (example: `UserProfile.tsx`).
+  - Non-component files: `kebab-case` or `camelCase` (example: `format-date.ts` or `formatDate.ts`).
+  - Folders: `kebab-case` (example: `user-profile/`).
+  - Custom hooks: `camelCase` prefixed with `use` (example: `useAuth.ts`).
 - Keep package boundaries clear; shared logic belongs in `packages/*`, not duplicated in apps.
 
 ## Testing Guidelines
@@ -50,6 +55,26 @@ Use imperative subject lines and scoped prefixes when possible. For PRs, include
 - impacted apps/packages
 - setup or migration steps (especially DB changes)
 - screenshots/GIFs for UI changes and linked issue(s) when applicable
+
+## Agent Commit Workflow
+- Always create scoped commits grouped by concern (do not mix unrelated backend/frontend/docs changes in one commit).
+- Preferred commit scopes:
+  - `feat(web): ...`, `fix(web): ...`, `chore(web): ...` for `apps/web`.
+  - `feat(db): ...`, `fix(db): ...`, `chore(db): ...` for `packages/db`.
+  - `feat(trpc): ...`, `fix(trpc): ...` for `packages/trpc`.
+  - `docs(planning): ...`, `docs(monorepo): ...`, `chore(monorepo): ...` for cross-cutting docs/tooling.
+- Before each commit:
+  - stage only relevant files (`git add <paths...>`).
+  - verify staged diff (`git diff --staged --name-only` and `git diff --staged`).
+  - run applicable validation for that scope (at minimum lint/typecheck for touched area).
+- Commit message rules:
+  - use imperative, explicit subjects.
+  - mention the concrete intent and affected area.
+  - avoid generic subjects like `update files` or `fix stuff`.
+- If multiple independent changes exist, commit in sequence:
+  1. infra/schema/runtime fixes
+  2. feature/UI changes
+  3. docs/rules/planning updates
 
 ## Security & Configuration Tips
 - Keep secrets only in root `.env` (copy from `.env.example`).
