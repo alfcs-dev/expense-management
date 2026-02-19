@@ -4,6 +4,12 @@ import { idSchema } from "@expense-management/shared";
 import { z } from "zod";
 import { protectedProcedure, router } from "../trpc.js";
 
+function addDays(date: Date, days: number): Date {
+  const value = new Date(date);
+  value.setDate(value.getDate() + days);
+  return value;
+}
+
 function requireUserId(user: { id: string } | null): string {
   if (!user) {
     throw new TRPCError({ code: "UNAUTHORIZED", message: "Not authenticated" });
@@ -50,7 +56,6 @@ export const creditCardStatementRouter = router({
         periodStart: z.coerce.date(),
         periodEnd: z.coerce.date(),
         closingDate: z.coerce.date(),
-        dueDate: z.coerce.date(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -97,6 +102,18 @@ export const creditCardStatementRouter = router({
         0,
       );
 
+      const settings = await db.creditCardSettings.findUnique({
+        where: { accountId: input.accountId },
+        select: { graceDays: true },
+      });
+      if (!settings) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Credit card settings are required to compute statement due date",
+        });
+      }
+      const dueDate = addDays(input.closingDate, settings.graceDays ?? 0);
+
       const statement = await db.creditCardStatement.create({
         data: {
           userId,
@@ -104,7 +121,7 @@ export const creditCardStatementRouter = router({
           periodStart: input.periodStart,
           periodEnd: input.periodEnd,
           closingDate: input.closingDate,
-          dueDate: input.dueDate,
+          dueDate,
           statementBalance,
           status: "closed",
           closedAt: new Date(),

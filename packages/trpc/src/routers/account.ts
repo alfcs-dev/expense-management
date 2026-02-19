@@ -1,8 +1,9 @@
 import { TRPCError } from "@trpc/server";
 import { db } from "@expense-management/db";
 import {
-  accountTypeSchema,
-  currencySchema,
+  ACCOUNT_ERROR_CODES,
+  accountInputBaseSchema,
+  accountInputSchema,
   idSchema,
   normalizeClabe,
   parseClabe,
@@ -16,56 +17,6 @@ function requireUserId(user: { id: string } | null): string {
   }
   return user.id;
 }
-
-const transferProfileInputSchema = z
-  .object({
-    clabe: z.string().trim().max(32).optional(),
-    depositReference: z.string().trim().max(80).optional(),
-    beneficiaryName: z.string().trim().max(120).optional(),
-    bankName: z.string().trim().max(120).optional(),
-    isProgrammable: z.boolean().optional(),
-  })
-  .optional();
-
-const cardProfileInputSchema = z
-  .object({
-    brand: z.string().trim().max(40).optional(),
-    last4: z
-      .string()
-      .trim()
-      .regex(/^\d{4}$/, "last4 must contain exactly 4 digits")
-      .optional(),
-  })
-  .nullable()
-  .optional();
-
-const institutionIdSchema = z.string().uuid().nullable().optional();
-const institutionCodeSchema = z
-  .string()
-  .trim()
-  .regex(/^\d{5}$/, "institutionCode must be 5 digits")
-  .nullable()
-  .optional();
-
-const creditCardSettingsInputSchema = z
-  .object({
-    statementDay: z.number().int().min(1).max(31),
-    dueDay: z.number().int().min(1).max(31),
-    graceDays: z.number().int().min(0).max(90).optional(),
-  })
-  .optional();
-
-const accountInputSchema = z.object({
-  name: z.string().trim().min(1).max(100),
-  type: accountTypeSchema,
-  currency: currencySchema,
-  isActive: z.boolean().default(true),
-  institutionId: institutionIdSchema,
-  institutionCode: institutionCodeSchema,
-  transferProfile: transferProfileInputSchema,
-  cardProfile: cardProfileInputSchema,
-  creditCardSettings: creditCardSettingsInputSchema,
-});
 
 export const accountRouter = router({
   list: protectedProcedure.query(async ({ ctx }) => {
@@ -92,14 +43,15 @@ export const accountRouter = router({
         : null;
 
       let clabeBankCode: string | null = null;
-      let clabeBankName: string | null = null;
       if (normalizedClabe) {
         const parsed = parseClabe(normalizedClabe);
         if (!parsed.isValid) {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid CLABE" });
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: ACCOUNT_ERROR_CODES.INVALID_CLABE,
+          });
         }
         clabeBankCode = parsed.bankCode;
-        clabeBankName = parsed.bankName;
       }
 
       let resolvedInstitutionId: string | null =
@@ -126,14 +78,17 @@ export const accountRouter = router({
           select: { id: true },
         });
         if (!institution) {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "Institution not found" });
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: ACCOUNT_ERROR_CODES.INSTITUTION_NOT_FOUND,
+          });
         }
       }
 
       if (isCreditCard && !input.creditCardSettings) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "creditCardSettings are required for credit_card accounts",
+          message: ACCOUNT_ERROR_CODES.CREDIT_CARD_SETTINGS_REQUIRED,
         });
       }
 
@@ -143,6 +98,7 @@ export const accountRouter = router({
           name: input.name,
           type: input.type,
           currency: input.currency,
+          currentBalance: input.currentBalance ?? 0,
           institutionId: resolvedInstitutionId,
           isActive: input.isActive,
           transferProfile: input.transferProfile
@@ -151,7 +107,6 @@ export const accountRouter = router({
                   clabe: normalizedClabe,
                   depositReference: input.transferProfile.depositReference ?? null,
                   beneficiaryName: input.transferProfile.beneficiaryName ?? null,
-                  bankName: input.transferProfile.bankName ?? clabeBankName,
                   isProgrammable: input.transferProfile.isProgrammable ?? false,
                 },
               }
@@ -169,9 +124,9 @@ export const accountRouter = router({
             isCreditCard && input.creditCardSettings
               ? {
                   create: {
-                    statementDay: input.creditCardSettings.statementDay,
-                    dueDay: input.creditCardSettings.dueDay,
+                    statementDay: input.creditCardSettings.statementDay ?? 15,
                     graceDays: input.creditCardSettings.graceDays ?? null,
+                    creditLimit: input.creditCardSettings.creditLimit ?? null,
                   },
                 }
               : undefined,
@@ -189,7 +144,7 @@ export const accountRouter = router({
     .input(
       z.object({
         id: idSchema,
-        data: accountInputSchema.partial(),
+        data: accountInputBaseSchema.partial(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -199,7 +154,10 @@ export const accountRouter = router({
         select: { id: true, type: true, institutionId: true },
       });
       if (!existing) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Account not found" });
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: ACCOUNT_ERROR_CODES.ACCOUNT_NOT_FOUND,
+        });
       }
 
       const nextType = input.data.type ?? existing.type;
@@ -232,15 +190,16 @@ export const accountRouter = router({
         }
       }
       let normalizedClabe: string | null | undefined;
-      let clabeBankName: string | null = null;
       if (input.data.transferProfile?.clabe !== undefined) {
         normalizedClabe = normalizeClabe(input.data.transferProfile.clabe);
         if (normalizedClabe) {
           const parsed = parseClabe(normalizedClabe);
           if (!parsed.isValid) {
-            throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid CLABE" });
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: ACCOUNT_ERROR_CODES.INVALID_CLABE,
+            });
           }
-          clabeBankName = parsed.bankName;
           if (resolvedInstitutionId === undefined && parsed.bankCode) {
             const inferredInstitution = await db.institutionCatalog.findFirst({
               where: { bankCode: parsed.bankCode, isActive: true },
@@ -260,7 +219,10 @@ export const accountRouter = router({
           select: { id: true },
         });
         if (!institution) {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "Institution not found" });
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: ACCOUNT_ERROR_CODES.INSTITUTION_NOT_FOUND,
+          });
         }
       }
 
@@ -270,6 +232,7 @@ export const accountRouter = router({
           name: input.data.name,
           type: input.data.type,
           currency: input.data.currency,
+          currentBalance: input.data.currentBalance,
           institutionId: resolvedInstitutionId,
           isActive: input.data.isActive,
         },
@@ -282,7 +245,6 @@ export const accountRouter = router({
             clabe: normalizedClabe ?? null,
             depositReference: input.data.transferProfile.depositReference ?? null,
             beneficiaryName: input.data.transferProfile.beneficiaryName ?? null,
-            bankName: input.data.transferProfile.bankName ?? clabeBankName,
             isProgrammable: input.data.transferProfile.isProgrammable ?? false,
           },
           create: {
@@ -290,7 +252,6 @@ export const accountRouter = router({
             clabe: normalizedClabe ?? null,
             depositReference: input.data.transferProfile.depositReference ?? null,
             beneficiaryName: input.data.transferProfile.beneficiaryName ?? null,
-            bankName: input.data.transferProfile.bankName ?? clabeBankName,
             isProgrammable: input.data.transferProfile.isProgrammable ?? false,
           },
         });
@@ -322,22 +283,24 @@ export const accountRouter = router({
         if ((input.data.type ?? existing.type) !== "credit_card") {
           throw new TRPCError({
             code: "BAD_REQUEST",
-            message: "creditCardSettings can only be set for credit_card accounts",
+            message: ACCOUNT_ERROR_CODES.CREDIT_CARD_SETTINGS_REQUIRED,
           });
         }
 
+        const cs = input.data.creditCardSettings;
+        const statementDay = cs.statementDay ?? 15;
         await db.creditCardSettings.upsert({
           where: { accountId: input.id },
           update: {
-            statementDay: input.data.creditCardSettings.statementDay,
-            dueDay: input.data.creditCardSettings.dueDay,
-            graceDays: input.data.creditCardSettings.graceDays ?? null,
+            statementDay,
+            graceDays: cs.graceDays ?? null,
+            creditLimit: cs.creditLimit ?? null,
           },
           create: {
             accountId: input.id,
-            statementDay: input.data.creditCardSettings.statementDay,
-            dueDay: input.data.creditCardSettings.dueDay,
-            graceDays: input.data.creditCardSettings.graceDays ?? null,
+            statementDay,
+            graceDays: cs.graceDays ?? null,
+            creditLimit: cs.creditLimit ?? null,
           },
         });
       }
@@ -361,7 +324,10 @@ export const accountRouter = router({
         where: { id: input.id, userId },
       });
       if (deleted.count === 0) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Account not found" });
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: ACCOUNT_ERROR_CODES.ACCOUNT_NOT_FOUND,
+        });
       }
       return { success: true };
     }),

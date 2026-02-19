@@ -39,6 +39,7 @@ type SeedAccount = {
   name: string;
   type: AccountType;
   currency: Currency;
+  currentBalance?: number;
   institutionCode?: string;
 };
 
@@ -49,16 +50,23 @@ type SeedCategory = {
 };
 
 const seedAccounts: SeedAccount[] = [
-  { name: "Main Debit", type: "debit", currency: "MXN", institutionCode: "40012" },
-  { name: "Cash Wallet", type: "cash", currency: "MXN" },
+  {
+    name: "Main Debit",
+    type: "debit",
+    currency: "MXN",
+    currentBalance: 152_340_00,
+    institutionCode: "40012",
+  },
+  { name: "Cash Wallet", type: "cash", currency: "MXN", currentBalance: 12_500_00 },
   {
     name: "HSBC World Elite",
     type: "credit_card",
     currency: "MXN",
+    currentBalance: -24_830_00,
     institutionCode: "40021",
   },
-  { name: "Investment Account", type: "investment", currency: "USD" },
-  { name: "Store Credit", type: "credit", currency: "MXN" },
+  { name: "Investment Account", type: "investment", currency: "USD", currentBalance: 8_200_00 },
+  { name: "Store Credit", type: "credit", currency: "MXN", currentBalance: -4_500_00 },
 ];
 
 const seedInstitutionEntries = [
@@ -278,6 +286,7 @@ async function applySeed() {
         name: account.name,
         type: account.type,
         currency: account.currency,
+        currentBalance: account.currentBalance ?? 0,
         institutionId: account.institutionCode
           ? (institutionByCode.get(account.institutionCode) ?? null)
           : null,
@@ -298,7 +307,6 @@ async function applySeed() {
       accountId: checkingAccountId,
       clabe: "012180004180123456",
       beneficiaryName: "Main Checking",
-      bankName: "BBVA",
       isProgrammable: true,
     },
   });
@@ -315,8 +323,8 @@ async function applySeed() {
     data: {
       accountId: creditAccountId,
       statementDay: 15,
-      dueDay: 5,
       graceDays: 20,
+      creditLimit: 90_000_00,
     },
   });
 

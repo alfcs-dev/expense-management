@@ -167,6 +167,7 @@ model Account {
   name      String
   type      AccountType
   currency  Currency
+  currentBalance Int    @default(0) @map("current_balance")
   institutionId String? @db.Uuid @map("institution_id")
   isActive  Boolean     @default(true) @map("is_active")
   createdAt DateTime    @default(now()) @map("created_at")
@@ -202,7 +203,6 @@ model AccountTransferProfile {
   clabe            String?
   depositReference String?  @map("deposit_reference")
   beneficiaryName  String?  @map("beneficiary_name")
-  bankName         String?  @map("bank_name")
   isProgrammable   Boolean  @default(false) @map("is_programmable")
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @updatedAt @map("updated_at")
@@ -287,8 +287,8 @@ model Project {
 model CreditCardSettings {
   accountId    String   @id @map("account_id")
   statementDay Int      @map("statement_day")
-  dueDay       Int      @map("due_day")
   graceDays    Int?     @map("grace_days")
+  creditLimit  Int?     @map("credit_limit")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
