@@ -6,102 +6,61 @@
 erDiagram
   USER ||--o{ ACCOUNT : owns
   USER ||--o{ CATEGORY : defines
-  USER ||--o{ EXPENSE : records
+  USER ||--o{ PROJECT : owns
+  USER ||--o{ TRANSACTION : records
+  USER ||--o{ TRANSFER : executes
+  USER ||--o{ CREDIT_CARD_STATEMENT : tracks
+  USER ||--o{ INSTALLMENT_PLAN : creates
+  USER ||--o{ INSTALLMENT : schedules
   USER ||--o{ BUDGET_PERIOD : plans
   USER ||--o{ BUDGET_RULE : configures
-  USER ||--o{ BUDGET_ALLOCATION : owns
-  USER ||--o{ INSTALLMENT_PLAN : creates
-  USER ||--o{ INSTALLMENT : tracks
+  USER ||--o{ BUDGET : allocates
+  USER ||--o{ INCOME_PLAN_ITEM : plans_income
+  USER ||--o{ INCOME_EVENT : captures_income
+  USER ||--o{ PLANNED_TRANSFER : plans_transfers
+  USER ||--o{ BILL : defines
+  USER ||--o{ ACCOUNT_BALANCE_SNAPSHOT : reconciles
 
-  ACCOUNT ||--o{ EXPENSE : charged_to
+  ACCOUNT ||--o| ACCOUNT_TRANSFER_PROFILE : routing_profile
+  ACCOUNT ||--o| ACCOUNT_CARD_PROFILE : card_profile
+  INSTITUTION_CATALOG ||--o{ ACCOUNT : classifies
+  ACCOUNT ||--o| CREDIT_CARD_SETTINGS : card_config
   ACCOUNT ||--o{ CREDIT_CARD_STATEMENT : issues
+  ACCOUNT ||--o{ TRANSACTION : charged_to
   ACCOUNT ||--o{ TRANSFER : source_or_dest
-  ACCOUNT ||--o{ INCOME_PLAN_ITEM : receives
+  ACCOUNT ||--o{ INCOME_PLAN_ITEM : receives_plan_income
+  ACCOUNT ||--o{ INCOME_EVENT : receives_income
+  ACCOUNT ||--o{ PLANNED_TRANSFER : source_or_dest
+  ACCOUNT ||--o{ BILL : paying_or_funding
+  ACCOUNT ||--o{ ACCOUNT_BALANCE_SNAPSHOT : snapshots
 
-  CATEGORY ||--o{ EXPENSE : classifies
-  CATEGORY ||--o{ BUDGET_RULE : targets
-  CATEGORY ||--o{ BUDGET_ALLOCATION : allocated_to
+  CATEGORY ||--o{ TRANSACTION : classifies
+  CATEGORY ||--o{ BUDGET : targets
+  CATEGORY ||--o{ BUDGET_RULE : drives
+  CATEGORY ||--o{ BILL : groups
+
+  PROJECT ||--o{ TRANSACTION : groups
+  PROJECT ||--o{ INSTALLMENT_PLAN : groups
 
   BUDGET_PERIOD ||--o{ INCOME_PLAN_ITEM : includes
-  BUDGET_PERIOD ||--o{ BUDGET_ALLOCATION : contains
-  BUDGET_RULE ||--o{ BUDGET_ALLOCATION : generates
+  BUDGET_PERIOD ||--o{ INCOME_EVENT : captures
+  BUDGET_PERIOD ||--o{ BUDGET : contains
 
-  CREDIT_CARD_STATEMENT ||--o{ EXPENSE : includes
+  BUDGET_RULE ||--o{ BUDGET : generates
+
+  CREDIT_CARD_STATEMENT ||--o{ TRANSACTION : includes
   CREDIT_CARD_STATEMENT ||--o{ STATEMENT_PAYMENT : receives
+
   TRANSFER ||--o{ STATEMENT_PAYMENT : applied_as
 
   INSTALLMENT_PLAN ||--o{ INSTALLMENT : schedules
-  INSTALLMENT ||--o{ EXPENSE : posted_as
+  INSTALLMENT ||--o{ TRANSACTION : posts_as
+
+  INCOME_EVENT ||--o{ PLANNED_TRANSFER : funds
+  PLANNED_TRANSFER ||--o{ TRANSFER : executed_as
 ```
 
-## DBML (dbdiagram.io)
+## DBML Note
 
-```dbml
-Table budget_periods {
-  id text [pk]
-  user_id text
-  month text
-  currency text
-  expected_income_amount int
-}
-
-Table income_plan_items {
-  id text [pk]
-  budget_period_id text
-  account_id text [null]
-  source text
-  amount int
-  is_recurring boolean
-}
-
-Table budget_rules {
-  id text [pk]
-  user_id text
-  category_id text
-  rule_type text
-  value int
-  apply_order int
-  min_amount int [null]
-  cap_amount int [null]
-  active_from text [null]
-  active_to text [null]
-}
-
-Table budget_allocations {
-  id text [pk]
-  user_id text
-  budget_period_id text
-  category_id text
-  planned_amount int
-  generated_from_rule_id text [null]
-  is_override boolean
-}
-
-Table credit_card_statements {
-  id text [pk]
-  account_id text
-  period_start datetime
-  period_end datetime
-  closing_date datetime
-  due_date datetime
-  statement_balance int
-  payments_applied int
-  status text
-}
-
-Table statement_payments {
-  id text [pk]
-  statement_id text
-  transfer_id text
-  amount_applied int
-}
-
-Table installments {
-  id text [pk]
-  user_id text
-  installment_plan_id text
-  installment_number int
-  due_date datetime
-  amount int
-}
-```
+Use `.planning/docs/SCHEMA_VISUALIZATION.md` + the branch Prisma schema as the source of truth for implementation.
+This document is a conceptual map of the transactions-first model.

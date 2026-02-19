@@ -1,6 +1,6 @@
-# API Testing (Core Flow)
+# API Testing (Transactions-First Core)
 
-This project uses Fastify + tRPC + Better Auth. The fastest direct API testing path for current core scope is Postman.
+This project uses Fastify + tRPC + Better Auth. The fastest direct API testing path is Postman.
 
 ## Files
 
@@ -33,65 +33,80 @@ Expected response:
 2. Import `ExpenseManager.local.postman_environment.json`.
 3. Select the environment in Postman.
 
-## 3. Run the core lifecycle
-
-Run requests in this order:
+## 3. Run the baseline lifecycle
 
 1. `Health`
-2. `Auth > Sign Up (email)` (or `Sign In` if user already exists)
+2. `Auth > Sign Up (email)` (or `Sign In`)
 3. `Auth > Get Session`
 4. `Core tRPC > Category Create`
 5. `Core tRPC > Account Create (cash)`
-6. `Core tRPC > Budget Create`
-7. `Core tRPC > Recurring Expense Create`
-8. `Core tRPC > Expense Create (manual)`
-9. `Core tRPC > Expense List By Budget`
-10. `Core tRPC > Budget Planned By Category`
 
-The collection stores IDs into environment variables (`category_id`, `account_id`, `budget_id`, etc.).
-`Recurring Expense Create` now requires `budget_id` so recurring templates are budget-scoped.
+## 4. Run Finance V2 lifecycle
 
-## Finance V2 endpoints (new foundation)
+Use requests in `Finance V2 tRPC` folder:
 
-The API now also exposes planning and statement-cycle procedures:
+1. `Budget Period Create`
+2. `Income Plan Item Create`
+3. `Budget Rule Create (fixed)`
+4. `Budget Rule Create (percent)`
+5. `Budget Allocation Generate For Period`
+6. `Budget Allocation List`
+7. `Budget Allocation Set Override`
 
-- `budgetPeriod.list|create|update|delete|getByMonth`
-- `incomePlanItem.list|create|delete`
-- `budgetRule.list|create|update|delete`
-- `budgetAllocation.list|setOverride|generateForPeriod`
-- `creditCardStatement.list|close|recordPayment`
-- `installment.listByPlan|generateSchedule|progress`
+Environment variables are populated automatically for:
+- `budget_period_id`
+- `budget_rule_id`
+- `income_plan_item_id`
 
-These are additive and can be tested directly using the same tRPC request style.
+## 5. Account metadata (CLABE + institution + card profile)
 
-## 4. Auth/session handling
+Use requests in `Core tRPC`:
 
-- `Sign Up` and `Sign In` requests capture `Set-Cookie` and save `session_cookie`.
+1. `Institution Catalog List`
+2. `Account Create (debit + transfer profile)`
+3. `Account Create (credit card metadata)`
+
+These requests validate the current account UX contract:
+- CLABE normalization + checksum validation
+- institution lookup compatibility (`institutionId` storage, optional legacy `institutionCode` input)
+- optional card brand/last4 metadata
+- required credit card cycle settings for `credit_card` type
+
+## 6. Transaction / statement / installment checks
+
+Use direct tRPC calls (or extend collection):
+
+- `transaction.create`
+- `transaction.list`
+- `creditCardStatement.close`
+- `creditCardStatement.recordPayment`
+- `installment.generateSchedule`
+- `installment.progress`
+
+Note: `expense.*` is currently an alias to `transaction.*` during transition.
+`recurringExpense.*` is intentionally deprecated after cutover.
+
+## 7. Auth/session handling
+
+- `Sign Up` and `Sign In` capture `Set-Cookie` into `session_cookie`.
 - tRPC requests send `Cookie: {{session_cookie}}`.
-- If authentication fails, re-run `Sign In` and `Get Session`.
+- If auth fails, re-run `Sign In` and `Get Session`.
 
-## 5. Notes about tRPC payloads
-
-Requests use direct JSON input payloads for this API server:
-
-```json
-{
-  "...": "input payload"
-}
-```
-
-Endpoint format:
+## 8. tRPC payload format
 
 - Mutations: `POST /api/trpc/<router>.<procedure>` with JSON body input
 - Queries: `GET /api/trpc/<router>.<procedure>?input=<url-encoded-json>`
 
 Examples:
 
-- `POST /api/trpc/budget.create`
-- `GET /api/trpc/expense.list?input=%7B%22budgetId%22%3A%22...%22%7D`
+- `POST /api/trpc/transaction.create`
+- `GET /api/trpc/transaction.list?input=%7B%7D`
+- `POST /api/trpc/budgetAllocation.generateForPeriod`
 
-## 6. Common issues
+## 9. Common issues
 
-- `UNAUTHORIZED`: session cookie missing/expired; run `Sign In` again.
-- `CONFLICT` on `budget.create`: the date range overlaps another budget for the same user. Choose a non-overlapping range or update existing budget periods.
-- Validation errors: verify required environment variables are populated from previous requests.
+- `UNAUTHORIZED`: session cookie missing/expired.
+- `NOT_FOUND`: stale IDs in environment variables.
+- Validation errors: verify required IDs (`account_id`, `category_id`, `budget_period_id`) are set.
+- `Institution not found`: run `pnpm --filter @expense-management/db sync:institutions` to populate `institution_catalog`.
+- If tRPC path errors appear in dev, restart watchers with `pnpm dev`.
