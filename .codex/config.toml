@@ -4,3 +4,7 @@
 
 [mcp_servers.better-auth]
 url = "https://mcp.inkeep.com/better-auth/mcp"
+
+[mcp_servers.shadcn]
+command = "npx"
+args = ["shadcn@latest", "mcp"]

@@ -7,6 +7,7 @@ export default [
   {
     ignores: [
       "**/dist/**",
+      "**/dist2/**",
       "**/.turbo/**",
       "**/node_modules/**",
       "**/*.d.ts",

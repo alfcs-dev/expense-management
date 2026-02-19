@@ -33,7 +33,10 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -59,7 +62,10 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -73,7 +79,10 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Cookie", "value": "{{session_cookie}}" }
+              {
+                "key": "Cookie",
+                "value": "{{session_cookie}}"
+              }
             ],
             "url": "{{base_url}}/api/auth/get-session"
           }
@@ -83,8 +92,14 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Cookie", "value": "{{session_cookie}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Cookie",
+                "value": "{{session_cookie}}"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -115,18 +130,24 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Cookie", "value": "{{session_cookie}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Cookie",
+                "value": "{{session_cookie}}"
+              }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Postman Category\",\n  \"icon\": \"🧪\",\n  \"color\": \"#4A6CF7\"\n}"
+              "raw": "{\n  \"name\": \"Postman Category\",\n  \"kind\": \"expense\"\n}"
             },
             "url": "{{base_url}}/api/trpc/category.create"
           }
         },
         {
-          "name": "Account Create (cash)",
+          "name": "Account Create (debit + transfer profile)",
           "event": [
             {
               "listen": "test",
@@ -142,18 +163,24 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Cookie", "value": "{{session_cookie}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Cookie",
+                "value": "{{session_cookie}}"
+              }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Cash Wallet\",\n  \"type\": \"cash\",\n  \"currency\": \"MXN\",\n  \"balance\": 100000\n}"
+              "raw": "{\n  \"name\": \"Main Debit\",\n  \"type\": \"debit\",\n  \"currency\": \"MXN\",\n  \"isActive\": true,\n  \"transferProfile\": {\n    \"clabe\": \"012180004180123456\",\n    \"beneficiaryName\": \"Postman User\",\n    \"bankName\": \"BBVA\",\n    \"isProgrammable\": true\n  }\n}"
             },
             "url": "{{base_url}}/api/trpc/account.create"
           }
         },
         {
-          "name": "Budget Create",
+          "name": "Transaction Create",
           "event": [
             {
               "listen": "test",
@@ -161,7 +188,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "const id = pm.response.json()?.result?.data?.json?.id;",
-                  "if (id) pm.environment.set('budget_id', id);"
+                  "if (id) pm.environment.set('transaction_id', id);"
                 ]
               }
             }
@@ -169,98 +196,80 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Cookie", "value": "{{session_cookie}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Cookie",
+                "value": "{{session_cookie}}"
+              }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Postman Budget\",\n  \"startDate\": \"{{budget_start_date}}\",\n  \"endDate\": \"{{budget_end_date}}\",\n  \"currency\": \"{{budget_currency}}\",\n  \"budgetLimit\": {{budget_limit}},\n  \"isDefault\": true\n}"
+              "raw": "{\n  \"accountId\": \"{{account_id}}\",\n  \"categoryId\": \"{{category_id}}\",\n  \"description\": \"Manual grocery transaction\",\n  \"amount\": 15000,\n  \"date\": \"2026-02-14T12:00:00.000Z\"\n}"
             },
-            "url": "{{base_url}}/api/trpc/budget.create"
+            "url": "{{base_url}}/api/trpc/transaction.create"
           }
         },
         {
-          "name": "Budget List",
+          "name": "Transaction List",
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Cookie", "value": "{{session_cookie}}" }
+              {
+                "key": "Cookie",
+                "value": "{{session_cookie}}"
+              }
             ],
-            "url": "{{base_url}}/api/trpc/budget.list"
+            "url": "{{base_url}}/api/trpc/transaction.list?input=%7B%22accountId%22%3A%22{{account_id}}%22%7D"
           }
         },
         {
-          "name": "Recurring Expense Create",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "const id = pm.response.json()?.result?.data?.json?.id;",
-                  "if (id) pm.environment.set('recurring_id', id);"
-                ]
+          "name": "Institution Catalog List",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{session_cookie}}"
               }
-            }
-          ],
+            ],
+            "url": "{{base_url}}/api/trpc/institutionCatalog.list?input=%7B%22limit%22%3A20%7D"
+          }
+        },
+        {
+          "name": "Recurring Expense List (Deprecated)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{session_cookie}}"
+              }
+            ],
+            "url": "{{base_url}}/api/trpc/recurringExpense.list"
+          }
+        },
+        {
+          "name": "Account Create (credit card metadata)",
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Cookie", "value": "{{session_cookie}}" }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"budgetId\": \"{{budget_id}}\",\n  \"categoryId\": \"{{category_id}}\",\n  \"sourceAccountId\": \"{{account_id}}\",\n  \"description\": \"Internet bill\",\n  \"amount\": 49900,\n  \"currency\": \"MXN\",\n  \"frequency\": \"monthly\",\n  \"isAnnual\": false,\n  \"isActive\": true\n}"
-            },
-            "url": "{{base_url}}/api/trpc/recurringExpense.create"
-          }
-        },
-        {
-          "name": "Expense Create (manual)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "const id = pm.response.json()?.result?.data?.json?.id;",
-                  "if (id) pm.environment.set('expense_id', id);"
-                ]
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Cookie",
+                "value": "{{session_cookie}}"
               }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Cookie", "value": "{{session_cookie}}" }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"budgetId\": \"{{budget_id}}\",\n  \"categoryId\": \"{{category_id}}\",\n  \"accountId\": \"{{account_id}}\",\n  \"description\": \"Manual grocery expense\",\n  \"amount\": 15000,\n  \"currency\": \"MXN\",\n  \"date\": \"2026-02-14T12:00:00.000Z\"\n}"
+              "raw": "{\n  \"name\": \"HSBC World Elite\",\n  \"type\": \"credit_card\",\n  \"currency\": \"MXN\",\n  \"isActive\": true,\n  \"cardProfile\": {\n    \"brand\": \"mastercard\",\n    \"last4\": \"1234\"\n  },\n  \"creditCardSettings\": {\n    \"statementDay\": 15,\n    \"dueDay\": 5,\n    \"graceDays\": 20\n  }\n}"
             },
-            "url": "{{base_url}}/api/trpc/expense.create"
-          }
-        },
-        {
-          "name": "Expense List By Budget",
-          "request": {
-            "method": "GET",
-            "header": [
-              { "key": "Cookie", "value": "{{session_cookie}}" }
-            ],
-            "url": "{{base_url}}/api/trpc/expense.list?input=%7B%22budgetId%22%3A%22{{budget_id}}%22%7D"
-          }
-        },
-        {
-          "name": "Budget Planned By Category",
-          "request": {
-            "method": "GET",
-            "header": [
-              { "key": "Cookie", "value": "{{session_cookie}}" }
-            ],
-            "url": "{{base_url}}/api/trpc/budget.getPlannedByCategory?input=%7B%22budgetId%22%3A%22{{budget_id}}%22%7D"
+            "url": "{{base_url}}/api/trpc/account.create"
           }
         }
       ]
@@ -285,8 +294,14 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Cookie", "value": "{{session_cookie}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Cookie",
+                "value": "{{session_cookie}}"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -300,7 +315,10 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Cookie", "value": "{{session_cookie}}" }
+              {
+                "key": "Cookie",
+                "value": "{{session_cookie}}"
+              }
             ],
             "url": "{{base_url}}/api/trpc/budgetPeriod.list"
           }
@@ -310,7 +328,10 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Cookie", "value": "{{session_cookie}}" }
+              {
+                "key": "Cookie",
+                "value": "{{session_cookie}}"
+              }
             ],
             "url": "{{base_url}}/api/trpc/budgetPeriod.getByMonth?input=%7B%22month%22%3A%22{{budget_period_month}}%22%7D"
           }
@@ -332,8 +353,14 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Cookie", "value": "{{session_cookie}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Cookie",
+                "value": "{{session_cookie}}"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -359,8 +386,14 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Cookie", "value": "{{session_cookie}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Cookie",
+                "value": "{{session_cookie}}"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -374,8 +407,14 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Cookie", "value": "{{session_cookie}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Cookie",
+                "value": "{{session_cookie}}"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -389,7 +428,10 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Cookie", "value": "{{session_cookie}}" }
+              {
+                "key": "Cookie",
+                "value": "{{session_cookie}}"
+              }
             ],
             "url": "{{base_url}}/api/trpc/budgetRule.list"
           }
@@ -399,8 +441,14 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Cookie", "value": "{{session_cookie}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Cookie",
+                "value": "{{session_cookie}}"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -414,7 +462,10 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Cookie", "value": "{{session_cookie}}" }
+              {
+                "key": "Cookie",
+                "value": "{{session_cookie}}"
+              }
             ],
             "url": "{{base_url}}/api/trpc/budgetAllocation.list?input=%7B%22budgetPeriodId%22%3A%22{{budget_period_id}}%22%7D"
           }
@@ -424,14 +475,46 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Cookie", "value": "{{session_cookie}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Cookie",
+                "value": "{{session_cookie}}"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"budgetPeriodId\": \"{{budget_period_id}}\",\n  \"categoryId\": \"{{category_id}}\",\n  \"plannedAmount\": {{budget_allocation_override_value}}\n}"
             },
             "url": "{{base_url}}/api/trpc/budgetAllocation.setOverride"
+          }
+        },
+        {
+          "name": "Budget List (Period)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{session_cookie}}"
+              }
+            ],
+            "url": "{{base_url}}/api/trpc/budget.list?input=%7B%22budgetPeriodId%22%3A%22{{budget_period_id}}%22%7D"
+          }
+        },
+        {
+          "name": "Budget Planned By Category (Period)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{session_cookie}}"
+              }
+            ],
+            "url": "{{base_url}}/api/trpc/budget.getPlannedByCategory?input=%7B%22budgetPeriodId%22%3A%22{{budget_period_id}}%22%7D"
           }
         }
       ]
