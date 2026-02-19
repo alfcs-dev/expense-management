@@ -19,6 +19,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "card-validator": "^10.0.4",
+    "clabe-validator": "^1.2.9",
     "zod": "^4.3.6"
   },
   "devDependencies": {

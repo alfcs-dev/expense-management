@@ -8,7 +8,17 @@ export { CURRENCIES, currencySchema, type Currency } from "./currency.js";
 export { ACCOUNT_TYPES, accountTypeSchema, type AccountType } from "./account.js";
 
 // CLABE
-export { clabeSchema, isValidClabe, normalizeClabe } from "./clabe.js";
+export { clabeSchema, isValidClabe, normalizeClabe, parseClabe } from "./clabe.js";
+
+// Card (credit/debit)
+export {
+  cardNumberSchema,
+  cardholderNameSchema,
+  defaultCvvSchema,
+  defaultExpirationDateSchema,
+  expirationDateSchema,
+  cvvSchema,
+} from "./card.js";
 
 // Recurring
 export {
