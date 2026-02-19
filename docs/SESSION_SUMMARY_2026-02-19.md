@@ -69,3 +69,38 @@ This document records implementation and maintenance work completed in this bran
 - `pnpm --filter @expense-management/web lint`
 
 All listed checks above completed successfully after corresponding changes.
+
+## 10) Credit-card settings model simplification
+
+- Removed `dueDay` from `credit_card_settings` as a stored setting.
+- Added migration:
+  - `packages/db/prisma/migrations/20260219133000_remove_credit_card_settings_due_day/migration.sql`
+- Updated statement close behavior to compute and persist due date from:
+  - `dueDate = closingDate + graceDays` (stored on `credit_card_statements`)
+- Updated API/UI/locales to remove dependency on `creditCardSettings.dueDay`.
+
+## 11) Account balance and credit limit storage
+
+- Added cached current balance at account level:
+  - `accounts.current_balance` (`Int`, minor units/cents)
+- Added optional credit limit in credit-card settings:
+  - `credit_card_settings.credit_limit` (`Int?`, minor units/cents)
+- Added migration:
+  - `packages/db/prisma/migrations/20260219143000_account_balance_and_credit_limit/migration.sql`
+- Propagated through:
+  - shared schema/types (`packages/shared/src/account-input.ts`)
+  - account router create/update (`packages/trpc/src/routers/account.ts`)
+  - account seed defaults (`packages/db/seed.ts`)
+  - accounts form and details/list UI (`apps/web/src/components/accounts/AccountForm.tsx`, `apps/web/src/routes/accounts.tsx`)
+
+## 12) Started next step: statements workflow UI
+
+- Added initial protected route:
+  - `apps/web/src/routes/credit-card-statements.tsx`
+- Route provides:
+  - credit-card account selection
+  - statement list view
+  - manual close action (period start, period end, closing date)
+- Wired into route tree and dashboard entry:
+  - `apps/web/src/routes/router.tsx`
+  - `apps/web/src/routes/dashboard.tsx`

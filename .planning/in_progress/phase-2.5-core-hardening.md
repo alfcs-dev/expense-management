@@ -200,6 +200,23 @@ Each reintroduced feature must ship as vertical slice with:
 ## 8. In Progress Log
 
 **Achievements**
+- 2026-02-19: Added account balance + credit limit fields and started statement UI workflow.
+  - Added `accounts.current_balance` (cached current balance in minor units) and `credit_card_settings.credit_limit` (optional limit in minor units).
+  - Added migration `20260219143000_account_balance_and_credit_limit` for new columns.
+  - Updated shared account input schemas/types and account tRPC create/update flows to persist `currentBalance` and `creditLimit`.
+  - Updated accounts form/UI to capture and display current balance and credit limit.
+  - Started next-step statements workflow with new protected route `apps/web/src/routes/credit-card-statements.tsx`:
+    - lists statements by credit-card account
+    - manual statement close action (period start/end + closing date) using computed due date from settings.
+  - Added dashboard entry button to navigate to `/credit-card-statements`.
+  - Validation complete: `pnpm --filter @expense-management/{db,shared,trpc,web} typecheck` and `pnpm --filter @expense-management/web lint` pass.
+- 2026-02-19: Simplified credit-card cycle model by removing stored due-day from settings.
+  - Updated Prisma model `CreditCardSettings` to keep only `statementDay` + `graceDays`; removed `dueDay`.
+  - Added migration `20260219133000_remove_credit_card_settings_due_day` to drop `credit_card_settings.due_day`.
+  - Updated account create/update APIs and seed data to stop writing `dueDay` in credit-card settings.
+  - Updated statement close mutation to compute and persist `credit_card_statements.due_date` as `closing_date + grace_days`.
+  - Updated accounts UI/locales to remove reliance on `creditCardSettings.dueDay` and present cycle using statement/grace fields.
+  - Validation complete: `pnpm db:generate`, `pnpm --filter @expense-management/{db,shared,trpc,web} typecheck`, and `pnpm --filter @expense-management/web lint` pass.
 - 2026-02-19: Removed stale `packages/db/dist2` artifact and added guardrails.
   - Removed legacy `dist2` build output directory from `packages/db` workspace content.
   - Added `.gitignore` rule `packages/db/dist2/` to prevent future accidental tracking of duplicate build artifacts.
