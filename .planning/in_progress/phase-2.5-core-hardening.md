@@ -227,7 +227,7 @@ Each reintroduced feature must ship as vertical slice with:
   - Standardized `bankCode` derivation as the last 3 digits of `code` (`code.slice(-3).padStart(3, "0")`) to avoid drift.
   - Applied non-destructive upserts to `institution_catalog` locally and verified counts (`94` total, `94` active).
 - 2026-02-19: Extracted `/accounts` form into a dedicated component module.
-  - Moved account create/edit form JSX into `apps/web/src/components/accounts/account-form.tsx`.
+  - Moved account create/edit form JSX into `apps/web/src/components/accounts/AccountForm.tsx`.
   - Kept route-level submission and mutation logic in `apps/web/src/routes/accounts.tsx` and passed state/actions via props.
   - Preserved existing field validation and conditional card/credit-cycle form behavior.
 - 2026-02-19: Restored drawer-based account create/edit form surface.
