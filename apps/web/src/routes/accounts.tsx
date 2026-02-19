@@ -1,8 +1,16 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { MoreVerticalIcon } from "lucide-react";
-import valid from "card-validator";
 import { createRoute } from "@tanstack/react-router";
+import type { Resolver } from "react-hook-form";
+import { FormProvider, useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { parseClabe } from "@expense-management/shared";
+import {
+  accountInputSchema,
+  type AccountFormValues,
+  type AccountInput,
+} from "@expense-management/shared";
 import { protectedRoute } from "./protected";
 import { trpc } from "../utils/trpc";
 import { Button } from "@components/ui/Button";
@@ -28,13 +36,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@components/ui/Sheet";
-import {
-  AccountForm,
-  emptyFormState,
-  type AccountType,
-  type Currency,
-  type FormState,
-} from "@components/accounts/AccountForm";
+import { AccountForm } from "@components/accounts/AccountForm";
 
 const brandIcons: Record<string, string> = {
   visa: "V",
@@ -48,6 +50,22 @@ function maskClabe(value: string): string {
   return `**************${value.slice(-4)}`;
 }
 
+const defaultAccountFormValues: AccountFormValues = {
+  name: "",
+  type: "debit",
+  currency: "MXN",
+  isActive: true,
+  institutionId: "",
+  transferProfile: {
+    clabe: "",
+    depositReference: "",
+    beneficiaryName: "",
+    isProgrammable: false,
+  },
+  cardProfile: { brand: "", last4: "" },
+  creditCardSettings: undefined,
+};
+
 export const accountsRoute = createRoute({
   getParentRoute: () => protectedRoute,
   path: "/accounts",
@@ -55,30 +73,72 @@ export const accountsRoute = createRoute({
 });
 
 function AccountsPage() {
+  const { t } = useTranslation();
   const utils = trpc.useUtils();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [detailsAccountId, setDetailsAccountId] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
-  const [formState, setFormState] = useState<FormState>(emptyFormState);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const accountsQuery = trpc.account.list.useQuery();
   const institutionsQuery = trpc.institutionCatalog.list.useQuery({ limit: 100 });
 
+  const form = useForm<AccountFormValues>({
+    resolver: zodResolver(accountInputSchema) as Resolver<AccountFormValues>,
+    defaultValues: defaultAccountFormValues,
+  });
+
+  const { watch, setValue, reset } = form;
+  const watchClabe = watch("transferProfile.clabe");
+  const watchInstitutionId = watch("institutionId");
+  const watchType = watch("type");
+
+  const clabeCheck = useMemo(() => parseClabe(watchClabe ?? ""), [watchClabe]);
+
+  useEffect(() => {
+    if (!clabeCheck.isValid || !clabeCheck.bankCode || watchInstitutionId) return;
+    const inferred = institutionsQuery.data?.find(
+      (item) => item.bankCode === clabeCheck.bankCode,
+    );
+    if (inferred) setValue("institutionId", inferred.id);
+  }, [
+    clabeCheck.bankCode,
+    clabeCheck.isValid,
+    watchInstitutionId,
+    institutionsQuery.data,
+    setValue,
+  ]);
+
+  useEffect(() => {
+    if (watchType === "credit_card") {
+      const current = watch("creditCardSettings");
+      if (current == null) {
+        setValue("creditCardSettings", {
+          statementDay: 15,
+          graceDays: 20,
+          creditLimit: undefined,
+        });
+      }
+    }
+  }, [watchType, watch, setValue]);
+
   const createMutation = trpc.account.create.useMutation({
     onSuccess: async () => {
-      setFormState(emptyFormState);
+      reset(defaultAccountFormValues);
       setFormError(null);
       setIsFormOpen(false);
+      setEditingId(null);
       await utils.account.list.invalidate();
     },
   });
 
   const updateMutation = trpc.account.update.useMutation({
     onSuccess: async () => {
-      setFormState(emptyFormState);
+      reset(defaultAccountFormValues);
       setFormError(null);
       setIsFormOpen(false);
+      setEditingId(null);
       await utils.account.list.invalidate();
     },
   });
@@ -98,45 +158,11 @@ function AccountsPage() {
     () => accounts.find((account) => account.id === detailsAccountId) ?? null,
     [accounts, detailsAccountId],
   );
-  const selectedInstitution = useMemo(() => {
-    const selectedInstitution = institutions.find(
-      (institution) => institution.id === formState.institutionId,
-    );
-    return (selectedInstitution ?? formState.institutionId)
-      ? { id: formState.institutionId, name: "" }
-      : null;
-  }, [formState.institutionId, institutions]);
-
-  const clabeCheck = useMemo(() => parseClabe(formState.clabe), [formState.clabe]);
-  const isCreditCardType =
-    formState.type === "credit_card" || formState.type === "credit";
-  const isCreditCycleType = formState.type === "credit_card";
-
-  useEffect(() => {
-    if (!clabeCheck.isValid || !clabeCheck.bankCode || formState.institutionId) return;
-    const inferred = institutions.find((item) => item.bankCode === clabeCheck.bankCode);
-    if (inferred) {
-      setFormState((prev) => ({ ...prev, institutionId: inferred.id }));
-    }
-  }, [clabeCheck.bankCode, clabeCheck.isValid, formState.institutionId, institutions]);
-
-  const onChangeCardNumber = (raw: string) => {
-    const digits = raw.replace(/\D/g, "").slice(0, 19);
-    const verification = valid.number(digits);
-    const cardType = verification.card?.type ?? "";
-    const last4 = digits.length >= 4 ? digits.slice(-4) : "";
-
-    setFormState((prev) => ({
-      ...prev,
-      cardNumberInput: digits,
-      cardBrand: cardType || "",
-      cardLast4: last4,
-    }));
-  };
 
   const openCreate = () => {
-    setFormState(emptyFormState);
+    reset(defaultAccountFormValues);
     setFormError(null);
+    setEditingId(null);
     setIsFormOpen(true);
   };
 
@@ -144,25 +170,36 @@ function AccountsPage() {
     const account = accounts.find((item) => item.id === accountId);
     if (!account) return;
 
-    setFormState({
-      id: account.id,
+    reset({
       name: account.name,
-      type: account.type as AccountType,
-      currency: account.currency as Currency,
-      clabe: account.transferProfile?.clabe ?? "",
-      depositReference: account.transferProfile?.depositReference ?? "",
-      beneficiaryName: account.transferProfile?.beneficiaryName ?? "",
-      bankName: account.transferProfile?.bankName ?? "",
+      type: account.type,
+      currency: account.currency,
+      currentBalance: account.currentBalance ?? 0,
+      isActive: true,
       institutionId: account.institutionId ?? "",
-      isProgrammable: account.transferProfile?.isProgrammable ?? false,
-      cardNumberInput: "",
-      cardBrand: account.cardProfile?.brand ?? "",
-      cardLast4: account.cardProfile?.last4 ?? "",
-      statementDay: String(account.creditCardSettings?.statementDay ?? 15),
-      dueDay: String(account.creditCardSettings?.dueDay ?? 5),
-      graceDays: String(account.creditCardSettings?.graceDays ?? 20),
+      transferProfile: {
+        clabe: account.transferProfile?.clabe ?? "",
+        depositReference: account.transferProfile?.depositReference ?? "",
+        beneficiaryName: account.transferProfile?.beneficiaryName ?? "",
+        isProgrammable: account.transferProfile?.isProgrammable ?? false,
+      },
+      cardProfile: account.cardProfile
+        ? {
+            brand: account.cardProfile.brand ?? "",
+            last4: account.cardProfile.last4 ?? "",
+          }
+        : { brand: "", last4: "" },
+      creditCardSettings:
+        account.type === "credit_card" && account.creditCardSettings
+          ? {
+              statementDay: account.creditCardSettings.statementDay,
+              graceDays: account.creditCardSettings.graceDays ?? 20,
+              creditLimit: account.creditCardSettings.creditLimit ?? undefined,
+            }
+          : undefined,
     });
     setFormError(null);
+    setEditingId(account.id);
     setIsFormOpen(true);
   };
 
@@ -171,90 +208,35 @@ function AccountsPage() {
     setIsDetailsOpen(true);
   };
 
-  const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const onFormSubmit = async (data: AccountInput) => {
     setFormError(null);
 
-    if (!formState.name.trim()) {
-      setFormError("Name is required.");
-      return;
-    }
+    const hasTransferProfile =
+      (data.transferProfile?.clabe?.trim() ?? "") !== "" ||
+      (data.transferProfile?.depositReference?.trim() ?? "") !== "" ||
+      (data.transferProfile?.beneficiaryName?.trim() ?? "") !== "" ||
+      data.transferProfile?.isProgrammable === true;
 
-    if (formState.clabe && !clabeCheck.isValid) {
-      setFormError("Invalid CLABE.");
-      return;
-    }
+    const hasCardProfile =
+      (data.cardProfile?.brand?.trim() ?? "") !== "" ||
+      (data.cardProfile?.last4?.trim() ?? "") !== "";
 
-    const transferProfileDefined =
-      formState.clabe ||
-      formState.depositReference ||
-      formState.beneficiaryName ||
-      formState.bankName ||
-      formState.isProgrammable;
-
-    const cardProfileDefined = formState.cardBrand || formState.cardLast4;
-
-    const parsedStatementDay = Number(formState.statementDay);
-    const parsedDueDay = Number(formState.dueDay);
-    const parsedGraceDays = Number(formState.graceDays);
-
-    if (isCreditCycleType) {
-      if (
-        !Number.isInteger(parsedStatementDay) ||
-        parsedStatementDay < 1 ||
-        parsedStatementDay > 31
-      ) {
-        setFormError("Statement day must be between 1 and 31.");
-        return;
-      }
-      if (!Number.isInteger(parsedDueDay) || parsedDueDay < 1 || parsedDueDay > 31) {
-        setFormError("Due day must be between 1 and 31.");
-        return;
-      }
-      if (
-        !Number.isInteger(parsedGraceDays) ||
-        parsedGraceDays < 0 ||
-        parsedGraceDays > 90
-      ) {
-        setFormError("Grace days must be between 0 and 90.");
-        return;
-      }
-    }
-
-    const payload = {
-      name: formState.name.trim(),
-      type: formState.type,
-      currency: formState.currency,
-      isActive: true,
-      institutionId: formState.institutionId || null,
-      transferProfile: transferProfileDefined
-        ? {
-            clabe: formState.clabe || undefined,
-            depositReference: formState.depositReference || undefined,
-            beneficiaryName: formState.beneficiaryName || undefined,
-            bankName: formState.bankName || undefined,
-            isProgrammable: formState.isProgrammable,
-          }
-        : undefined,
-      cardProfile: cardProfileDefined
-        ? {
-            brand: formState.cardBrand || undefined,
-            last4: formState.cardLast4 || undefined,
-          }
-        : null,
-      creditCardSettings: isCreditCycleType
-        ? {
-            statementDay: parsedStatementDay,
-            dueDay: parsedDueDay,
-            graceDays: parsedGraceDays,
-          }
-        : undefined,
+    const payload: AccountInput = {
+      ...data,
+      institutionId: data.institutionId ?? undefined,
+      transferProfile: hasTransferProfile ? data.transferProfile : undefined,
+      cardProfile: hasCardProfile ? data.cardProfile : null,
     };
 
-    if (formState.id) {
-      await updateMutation.mutateAsync({ id: formState.id, data: payload });
+    if (editingId) {
+      await updateMutation.mutateAsync({
+        id: editingId,
+        data: payload as Parameters<typeof updateMutation.mutateAsync>[0]["data"],
+      });
     } else {
-      await createMutation.mutateAsync(payload);
+      await createMutation.mutateAsync(
+        payload as Parameters<typeof createMutation.mutateAsync>[0],
+      );
     }
   };
 
@@ -265,50 +247,57 @@ function AccountsPage() {
     <main className="mx-auto flex min-h-screen w-full max-w-5xl px-4 py-10">
       <div className="grid w-full gap-6">
         <div className="flex items-center justify-between gap-4">
-          <h1 className="text-xl font-semibold">Accounts</h1>
+          <h1 className="text-xl font-semibold">{t("accounts.title")}</h1>
           <Sheet open={isFormOpen} onOpenChange={setIsFormOpen}>
             <SheetTrigger asChild>
-              <Button onClick={openCreate}>Create account</Button>
+              <Button onClick={openCreate}>{t("accounts.create")}</Button>
             </SheetTrigger>
             <SheetContent side="right" className="overflow-y-auto">
               <SheetHeader>
                 <SheetTitle>
-                  {formState.id ? "Edit account" : "Create account"}
+                  {editingId ? t("accounts.sheetEdit") : t("accounts.sheetCreate")}
                 </SheetTitle>
-                <SheetDescription>
-                  Configure account details, transfer profile, and optional card settings.
-                </SheetDescription>
+                <SheetDescription>{t("accounts.sheetDescription")}</SheetDescription>
               </SheetHeader>
-              <AccountForm
-                formState={formState}
-                setFormState={setFormState}
-                onSubmit={onSubmit}
-                onChangeCardNumber={onChangeCardNumber}
-                onCancel={() => setIsFormOpen(false)}
-                formError={formError}
-                createErrorMessage={createMutation.error?.message ?? null}
-                updateErrorMessage={updateMutation.error?.message ?? null}
-                isSaving={isSaving}
-                isCreditCardType={isCreditCardType}
-                isCreditCycleType={isCreditCycleType}
-                clabeCheck={clabeCheck}
-                selectedInstitutionName={selectedInstitution?.name ?? null}
-                institutions={institutions}
-              />
+              <form
+                onSubmit={(e) =>
+                  void form.handleSubmit(
+                    (data) => void onFormSubmit(data as unknown as AccountInput),
+                  )(e)
+                }
+              >
+                <FormProvider {...form}>
+                  <AccountForm
+                    key={editingId ?? "new"}
+                    onCancel={() => setIsFormOpen(false)}
+                    onRequestSubmit={() =>
+                      void form.handleSubmit(
+                        (data) => void onFormSubmit(data as unknown as AccountInput),
+                      )()
+                    }
+                    formError={formError}
+                    createErrorMessage={createMutation.error?.message ?? null}
+                    updateErrorMessage={updateMutation.error?.message ?? null}
+                    isSaving={isSaving}
+                    institutions={institutions}
+                    editingId={editingId}
+                  />
+                </FormProvider>
+              </form>
             </SheetContent>
           </Sheet>
         </div>
 
         <Card>
           <CardHeader>
-            <CardTitle>List of accounts</CardTitle>
+            <CardTitle>{t("accounts.listTitle")}</CardTitle>
           </CardHeader>
           <CardContent className="min-h-[340px] space-y-3">
             {accountsQuery.isLoading ? (
-              <p className="text-sm text-muted-foreground">Loading...</p>
+              <p className="text-sm text-muted-foreground">{t("accounts.loading")}</p>
             ) : null}
             {!accountsQuery.isLoading && accounts.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No accounts yet.</p>
+              <p className="text-sm text-muted-foreground">{t("accounts.empty")}</p>
             ) : null}
 
             {accounts.map((account) => {
@@ -318,13 +307,11 @@ function AccountsPage() {
                 ? maskClabe(clabeValue)
                 : account.cardProfile?.last4
                   ? `**** ${account.cardProfile.last4}`
-                  : "No identifier";
+                  : t("accounts.noIdentifier");
               const brandLabel = account.cardProfile?.brand ?? "";
               const brandIcon = brandIcons[brandLabel] ?? (brandLabel ? "C" : "A");
               const institutionLabel =
-                account.institution?.name ||
-                account.transferProfile?.bankName ||
-                "No institution";
+                account.institution?.name ?? t("accounts.noInstitution");
 
               return (
                 <div
@@ -342,13 +329,15 @@ function AccountsPage() {
                       </span>
                     </div>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      {account.type} · {account.currency} · {displayIdentifier}
+                      {t(`accounts.types.${account.type}`)} · {account.currency} ·{" "}
+                      {displayIdentifier}
                     </p>
                     {account.creditCardSettings ? (
                       <p className="mt-1 hidden text-xs text-muted-foreground md:block">
-                        statement day {account.creditCardSettings.statementDay} · due day{" "}
-                        {account.creditCardSettings.dueDay} · grace{" "}
-                        {account.creditCardSettings.graceDays ?? 0}
+                        {t("accounts.form.cycleStatement", {
+                          statement: account.creditCardSettings.statementDay,
+                          grace: account.creditCardSettings.graceDays ?? 0,
+                        })}
                       </p>
                     ) : null}
                   </div>
@@ -359,7 +348,7 @@ function AccountsPage() {
                         size="sm"
                         onClick={() => void navigator.clipboard.writeText(clabeValue)}
                       >
-                        Copy CLABE
+                        {t("accounts.copyClabe")}
                       </Button>
                     ) : null}
                     <DropdownMenu>
@@ -370,10 +359,10 @@ function AccountsPage() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-44">
                         <DropdownMenuItem onClick={() => openEdit(account.id)}>
-                          Edit
+                          {t("accounts.edit")}
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => openDetails(account.id)}>
-                          More info
+                          {t("accounts.moreInfo")}
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() =>
@@ -384,7 +373,9 @@ function AccountsPage() {
                           }
                           disabled={isMutating}
                         >
-                          {account.isActive ? "Deactivate" : "Activate"}
+                          {account.isActive
+                            ? t("accounts.deactivate")
+                            : t("accounts.activate")}
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           variant="destructive"
@@ -393,7 +384,7 @@ function AccountsPage() {
                           }
                           disabled={isMutating}
                         >
-                          Delete
+                          {t("accounts.delete")}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -408,27 +399,26 @@ function AccountsPage() {
       <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{detailsAccount?.name ?? "Account details"}</DialogTitle>
-            <DialogDescription>
-              Complete account metadata for transfers and payments.
-            </DialogDescription>
+            <DialogTitle>{detailsAccount?.name ?? t("accounts.dialogTitle")}</DialogTitle>
+            <DialogDescription>{t("accounts.dialogDescription")}</DialogDescription>
           </DialogHeader>
           {detailsAccount ? (
             <div className="grid gap-2 text-sm">
               <p>
-                <strong>Type:</strong> {detailsAccount.type}
+                <strong>{t("accounts.fields.type")}:</strong>{" "}
+                {t(`accounts.types.${detailsAccount.type}`)}
               </p>
               <p>
-                <strong>Currency:</strong> {detailsAccount.currency}
+                <strong>{t("accounts.fields.currency")}:</strong>{" "}
+                {detailsAccount.currency}
               </p>
               <p>
-                <strong>Institution:</strong>{" "}
-                {detailsAccount.institution?.name ||
-                  detailsAccount.transferProfile?.bankName ||
-                  "N/A"}
+                <strong>{t("accounts.institutionLabel")}:</strong>{" "}
+                {detailsAccount.institution?.name ?? t("accounts.na")}
               </p>
               <p>
-                <strong>CLABE:</strong> {detailsAccount.transferProfile?.clabe ?? "N/A"}
+                <strong>{t("accounts.clabeLabel")}:</strong>{" "}
+                {detailsAccount.transferProfile?.clabe ?? t("accounts.na")}
               </p>
               {detailsAccount.transferProfile?.clabe ? (
                 <Button
@@ -441,29 +431,32 @@ function AccountsPage() {
                     )
                   }
                 >
-                  Copy full CLABE
+                  {t("accounts.copyFullClabe")}
                 </Button>
               ) : null}
               <p>
-                <strong>Deposit reference:</strong>{" "}
-                {detailsAccount.transferProfile?.depositReference ?? "N/A"}
+                <strong>{t("accounts.form.depositReference")}:</strong>{" "}
+                {detailsAccount.transferProfile?.depositReference ?? t("accounts.na")}
               </p>
               <p>
-                <strong>Beneficiary:</strong>{" "}
-                {detailsAccount.transferProfile?.beneficiaryName ?? "N/A"}
+                <strong>{t("accounts.form.beneficiaryName")}:</strong>{" "}
+                {detailsAccount.transferProfile?.beneficiaryName ?? t("accounts.na")}
               </p>
               <p>
-                <strong>Card brand:</strong> {detailsAccount.cardProfile?.brand ?? "N/A"}
+                <strong>{t("accounts.form.cardBrand")}:</strong>{" "}
+                {detailsAccount.cardProfile?.brand ?? t("accounts.na")}
               </p>
               <p>
-                <strong>Card last4:</strong> {detailsAccount.cardProfile?.last4 ?? "N/A"}
+                <strong>{t("accounts.form.cardLast4")}:</strong>{" "}
+                {detailsAccount.cardProfile?.last4 ?? t("accounts.na")}
               </p>
               {detailsAccount.creditCardSettings ? (
                 <p>
-                  <strong>Cycle:</strong> statement{" "}
-                  {detailsAccount.creditCardSettings.statementDay}, due{" "}
-                  {detailsAccount.creditCardSettings.dueDay}, grace{" "}
-                  {detailsAccount.creditCardSettings.graceDays ?? 0}
+                  <strong>{t("accounts.form.cycle")}:</strong>{" "}
+                  {t("accounts.form.cycleStatement", {
+                    statement: detailsAccount.creditCardSettings.statementDay,
+                    grace: detailsAccount.creditCardSettings.graceDays ?? 0,
+                  })}
                 </p>
               ) : null}
             </div>

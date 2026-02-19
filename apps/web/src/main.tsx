@@ -14,6 +14,7 @@ import { router } from "./routes/router";
 import { trpc } from "./utils/trpc";
 import { env } from "./env";
 import { authRouterContext } from "./utils/auth-session";
+import { Toaster } from "@components/ui/sonner";
 
 function isUnauthorizedError(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;
@@ -83,6 +84,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     <trpc.Provider client={trpcClient} queryClient={queryClient}>
       <QueryClientProvider client={queryClient}>
         <RouterProvider router={router} context={{ auth: authRouterContext }} />
+        <Toaster />
       </QueryClientProvider>
     </trpc.Provider>
   </React.StrictMode>,

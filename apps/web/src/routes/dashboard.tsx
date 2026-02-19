@@ -35,6 +35,12 @@ function DashboardPage() {
           <Button variant="outline" onClick={() => void navigate({ to: "/accounts" })}>
             Accounts
           </Button>
+          <Button
+            variant="outline"
+            onClick={() => void navigate({ to: "/credit-card-statements" })}
+          >
+            Credit Card Statements
+          </Button>
           <Button onClick={() => void onSignOut()}>{t("session.signOut")}</Button>
         </CardContent>
       </Card>
