@@ -13,7 +13,7 @@ function requireUserId(user: { id: string } | null): string {
 
 async function assertOwnedCreditAccount(userId: string, accountId: string) {
   const account = await db.account.findFirst({
-    where: { id: accountId, userId, type: "credit" },
+    where: { id: accountId, userId, type: "credit_card" },
     select: { id: true, currency: true },
   });
   if (!account) {
@@ -32,12 +32,12 @@ export const creditCardStatementRouter = router({
       const userId = requireUserId(ctx.user);
       return db.creditCardStatement.findMany({
         where: {
+          userId,
           accountId: input?.accountId,
-          account: { userId },
         },
         include: {
           account: { select: { id: true, name: true, currency: true } },
-          _count: { select: { expenses: true, statementPayments: true } },
+          _count: { select: { transactions: true, statementPayments: true } },
         },
         orderBy: [{ closingDate: "desc" }, { createdAt: "desc" }],
       });
@@ -80,7 +80,7 @@ export const creditCardStatementRouter = router({
         });
       }
 
-      const inPeriodExpenses = await db.expense.findMany({
+      const inPeriodTransactions = await db.transaction.findMany({
         where: {
           userId,
           accountId: input.accountId,
@@ -92,13 +92,14 @@ export const creditCardStatementRouter = router({
         select: { id: true, amount: true, statementId: true },
       });
 
-      const statementBalance = inPeriodExpenses.reduce(
-        (sum, expense) => sum + expense.amount,
+      const statementBalance = inPeriodTransactions.reduce(
+        (sum, transaction) => sum + transaction.amount,
         0,
       );
 
       const statement = await db.creditCardStatement.create({
         data: {
+          userId,
           accountId: input.accountId,
           periodStart: input.periodStart,
           periodEnd: input.periodEnd,
@@ -110,13 +111,13 @@ export const creditCardStatementRouter = router({
         },
       });
 
-      const assignableExpenseIds = inPeriodExpenses
-        .filter((expense) => !expense.statementId)
-        .map((expense) => expense.id);
+      const assignableTransactionIds = inPeriodTransactions
+        .filter((transaction) => !transaction.statementId)
+        .map((transaction) => transaction.id);
 
-      if (assignableExpenseIds.length) {
-        await db.expense.updateMany({
-          where: { id: { in: assignableExpenseIds } },
+      if (assignableTransactionIds.length) {
+        await db.transaction.updateMany({
+          where: { id: { in: assignableTransactionIds } },
           data: { statementId: statement.id },
         });
       }
@@ -125,7 +126,7 @@ export const creditCardStatementRouter = router({
         where: { id: statement.id },
         include: {
           account: { select: { id: true, name: true, currency: true } },
-          _count: { select: { expenses: true, statementPayments: true } },
+          _count: { select: { transactions: true, statementPayments: true } },
         },
       });
     }),
@@ -143,17 +144,9 @@ export const creditCardStatementRouter = router({
     .mutation(async ({ ctx, input }) => {
       const userId = requireUserId(ctx.user);
       const statement = await db.creditCardStatement.findFirst({
-        where: {
-          id: input.statementId,
-          account: { userId },
-        },
+        where: { id: input.statementId, userId },
         include: {
-          account: {
-            select: {
-              id: true,
-              currency: true,
-            },
-          },
+          account: { select: { id: true, currency: true } },
         },
       });
       if (!statement) {
@@ -178,17 +171,17 @@ export const creditCardStatementRouter = router({
         const transfer = await tx.transfer.create({
           data: {
             userId,
-            sourceAccountId: input.fromAccountId,
-            destAccountId: statement.account.id,
+            fromAccountId: input.fromAccountId,
+            toAccountId: statement.account.id,
             amount: input.amountApplied,
-            currency: statement.account.currency,
             date: input.date,
-            notes: input.notes?.trim() || null,
+            note: input.notes?.trim() || null,
           },
         });
 
         await tx.statementPayment.create({
           data: {
+            userId,
             statementId: statement.id,
             transferId: transfer.id,
             amountApplied: input.amountApplied,
@@ -197,6 +190,7 @@ export const creditCardStatementRouter = router({
 
         const paymentsApplied = statement.paymentsApplied + input.amountApplied;
         const isPaid = paymentsApplied >= statement.statementBalance;
+
         await tx.creditCardStatement.update({
           where: { id: statement.id },
           data: {
@@ -218,8 +212,8 @@ export const creditCardStatementRouter = router({
                   id: true,
                   amount: true,
                   date: true,
-                  notes: true,
-                  sourceAccount: { select: { id: true, name: true } },
+                  note: true,
+                  fromAccount: { select: { id: true, name: true } },
                 },
               },
             },

@@ -16,12 +16,8 @@ function applyBounds(
   bounds: { minAmount: number | null; capAmount: number | null },
 ): number {
   let next = value;
-  if (bounds.minAmount != null) {
-    next = Math.max(next, bounds.minAmount);
-  }
-  if (bounds.capAmount != null) {
-    next = Math.min(next, bounds.capAmount);
-  }
+  if (bounds.minAmount != null) next = Math.max(next, bounds.minAmount);
+  if (bounds.capAmount != null) next = Math.min(next, bounds.capAmount);
   return Math.max(0, next);
 }
 
@@ -30,13 +26,13 @@ export const budgetAllocationRouter = router({
     .input(z.object({ budgetPeriodId: idSchema }))
     .query(async ({ ctx, input }) => {
       const userId = requireUserId(ctx.user);
-      return db.budgetAllocation.findMany({
+      return db.budget.findMany({
         where: {
           userId,
           budgetPeriodId: input.budgetPeriodId,
         },
         include: {
-          category: { select: { id: true, name: true } },
+          category: { select: { id: true, name: true, kind: true } },
           generatedFromRule: { select: { id: true, name: true, ruleType: true } },
         },
         orderBy: [{ plannedAmount: "desc" }, { createdAt: "asc" }],
@@ -75,7 +71,7 @@ export const budgetAllocationRouter = router({
         });
       }
 
-      return db.budgetAllocation.upsert({
+      return db.budget.upsert({
         where: {
           budgetPeriodId_categoryId: {
             budgetPeriodId: input.budgetPeriodId,
@@ -169,7 +165,7 @@ export const budgetAllocationRouter = router({
 
       await db.$transaction(async (tx) => {
         for (const [categoryId, values] of computed.entries()) {
-          const existing = await tx.budgetAllocation.findUnique({
+          const existing = await tx.budget.findUnique({
             where: {
               budgetPeriodId_categoryId: {
                 budgetPeriodId: period.id,
@@ -181,7 +177,7 @@ export const budgetAllocationRouter = router({
 
           if (existing?.isOverride) continue;
 
-          await tx.budgetAllocation.upsert({
+          await tx.budget.upsert({
             where: {
               budgetPeriodId_categoryId: {
                 budgetPeriodId: period.id,
@@ -205,10 +201,10 @@ export const budgetAllocationRouter = router({
         }
       });
 
-      return db.budgetAllocation.findMany({
+      return db.budget.findMany({
         where: { userId, budgetPeriodId: period.id },
         include: {
-          category: { select: { id: true, name: true } },
+          category: { select: { id: true, name: true, kind: true } },
           generatedFromRule: { select: { id: true, name: true, ruleType: true } },
         },
         orderBy: [{ plannedAmount: "desc" }, { createdAt: "asc" }],

@@ -37,7 +37,7 @@ export const incomePlanItemRouter = router({
       }
 
       return db.incomePlanItem.findMany({
-        where: { budgetPeriodId: input.budgetPeriodId },
+        where: { userId, budgetPeriodId: input.budgetPeriodId },
         include: {
           account: { select: { id: true, name: true, currency: true } },
         },
@@ -75,6 +75,7 @@ export const incomePlanItemRouter = router({
 
       return db.incomePlanItem.create({
         data: {
+          userId,
           budgetPeriodId: input.budgetPeriodId,
           date: input.date,
           source: input.source,
@@ -90,10 +91,7 @@ export const incomePlanItemRouter = router({
     .mutation(async ({ ctx, input }) => {
       const userId = requireUserId(ctx.user);
       const deleted = await db.incomePlanItem.deleteMany({
-        where: {
-          id: input.id,
-          budgetPeriod: { userId },
-        },
+        where: { id: input.id, userId },
       });
 
       if (deleted.count === 0) {

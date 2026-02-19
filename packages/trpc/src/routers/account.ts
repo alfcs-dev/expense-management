@@ -1,64 +1,14 @@
 import { TRPCError } from "@trpc/server";
 import { db } from "@expense-management/db";
 import {
+  accountTypeSchema,
   currencySchema,
   idSchema,
   normalizeClabe,
-  isValidClabe,
+  parseClabe,
 } from "@expense-management/shared";
 import { z } from "zod";
 import { protectedProcedure, router } from "../trpc.js";
-
-const accountBaseSchema = z.object({
-  name: z.string().trim().min(1).max(120),
-  currency: currencySchema,
-  institution: z.string().trim().max(120).optional(),
-  clabe: z.string().optional(),
-});
-
-const creditAccountSchema = accountBaseSchema.extend({
-  type: z.literal("credit"),
-  creditLimit: z.number().int().min(0),
-  currentDebt: z.number().int().min(0),
-  statementClosingDay: z.number().int().min(1).max(31),
-  paymentGraceDays: z.number().int().min(1).max(60),
-});
-
-const nonCreditAccountSchema = accountBaseSchema.extend({
-  type: z.enum(["debit", "investment", "cash"]),
-  balance: z.number().int(),
-});
-
-const upsertAccountInputSchema = z
-  .union([creditAccountSchema, nonCreditAccountSchema])
-  .superRefine((input, ctx) => {
-    const normalizedClabe = input.clabe ? normalizeClabe(input.clabe) : "";
-
-    if (input.type === "debit" && !normalizedClabe) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["clabe"],
-        message: "CLABE is required for debit accounts",
-      });
-      return;
-    }
-
-    if (normalizedClabe && !isValidClabe(normalizedClabe)) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["clabe"],
-        message: "CLABE must contain 18 valid digits",
-      });
-    }
-
-    if (input.type === "credit" && !normalizedClabe && !input.institution?.trim()) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["institution"],
-        message: "Institution is required for credit accounts when CLABE is missing",
-      });
-    }
-  });
 
 function requireUserId(user: { id: string } | null): string {
   if (!user) {
@@ -67,137 +17,171 @@ function requireUserId(user: { id: string } | null): string {
   return user.id;
 }
 
-function pickPreferredInstitutionName(
-  institutions: Array<{ code: string; name: string }>,
-): string | null {
-  if (institutions.length === 0) return null;
+const transferProfileInputSchema = z
+  .object({
+    clabe: z.string().trim().max(32).optional(),
+    depositReference: z.string().trim().max(80).optional(),
+    beneficiaryName: z.string().trim().max(120).optional(),
+    bankName: z.string().trim().max(120).optional(),
+    isProgrammable: z.boolean().optional(),
+  })
+  .optional();
 
-  const sorted = [...institutions].sort((a, b) => {
-    const score = (code: string) => {
-      if (code.startsWith("40")) return 0;
-      if (code.startsWith("37")) return 1;
-      if (code.startsWith("90")) return 2;
-      return 3;
-    };
+const cardProfileInputSchema = z
+  .object({
+    brand: z.string().trim().max(40).optional(),
+    last4: z
+      .string()
+      .trim()
+      .regex(/^\d{4}$/, "last4 must contain exactly 4 digits")
+      .optional(),
+  })
+  .nullable()
+  .optional();
 
-    const scoreDiff = score(a.code) - score(b.code);
-    if (scoreDiff !== 0) return scoreDiff;
+const institutionIdSchema = z.string().uuid().nullable().optional();
+const institutionCodeSchema = z
+  .string()
+  .trim()
+  .regex(/^\d{5}$/, "institutionCode must be 5 digits")
+  .nullable()
+  .optional();
 
-    return a.name.localeCompare(b.name);
-  });
+const creditCardSettingsInputSchema = z
+  .object({
+    statementDay: z.number().int().min(1).max(31),
+    dueDay: z.number().int().min(1).max(31),
+    graceDays: z.number().int().min(0).max(90).optional(),
+  })
+  .optional();
 
-  return sorted[0]?.name ?? null;
-}
-
-async function inferInstitutionFromClabe(clabe: string): Promise<string | null> {
-  const bankCode = clabe.slice(0, 3);
-  const institutions = await db.institutionCatalog.findMany({
-    where: {
-      bankCode,
-      isActive: true,
-    },
-    select: {
-      code: true,
-      name: true,
-    },
-  });
-
-  return pickPreferredInstitutionName(institutions);
-}
-
-async function buildInstitutionAndClabe(
-  input: z.infer<typeof upsertAccountInputSchema>,
-): Promise<{ institution: string | null; clabe: string | null }> {
-  const normalizedClabe = input.clabe ? normalizeClabe(input.clabe) : "";
-
-  if (!normalizedClabe) {
-    return {
-      institution: input.institution?.trim() || null,
-      clabe: null,
-    };
-  }
-
-  if (!isValidClabe(normalizedClabe)) {
-    throw new TRPCError({
-      code: "BAD_REQUEST",
-      message: "CLABE must contain 18 valid digits",
-    });
-  }
-
-  const institution = await inferInstitutionFromClabe(normalizedClabe);
-  if (!institution) {
-    throw new TRPCError({
-      code: "BAD_REQUEST",
-      message: "Institution could not be inferred from CLABE",
-    });
-  }
-
-  return {
-    institution,
-    clabe: normalizedClabe,
-  };
-}
+const accountInputSchema = z.object({
+  name: z.string().trim().min(1).max(100),
+  type: accountTypeSchema,
+  currency: currencySchema,
+  isActive: z.boolean().default(true),
+  institutionId: institutionIdSchema,
+  institutionCode: institutionCodeSchema,
+  transferProfile: transferProfileInputSchema,
+  cardProfile: cardProfileInputSchema,
+  creditCardSettings: creditCardSettingsInputSchema,
+});
 
 export const accountRouter = router({
   list: protectedProcedure.query(async ({ ctx }) => {
     const userId = requireUserId(ctx.user);
     return db.account.findMany({
       where: { userId },
-      orderBy: { createdAt: "asc" },
-    });
-  }),
-
-  institutions: protectedProcedure.query(async () => {
-    return db.institutionCatalog.findMany({
-      where: { isActive: true },
-      select: {
-        code: true,
-        bankCode: true,
-        name: true,
+      include: {
+        institution: true,
+        transferProfile: true,
+        cardProfile: true,
+        creditCardSettings: true,
       },
-      orderBy: {
-        name: "asc",
-      },
+      orderBy: [{ isActive: "desc" }, { createdAt: "asc" }],
     });
   }),
 
   create: protectedProcedure
-    .input(upsertAccountInputSchema)
+    .input(accountInputSchema)
     .mutation(async ({ ctx, input }) => {
       const userId = requireUserId(ctx.user);
-      const identity = await buildInstitutionAndClabe(input);
+      const isCreditCard = input.type === "credit_card";
+      const normalizedClabe = input.transferProfile?.clabe
+        ? normalizeClabe(input.transferProfile.clabe)
+        : null;
 
-      const accountData =
-        input.type === "credit"
-          ? {
-              userId,
-              name: input.name,
-              type: input.type,
-              currency: input.currency,
-              institution: identity.institution,
-              clabe: identity.clabe,
-              balance: 0,
-              creditLimit: input.creditLimit,
-              currentDebt: input.currentDebt,
-              statementClosingDay: input.statementClosingDay,
-              paymentGraceDays: input.paymentGraceDays,
-            }
-          : {
-              userId,
-              name: input.name,
-              type: input.type,
-              currency: input.currency,
-              institution: identity.institution,
-              clabe: identity.clabe,
-              balance: input.balance,
-              creditLimit: null,
-              currentDebt: null,
-              statementClosingDay: null,
-              paymentGraceDays: null,
-            };
+      let clabeBankCode: string | null = null;
+      let clabeBankName: string | null = null;
+      if (normalizedClabe) {
+        const parsed = parseClabe(normalizedClabe);
+        if (!parsed.isValid) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid CLABE" });
+        }
+        clabeBankCode = parsed.bankCode;
+        clabeBankName = parsed.bankName;
+      }
+
+      let resolvedInstitutionId: string | null =
+        input.institutionId === undefined ? null : input.institutionId;
+      if (resolvedInstitutionId === null && input.institutionCode) {
+        const byCode = await db.institutionCatalog.findFirst({
+          where: { code: input.institutionCode, isActive: true },
+          select: { id: true },
+        });
+        resolvedInstitutionId = byCode?.id ?? null;
+      }
+      if (resolvedInstitutionId === null && clabeBankCode) {
+        const inferredInstitution = await db.institutionCatalog.findFirst({
+          where: { bankCode: clabeBankCode, isActive: true },
+          orderBy: { name: "asc" },
+          select: { id: true },
+        });
+        resolvedInstitutionId = inferredInstitution?.id ?? null;
+      }
+
+      if (resolvedInstitutionId) {
+        const institution = await db.institutionCatalog.findUnique({
+          where: { id: resolvedInstitutionId },
+          select: { id: true },
+        });
+        if (!institution) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Institution not found" });
+        }
+      }
+
+      if (isCreditCard && !input.creditCardSettings) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "creditCardSettings are required for credit_card accounts",
+        });
+      }
 
       return db.account.create({
-        data: accountData,
+        data: {
+          userId,
+          name: input.name,
+          type: input.type,
+          currency: input.currency,
+          institutionId: resolvedInstitutionId,
+          isActive: input.isActive,
+          transferProfile: input.transferProfile
+            ? {
+                create: {
+                  clabe: normalizedClabe,
+                  depositReference: input.transferProfile.depositReference ?? null,
+                  beneficiaryName: input.transferProfile.beneficiaryName ?? null,
+                  bankName: input.transferProfile.bankName ?? clabeBankName,
+                  isProgrammable: input.transferProfile.isProgrammable ?? false,
+                },
+              }
+            : undefined,
+          cardProfile:
+            input.cardProfile && (input.cardProfile.brand || input.cardProfile.last4)
+              ? {
+                  create: {
+                    brand: input.cardProfile.brand ?? null,
+                    last4: input.cardProfile.last4 ?? null,
+                  },
+                }
+              : undefined,
+          creditCardSettings:
+            isCreditCard && input.creditCardSettings
+              ? {
+                  create: {
+                    statementDay: input.creditCardSettings.statementDay,
+                    dueDay: input.creditCardSettings.dueDay,
+                    graceDays: input.creditCardSettings.graceDays ?? null,
+                  },
+                }
+              : undefined,
+        },
+        include: {
+          institution: true,
+          transferProfile: true,
+          cardProfile: true,
+          creditCardSettings: true,
+        },
       });
     }),
 
@@ -205,53 +189,167 @@ export const accountRouter = router({
     .input(
       z.object({
         id: idSchema,
-        data: upsertAccountInputSchema,
+        data: accountInputSchema.partial(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
       const userId = requireUserId(ctx.user);
-      const identity = await buildInstitutionAndClabe(input.data);
-      const accountData =
-        input.data.type === "credit"
-          ? {
-              name: input.data.name,
-              type: input.data.type,
-              currency: input.data.currency,
-              institution: identity.institution,
-              clabe: identity.clabe,
-              balance: 0,
-              creditLimit: input.data.creditLimit,
-              currentDebt: input.data.currentDebt,
-              statementClosingDay: input.data.statementClosingDay,
-              paymentGraceDays: input.data.paymentGraceDays,
-            }
-          : {
-              name: input.data.name,
-              type: input.data.type,
-              currency: input.data.currency,
-              institution: identity.institution,
-              clabe: identity.clabe,
-              balance: input.data.balance,
-              creditLimit: null,
-              currentDebt: null,
-              statementClosingDay: null,
-              paymentGraceDays: null,
-            };
+      const existing = await db.account.findFirst({
+        where: { id: input.id, userId },
+        select: { id: true, type: true, institutionId: true },
+      });
+      if (!existing) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Account not found" });
+      }
 
-      const updated = await db.account.updateMany({
-        where: {
-          id: input.id,
-          userId,
+      const nextType = input.data.type ?? existing.type;
+      if (nextType === "credit_card" && input.data.creditCardSettings === undefined) {
+        const hasSettings = await db.creditCardSettings.findUnique({
+          where: { accountId: input.id },
+          select: { accountId: true },
+        });
+        if (!hasSettings) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "creditCardSettings are required for credit_card accounts",
+          });
+        }
+      }
+
+      let resolvedInstitutionId: string | null | undefined = input.data.institutionId;
+      if (
+        resolvedInstitutionId === undefined &&
+        input.data.institutionCode !== undefined
+      ) {
+        if (input.data.institutionCode === null) {
+          resolvedInstitutionId = null;
+        } else {
+          const byCode = await db.institutionCatalog.findFirst({
+            where: { code: input.data.institutionCode, isActive: true },
+            select: { id: true },
+          });
+          resolvedInstitutionId = byCode?.id ?? null;
+        }
+      }
+      let normalizedClabe: string | null | undefined;
+      let clabeBankName: string | null = null;
+      if (input.data.transferProfile?.clabe !== undefined) {
+        normalizedClabe = normalizeClabe(input.data.transferProfile.clabe);
+        if (normalizedClabe) {
+          const parsed = parseClabe(normalizedClabe);
+          if (!parsed.isValid) {
+            throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid CLABE" });
+          }
+          clabeBankName = parsed.bankName;
+          if (resolvedInstitutionId === undefined && parsed.bankCode) {
+            const inferredInstitution = await db.institutionCatalog.findFirst({
+              where: { bankCode: parsed.bankCode, isActive: true },
+              orderBy: { name: "asc" },
+              select: { id: true },
+            });
+            resolvedInstitutionId = inferredInstitution?.id ?? existing.institutionId;
+          }
+        } else if (resolvedInstitutionId === undefined) {
+          resolvedInstitutionId = existing.institutionId;
+        }
+      }
+
+      if (resolvedInstitutionId) {
+        const institution = await db.institutionCatalog.findUnique({
+          where: { id: resolvedInstitutionId },
+          select: { id: true },
+        });
+        if (!institution) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Institution not found" });
+        }
+      }
+
+      await db.account.updateMany({
+        where: { id: input.id, userId },
+        data: {
+          name: input.data.name,
+          type: input.data.type,
+          currency: input.data.currency,
+          institutionId: resolvedInstitutionId,
+          isActive: input.data.isActive,
         },
-        data: accountData,
       });
 
-      if (updated.count === 0) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Account not found" });
+      if (input.data.transferProfile !== undefined) {
+        await db.accountTransferProfile.upsert({
+          where: { accountId: input.id },
+          update: {
+            clabe: normalizedClabe ?? null,
+            depositReference: input.data.transferProfile.depositReference ?? null,
+            beneficiaryName: input.data.transferProfile.beneficiaryName ?? null,
+            bankName: input.data.transferProfile.bankName ?? clabeBankName,
+            isProgrammable: input.data.transferProfile.isProgrammable ?? false,
+          },
+          create: {
+            accountId: input.id,
+            clabe: normalizedClabe ?? null,
+            depositReference: input.data.transferProfile.depositReference ?? null,
+            beneficiaryName: input.data.transferProfile.beneficiaryName ?? null,
+            bankName: input.data.transferProfile.bankName ?? clabeBankName,
+            isProgrammable: input.data.transferProfile.isProgrammable ?? false,
+          },
+        });
+      }
+
+      if (input.data.cardProfile !== undefined) {
+        if (
+          input.data.cardProfile === null ||
+          (!input.data.cardProfile.brand && !input.data.cardProfile.last4)
+        ) {
+          await db.accountCardProfile.deleteMany({ where: { accountId: input.id } });
+        } else {
+          await db.accountCardProfile.upsert({
+            where: { accountId: input.id },
+            update: {
+              brand: input.data.cardProfile.brand ?? null,
+              last4: input.data.cardProfile.last4 ?? null,
+            },
+            create: {
+              accountId: input.id,
+              brand: input.data.cardProfile.brand ?? null,
+              last4: input.data.cardProfile.last4 ?? null,
+            },
+          });
+        }
+      }
+
+      if (input.data.creditCardSettings !== undefined) {
+        if ((input.data.type ?? existing.type) !== "credit_card") {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "creditCardSettings can only be set for credit_card accounts",
+          });
+        }
+
+        await db.creditCardSettings.upsert({
+          where: { accountId: input.id },
+          update: {
+            statementDay: input.data.creditCardSettings.statementDay,
+            dueDay: input.data.creditCardSettings.dueDay,
+            graceDays: input.data.creditCardSettings.graceDays ?? null,
+          },
+          create: {
+            accountId: input.id,
+            statementDay: input.data.creditCardSettings.statementDay,
+            dueDay: input.data.creditCardSettings.dueDay,
+            graceDays: input.data.creditCardSettings.graceDays ?? null,
+          },
+        });
       }
 
       return db.account.findUniqueOrThrow({
         where: { id: input.id },
+        include: {
+          institution: true,
+          transferProfile: true,
+          cardProfile: true,
+          creditCardSettings: true,
+        },
       });
     }),
 
@@ -260,16 +358,11 @@ export const accountRouter = router({
     .mutation(async ({ ctx, input }) => {
       const userId = requireUserId(ctx.user);
       const deleted = await db.account.deleteMany({
-        where: {
-          id: input.id,
-          userId,
-        },
+        where: { id: input.id, userId },
       });
-
       if (deleted.count === 0) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Account not found" });
       }
-
       return { success: true };
     }),
 });

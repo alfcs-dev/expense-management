@@ -6,8 +6,9 @@ import { budgetPeriodRouter } from "./routers/budget-period.js";
 import { budgetRuleRouter } from "./routers/budget-rule.js";
 import { categoryRouter } from "./routers/category.js";
 import { creditCardStatementRouter } from "./routers/credit-card-statement.js";
-import { expenseRouter } from "./routers/expense.js";
+import { expenseRouter, transactionRouter } from "./routers/expense.js";
 import { incomePlanItemRouter } from "./routers/income-plan-item.js";
+import { institutionCatalogRouter } from "./routers/institution-catalog.js";
 import { installmentRouter } from "./routers/installment.js";
 import { recurringExpenseRouter } from "./routers/recurring-expense.js";
 import { userRouter } from "./routers/user.js";
@@ -22,8 +23,10 @@ export const appRouter = router({
   budgetRule: budgetRuleRouter,
   budgetAllocation: budgetAllocationRouter,
   incomePlanItem: incomePlanItemRouter,
+  institutionCatalog: institutionCatalogRouter,
   creditCardStatement: creditCardStatementRouter,
   installment: installmentRouter,
+  transaction: transactionRouter,
   expense: expenseRouter,
 });
 

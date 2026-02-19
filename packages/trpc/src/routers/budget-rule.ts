@@ -11,6 +11,8 @@ function requireUserId(user: { id: string } | null): string {
   return user.id;
 }
 
+const monthSchema = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/);
+
 const budgetRuleInputSchema = z.object({
   name: z.string().trim().min(1).max(120),
   categoryId: idSchema,
@@ -19,14 +21,8 @@ const budgetRuleInputSchema = z.object({
   applyOrder: z.number().int().min(0).default(0),
   minAmount: z.number().int().min(0).optional(),
   capAmount: z.number().int().min(0).optional(),
-  activeFrom: z
-    .string()
-    .regex(/^\d{4}-(0[1-9]|1[0-2])$/)
-    .optional(),
-  activeTo: z
-    .string()
-    .regex(/^\d{4}-(0[1-9]|1[0-2])$/)
-    .optional(),
+  activeFrom: monthSchema.optional(),
+  activeTo: monthSchema.optional(),
 });
 
 export const budgetRuleRouter = router({
@@ -35,7 +31,7 @@ export const budgetRuleRouter = router({
     return db.budgetRule.findMany({
       where: { userId },
       include: {
-        category: { select: { id: true, name: true } },
+        category: { select: { id: true, name: true, kind: true } },
       },
       orderBy: [{ applyOrder: "asc" }, { createdAt: "asc" }],
     });
@@ -106,6 +102,7 @@ export const budgetRuleRouter = router({
       if (updated.count === 0) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Budget rule not found" });
       }
+
       return db.budgetRule.findUniqueOrThrow({ where: { id: input.id } });
     }),
 

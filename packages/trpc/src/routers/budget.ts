@@ -4,327 +4,216 @@ import { idSchema } from "@expense-management/shared";
 import { z } from "zod";
 import { protectedProcedure, router } from "../trpc.js";
 
-const createBudgetSchema = z.object({
-  name: z.string().trim().min(1).max(100),
-  startDate: z.coerce.date(),
-  endDate: z.coerce.date(),
-  currency: z.enum(["MXN", "USD"]),
-  budgetLimit: z.number().int().nonnegative(),
-  isDefault: z.boolean().optional(),
-});
-
-const setDefaultBudgetSchema = z.object({
-  id: idSchema,
-});
-
-const resolveForDateSchema = z.object({
-  date: z.coerce.date(),
-});
-
 function requireUserId(user: { id: string } | null): string {
   if (!user) {
     throw new TRPCError({ code: "UNAUTHORIZED", message: "Not authenticated" });
   }
-
   return user.id;
 }
 
-function startOfDay(date: Date): Date {
-  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
-}
-
-function endOfDay(date: Date): Date {
-  return new Date(
-    Date.UTC(
-      date.getUTCFullYear(),
-      date.getUTCMonth(),
-      date.getUTCDate(),
-      23,
-      59,
-      59,
-      999,
-    ),
-  );
-}
-
-function assertDateRange(startDate: Date, endDate: Date): void {
-  if (startDate > endDate) {
-    throw new TRPCError({
-      code: "BAD_REQUEST",
-      message: "Budget startDate must be before or equal to endDate",
-    });
-  }
-}
-
-async function assertNoRangeOverlap(
-  userId: string,
-  startDate: Date,
-  endDate: Date,
-  excludeBudgetId?: string,
-): Promise<void> {
-  const overlapping = await db.budget.findFirst({
-    where: {
-      userId,
-      id: excludeBudgetId ? { not: excludeBudgetId } : undefined,
-      startDate: { lte: endDate },
-      endDate: { gte: startDate },
-    },
-    select: { id: true, name: true },
-  });
-
-  if (overlapping) {
-    throw new TRPCError({
-      code: "CONFLICT",
-      message: `Budget range overlaps with existing budget: ${overlapping.name}`,
-    });
-  }
-}
-
-function monthsInclusive(startDate: Date, endDate: Date): number {
-  const start = startOfDay(startDate);
-  const end = startOfDay(endDate);
-
-  const months =
-    (end.getUTCFullYear() - start.getUTCFullYear()) * 12 +
-    (end.getUTCMonth() - start.getUTCMonth()) +
-    1;
-
-  return Math.max(months, 1);
-}
-
-function plannedMonthlyAmountForTemplate(template: {
-  amount: number;
-  frequency: "monthly" | "biweekly" | "annual" | "bimonthly";
-  isAnnual: boolean;
-  annualCost: number | null;
-}): number {
-  if (template.isAnnual || template.frequency === "annual") {
-    const annualCost = template.annualCost ?? template.amount;
-    return Math.round(annualCost / 12);
-  }
-
-  if (template.frequency === "biweekly") {
-    return Math.round((template.amount * 26) / 12);
-  }
-
-  if (template.frequency === "bimonthly") {
-    return Math.round(template.amount / 2);
-  }
-
-  return template.amount;
-}
+const budgetInputSchema = z.object({
+  budgetPeriodId: idSchema,
+  categoryId: idSchema,
+  plannedAmount: z.number().int().min(0),
+  generatedFromRuleId: idSchema.optional(),
+  isOverride: z.boolean().optional(),
+});
 
 export const budgetRouter = router({
-  create: protectedProcedure
-    .input(createBudgetSchema)
-    .mutation(async ({ ctx, input }) => {
+  list: protectedProcedure
+    .input(z.object({ budgetPeriodId: idSchema.optional() }).optional())
+    .query(async ({ ctx, input }) => {
       const userId = requireUserId(ctx.user);
-      const startDate = startOfDay(input.startDate);
-      const endDate = endOfDay(input.endDate);
-
-      assertDateRange(startDate, endDate);
-      await assertNoRangeOverlap(userId, startDate, endDate);
-
-      const existingCount = await db.budget.count({ where: { userId } });
-      const shouldBeDefault = input.isDefault ?? existingCount === 0;
-
-      return db.$transaction(async (tx) => {
-        if (shouldBeDefault) {
-          await tx.budget.updateMany({
-            where: {
-              userId,
-              isDefault: true,
-            },
-            data: {
-              isDefault: false,
-            },
-          });
-        }
-
-        return tx.budget.create({
-          data: {
-            userId,
-            name: input.name.trim(),
-            startDate,
-            endDate,
-            currency: input.currency,
-            budgetLimit: input.budgetLimit,
-            isDefault: shouldBeDefault,
+      return db.budget.findMany({
+        where: {
+          userId,
+          budgetPeriodId: input?.budgetPeriodId,
+        },
+        include: {
+          budgetPeriod: {
+            select: { id: true, month: true, currency: true, expectedIncomeAmount: true },
           },
-        });
+          category: { select: { id: true, name: true, kind: true } },
+          generatedFromRule: { select: { id: true, name: true, ruleType: true } },
+        },
+        orderBy: [
+          { budgetPeriod: { month: "desc" } },
+          { plannedAmount: "desc" },
+          { createdAt: "asc" },
+        ],
       });
     }),
 
-  list: protectedProcedure.query(async ({ ctx }) => {
+  create: protectedProcedure.input(budgetInputSchema).mutation(async ({ ctx, input }) => {
     const userId = requireUserId(ctx.user);
 
-    return db.budget.findMany({
-      where: { userId },
-      orderBy: [{ isDefault: "desc" }, { startDate: "asc" }, { createdAt: "asc" }],
+    const period = await db.budgetPeriod.findFirst({
+      where: { id: input.budgetPeriodId, userId },
+      select: { id: true },
     });
-  }),
+    if (!period) {
+      throw new TRPCError({
+        code: "BAD_REQUEST",
+        message: "Budget period not found for current user",
+      });
+    }
 
-  getDefault: protectedProcedure.query(async ({ ctx }) => {
-    const userId = requireUserId(ctx.user);
+    const category = await db.category.findFirst({
+      where: { id: input.categoryId, userId },
+      select: { id: true },
+    });
+    if (!category) {
+      throw new TRPCError({
+        code: "BAD_REQUEST",
+        message: "Category not found for current user",
+      });
+    }
 
-    return db.budget.findFirst({
-      where: {
+    if (input.generatedFromRuleId) {
+      const rule = await db.budgetRule.findFirst({
+        where: { id: input.generatedFromRuleId, userId },
+        select: { id: true },
+      });
+      if (!rule) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Budget rule not found for current user",
+        });
+      }
+    }
+
+    return db.budget.create({
+      data: {
         userId,
-        isDefault: true,
+        budgetPeriodId: input.budgetPeriodId,
+        categoryId: input.categoryId,
+        plannedAmount: input.plannedAmount,
+        generatedFromRuleId: input.generatedFromRuleId,
+        isOverride: input.isOverride ?? false,
       },
-      orderBy: [{ createdAt: "asc" }],
     });
   }),
 
-  setDefault: protectedProcedure
-    .input(setDefaultBudgetSchema)
+  update: protectedProcedure
+    .input(
+      z.object({
+        id: idSchema,
+        data: budgetInputSchema.partial(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const userId = requireUserId(ctx.user);
 
-      const budget = await db.budget.findFirst({
-        where: {
-          id: input.id,
-          userId,
-        },
-        select: { id: true },
-      });
+      if (input.data.budgetPeriodId) {
+        const period = await db.budgetPeriod.findFirst({
+          where: { id: input.data.budgetPeriodId, userId },
+          select: { id: true },
+        });
+        if (!period) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Budget period not found for current user",
+          });
+        }
+      }
 
-      if (!budget) {
+      if (input.data.categoryId) {
+        const category = await db.category.findFirst({
+          where: { id: input.data.categoryId, userId },
+          select: { id: true },
+        });
+        if (!category) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Category not found for current user",
+          });
+        }
+      }
+
+      if (input.data.generatedFromRuleId) {
+        const rule = await db.budgetRule.findFirst({
+          where: { id: input.data.generatedFromRuleId, userId },
+          select: { id: true },
+        });
+        if (!rule) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Budget rule not found for current user",
+          });
+        }
+      }
+
+      const updated = await db.budget.updateMany({
+        where: { id: input.id, userId },
+        data: {
+          budgetPeriodId: input.data.budgetPeriodId,
+          categoryId: input.data.categoryId,
+          plannedAmount: input.data.plannedAmount,
+          generatedFromRuleId: input.data.generatedFromRuleId,
+          isOverride: input.data.isOverride,
+        },
+      });
+      if (updated.count === 0) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Budget not found" });
       }
 
-      return db.$transaction(async (tx) => {
-        await tx.budget.updateMany({
-          where: {
-            userId,
-            isDefault: true,
-          },
-          data: {
-            isDefault: false,
-          },
-        });
-
-        return tx.budget.update({
-          where: { id: input.id },
-          data: { isDefault: true },
-        });
-      });
+      return db.budget.findUniqueOrThrow({ where: { id: input.id } });
     }),
 
-  resolveForDate: protectedProcedure
-    .input(resolveForDateSchema)
-    .query(async ({ ctx, input }) => {
+  delete: protectedProcedure
+    .input(z.object({ id: idSchema }))
+    .mutation(async ({ ctx, input }) => {
       const userId = requireUserId(ctx.user);
-      const date = startOfDay(input.date);
-
-      const inRange = await db.budget.findFirst({
-        where: {
-          userId,
-          startDate: { lte: date },
-          endDate: { gte: date },
-        },
-        orderBy: [{ isDefault: "desc" }, { startDate: "asc" }, { createdAt: "asc" }],
+      const deleted = await db.budget.deleteMany({
+        where: { id: input.id, userId },
       });
-
-      if (inRange) {
-        return inRange;
+      if (deleted.count === 0) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Budget not found" });
       }
-
-      return db.budget.findFirst({
-        where: {
-          userId,
-          isDefault: true,
-        },
-      });
+      return { success: true };
     }),
 
   getPlannedByCategory: protectedProcedure
-    .input(z.object({ budgetId: idSchema }))
+    .input(z.object({ budgetPeriodId: idSchema }))
     .query(async ({ ctx, input }) => {
       const userId = requireUserId(ctx.user);
 
-      const budget = await db.budget.findFirst({
-        where: {
-          id: input.budgetId,
-          userId,
-        },
+      const period = await db.budgetPeriod.findFirst({
+        where: { id: input.budgetPeriodId, userId },
         select: {
           id: true,
-          name: true,
-          startDate: true,
-          endDate: true,
+          month: true,
           currency: true,
-          budgetLimit: true,
-          isDefault: true,
+          expectedIncomeAmount: true,
         },
       });
-
-      if (!budget) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Budget not found" });
+      if (!period) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Budget period not found",
+        });
       }
 
-      const templates = await db.recurringExpense.findMany({
-        where: {
-          userId,
-          budgetId: budget.id,
-          isActive: true,
-        },
+      const budgets = await db.budget.findMany({
+        where: { userId, budgetPeriodId: period.id },
         include: {
-          category: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
+          category: { select: { id: true, name: true } },
         },
+        orderBy: { plannedAmount: "desc" },
       });
 
-      const periodMonthCount = monthsInclusive(budget.startDate, budget.endDate);
+      const categories = budgets.map((item) => ({
+        categoryId: item.categoryId,
+        categoryName: item.category.name,
+        planned: { [period.currency]: item.plannedAmount },
+      }));
 
-      const plannedByCategory = new Map<
-        string,
-        {
-          categoryId: string;
-          categoryName: string;
-          templateCount: number;
-          planned: { MXN: number; USD: number };
-        }
-      >();
-
-      for (const template of templates) {
-        const monthlyPlanned = plannedMonthlyAmountForTemplate(template);
-        const periodPlanned = monthlyPlanned * periodMonthCount;
-
-        const current = plannedByCategory.get(template.categoryId) ?? {
-          categoryId: template.categoryId,
-          categoryName: template.category.name,
-          templateCount: 0,
-          planned: { MXN: 0, USD: 0 },
-        };
-
-        current.templateCount += 1;
-        current.planned[template.currency] += periodPlanned;
-        plannedByCategory.set(template.categoryId, current);
-      }
-
-      const categories = Array.from(plannedByCategory.values()).sort((a, b) =>
-        a.categoryName.localeCompare(b.categoryName),
-      );
-
-      const totals = categories.reduce(
-        (acc, category) => {
-          acc.MXN += category.planned.MXN;
-          acc.USD += category.planned.USD;
-          return acc;
-        },
-        { MXN: 0, USD: 0 },
-      );
+      const totals = budgets.reduce((acc, item) => acc + item.plannedAmount, 0);
 
       return {
-        budget,
-        periodMonthCount,
+        budgetPeriod: period,
         categories,
-        totals,
+        totals: { [period.currency]: totals },
       };
     }),
 });

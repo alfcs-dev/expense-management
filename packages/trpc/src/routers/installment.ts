@@ -19,11 +19,11 @@ function toMonthDate(startDate: Date, offset: number): Date {
 
 export const installmentRouter = router({
   listByPlan: protectedProcedure
-    .input(z.object({ installmentPlanId: idSchema }))
+    .input(z.object({ planId: idSchema }))
     .query(async ({ ctx, input }) => {
       const userId = requireUserId(ctx.user);
       const plan = await db.installmentPlan.findFirst({
-        where: { id: input.installmentPlanId, userId },
+        where: { id: input.planId, userId },
         select: { id: true },
       });
       if (!plan) {
@@ -36,10 +36,10 @@ export const installmentRouter = router({
       return db.installment.findMany({
         where: {
           userId,
-          installmentPlanId: input.installmentPlanId,
+          planId: input.planId,
         },
         include: {
-          expenses: {
+          transactions: {
             select: {
               id: true,
               amount: true,
@@ -55,20 +55,20 @@ export const installmentRouter = router({
   generateSchedule: protectedProcedure
     .input(
       z.object({
-        installmentPlanId: idSchema,
+        planId: idSchema,
         replaceExisting: z.boolean().default(false),
       }),
     )
     .mutation(async ({ ctx, input }) => {
       const userId = requireUserId(ctx.user);
       const plan = await db.installmentPlan.findFirst({
-        where: { id: input.installmentPlanId, userId },
+        where: { id: input.planId, userId },
         select: {
           id: true,
           userId: true,
-          months: true,
-          totalAmount: true,
-          startDate: true,
+          installmentCountTotal: true,
+          principalAmount: true,
+          purchaseDate: true,
         },
       });
       if (!plan) {
@@ -79,7 +79,7 @@ export const installmentRouter = router({
       }
 
       const existingCount = await db.installment.count({
-        where: { installmentPlanId: plan.id, userId },
+        where: { planId: plan.id, userId },
       });
       if (existingCount > 0 && !input.replaceExisting) {
         throw new TRPCError({
@@ -89,27 +89,31 @@ export const installmentRouter = router({
         });
       }
 
-      const amountPerInstallment = Math.floor(plan.totalAmount / plan.months);
-      const remainder = plan.totalAmount - amountPerInstallment * plan.months;
+      const amountPerInstallment = Math.floor(
+        plan.principalAmount / plan.installmentCountTotal,
+      );
+      const remainder =
+        plan.principalAmount - amountPerInstallment * plan.installmentCountTotal;
 
       await db.$transaction(async (tx) => {
         if (existingCount > 0 && input.replaceExisting) {
           await tx.installment.deleteMany({
-            where: { installmentPlanId: plan.id, userId },
+            where: { planId: plan.id, userId },
           });
         }
 
-        for (let index = 0; index < plan.months; index += 1) {
+        for (let index = 0; index < plan.installmentCountTotal; index += 1) {
           const amount =
-            index === plan.months - 1
+            index === plan.installmentCountTotal - 1
               ? amountPerInstallment + remainder
               : amountPerInstallment;
+
           await tx.installment.create({
             data: {
               userId: plan.userId,
-              installmentPlanId: plan.id,
+              planId: plan.id,
               installmentNumber: index + 1,
-              dueDate: toMonthDate(plan.startDate, index),
+              dueDate: toMonthDate(plan.purchaseDate, index),
               amount,
             },
           });
@@ -117,19 +121,19 @@ export const installmentRouter = router({
       });
 
       return db.installment.findMany({
-        where: { installmentPlanId: plan.id, userId },
+        where: { planId: plan.id, userId },
         orderBy: { installmentNumber: "asc" },
       });
     }),
 
   progress: protectedProcedure
-    .input(z.object({ installmentPlanId: idSchema }))
+    .input(z.object({ planId: idSchema }))
     .query(async ({ ctx, input }) => {
       const userId = requireUserId(ctx.user);
       const installments = await db.installment.findMany({
-        where: { installmentPlanId: input.installmentPlanId, userId },
+        where: { planId: input.planId, userId },
         include: {
-          expenses: {
+          transactions: {
             select: {
               id: true,
               statement: { select: { status: true } },
@@ -145,14 +149,16 @@ export const installmentRouter = router({
       }
 
       const paidCount = installments.filter((item) =>
-        item.expenses.some((expense) => expense.statement?.status === "paid"),
+        item.transactions.some((transaction) => transaction.statement?.status === "paid"),
       ).length;
       const totalCount = installments.length;
       const remainingCount = totalCount - paidCount;
       const remainingAmount = installments
         .filter(
           (item) =>
-            !item.expenses.some((expense) => expense.statement?.status === "paid"),
+            !item.transactions.some(
+              (transaction) => transaction.statement?.status === "paid",
+            ),
         )
         .reduce((sum, item) => sum + item.amount, 0);
 
