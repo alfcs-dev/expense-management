@@ -65,7 +65,12 @@ const seedAccounts: SeedAccount[] = [
     currentBalance: -24_830_00,
     institutionCode: "40021",
   },
-  { name: "Investment Account", type: "investment", currency: "USD", currentBalance: 8_200_00 },
+  {
+    name: "Investment Account",
+    type: "investment",
+    currency: "USD",
+    currentBalance: 8_200_00,
+  },
   { name: "Store Credit", type: "credit", currency: "MXN", currentBalance: -4_500_00 },
 ];
 

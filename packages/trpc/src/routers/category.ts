@@ -19,11 +19,13 @@ const categoryInputSchema = z.object({
   parentId: idSchema.optional(),
 });
 
-const DEFAULT_USER_CATEGORIES: Array<{ name: string; kind: z.infer<typeof categoryKindSchema> }> =
-  [
-    { name: "Income", kind: "income" },
-    { name: "Expenses", kind: "expense" },
-  ];
+const DEFAULT_USER_CATEGORIES: Array<{
+  name: string;
+  kind: z.infer<typeof categoryKindSchema>;
+}> = [
+  { name: "Income", kind: "income" },
+  { name: "Expenses", kind: "expense" },
+];
 
 async function ensureDefaultCategories(userId: string): Promise<void> {
   for (const category of DEFAULT_USER_CATEGORIES) {

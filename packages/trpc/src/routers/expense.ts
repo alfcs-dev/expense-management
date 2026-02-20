@@ -90,7 +90,10 @@ function assertAmountMatchesCategoryKind(
   categoryKind: "expense" | "income" | "transfer" | "savings" | "debt",
 ): void {
   if (amount === 0) {
-    throw new TRPCError({ code: "BAD_REQUEST", message: "Transaction amount cannot be zero" });
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "Transaction amount cannot be zero",
+    });
   }
   if (amount > 0 && categoryKind === "expense") {
     throw new TRPCError({
