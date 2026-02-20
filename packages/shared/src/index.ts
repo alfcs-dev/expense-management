@@ -28,6 +28,14 @@ export {
 // CLABE
 export { clabeSchema, isValidClabe, normalizeClabe, parseClabe } from "./clabe.js";
 
+// Category appearance
+export {
+  CATEGORY_ICON_NAMES,
+  categoryColorSchema,
+  categoryIconNameSchema,
+  type CategoryIconName,
+} from "./category-appearance.js";
+
 // Card (credit/debit)
 export {
   cardNumberSchema,

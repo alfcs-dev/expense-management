@@ -47,6 +47,8 @@ type SeedAccount = {
 type SeedCategory = {
   name: string;
   kind: CategoryKind;
+  color?: string;
+  icon?: string;
   parentName?: string;
 };
 
@@ -180,16 +182,9 @@ const seedInstitutions = seedInstitutionEntries.map(([code, name]) => ({
 }));
 
 const seedCategories: SeedCategory[] = [
-  { name: "Income", kind: "income" },
-  { name: "Salary", kind: "income", parentName: "Income" },
-  { name: "Deposit", kind: "income", parentName: "Income" },
-  { name: "Other", kind: "income", parentName: "Income" },
-  { name: "Expenses", kind: "expense" },
-  { name: "Food", kind: "expense", parentName: "Expenses" },
-  { name: "Transport", kind: "expense", parentName: "Expenses" },
-  { name: "Debt", kind: "debt" },
-  { name: "Buffer", kind: "savings" },
-  { name: "Transfers", kind: "transfer" },
+  { name: "Salary", kind: "income", color: "#10B981", icon: "Briefcase" },
+  { name: "Deposit", kind: "income", color: "#3B82F6", icon: "Banknote" },
+  { name: "Other", kind: "income", color: "#F59E0B", icon: "Sparkles" },
 ];
 
 async function applySeed() {
@@ -348,26 +343,18 @@ async function applySeed() {
         userId: user.id,
         name: category.name,
         kind: category.kind,
+        color: category.color ?? null,
+        icon: category.icon ?? null,
         parentId,
       },
     });
     categoryByName.set(category.name, created.id);
   }
 
-  const foodCategoryId = categoryByName.get("Food");
   const salaryCategoryId = categoryByName.get("Salary");
   const depositCategoryId = categoryByName.get("Deposit");
   const otherIncomeCategoryId = categoryByName.get("Other");
-  const debtCategoryId = categoryByName.get("Debt");
-  const bufferCategoryId = categoryByName.get("Buffer");
-  if (
-    !foodCategoryId ||
-    !salaryCategoryId ||
-    !depositCategoryId ||
-    !otherIncomeCategoryId ||
-    !debtCategoryId ||
-    !bufferCategoryId
-  ) {
+  if (!salaryCategoryId || !depositCategoryId || !otherIncomeCategoryId) {
     throw new Error("Required seed categories were not created");
   }
 
@@ -411,8 +398,8 @@ async function applySeed() {
   const fixedRule = await prisma.budgetRule.create({
     data: {
       userId: user.id,
-      name: "Food fixed",
-      categoryId: foodCategoryId,
+      name: "Other fixed",
+      categoryId: otherIncomeCategoryId,
       ruleType: "fixed" satisfies BudgetRuleType,
       value: 18_000_00,
       applyOrder: 0,
@@ -422,8 +409,8 @@ async function applySeed() {
   const percentRule = await prisma.budgetRule.create({
     data: {
       userId: user.id,
-      name: "Buffer 10%",
-      categoryId: bufferCategoryId,
+      name: "Deposit 10%",
+      categoryId: depositCategoryId,
       ruleType: "percent_of_income" satisfies BudgetRuleType,
       value: 1000,
       applyOrder: 1,
@@ -435,14 +422,14 @@ async function applySeed() {
       {
         userId: user.id,
         budgetPeriodId: budgetPeriod.id,
-        categoryId: foodCategoryId,
+        categoryId: otherIncomeCategoryId,
         plannedAmount: 18_000_00,
         generatedFromRuleId: fixedRule.id,
       },
       {
         userId: user.id,
         budgetPeriodId: budgetPeriod.id,
-        categoryId: bufferCategoryId,
+        categoryId: depositCategoryId,
         plannedAmount: 12_000_00,
         generatedFromRuleId: percentRule.id,
       },
@@ -468,7 +455,7 @@ async function applySeed() {
       installmentCountTotal: 12,
       installmentAmount: 2_000_00,
       status: "active" satisfies InstallmentPlanStatus,
-      categoryId: debtCategoryId,
+      categoryId: otherIncomeCategoryId,
       projectId: project.id,
     },
   });
@@ -504,7 +491,7 @@ async function applySeed() {
       description: "Groceries card purchase",
       amount: -2_200_00,
       accountId: creditAccountId,
-      categoryId: foodCategoryId,
+      categoryId: otherIncomeCategoryId,
       statementId: statement.id,
       installmentId: firstInstallment.id,
       isPaid: false,
@@ -561,7 +548,7 @@ async function applySeed() {
       description: "Card payment outflow",
       amount: -4_200_00,
       accountId: checkingAccountId,
-      categoryId: categoryByName.get("Transfers")!,
+      categoryId: otherIncomeCategoryId,
       isPaid: true,
       paidAt: addDays(periodStart, 12),
       notes: "Seed transfer outflow",
@@ -575,7 +562,7 @@ async function applySeed() {
       description: "Card payment inflow",
       amount: 4_200_00,
       accountId: creditAccountId,
-      categoryId: categoryByName.get("Transfers")!,
+      categoryId: otherIncomeCategoryId,
       isPaid: true,
       paidAt: addDays(periodStart, 12),
       notes: "Seed transfer inflow",
@@ -622,7 +609,7 @@ async function applySeed() {
     data: {
       userId: user.id,
       name: "Internet",
-      categoryId: foodCategoryId,
+      categoryId: otherIncomeCategoryId,
       amountType: "fixed" satisfies BillAmountType,
       defaultAmount: 600_00,
       dueDay: 10,
@@ -637,7 +624,7 @@ async function applySeed() {
     data: {
       userId: user.id,
       name: "Gym Membership",
-      categoryId: foodCategoryId,
+      categoryId: otherIncomeCategoryId,
       amountType: "fixed" satisfies BillAmountType,
       defaultAmount: 899_00,
       dueDay: 20,
@@ -730,7 +717,7 @@ function previewData() {
       "Seed will create one monthly budget period with rules and generated budgets.",
       "Seed will create a credit statement with a linked payment transfer.",
       "Seed will create one installment plan with first installment linked to transaction.",
-      "Seed will create income hierarchy defaults: Income > Salary/Deposit/Other.",
+      "Seed will create root income defaults: Salary, Deposit, Other.",
       "Seed will create bill occurrences with paid and pending statuses.",
       "Seed will create transactions with paid/unpaid status for dashboard and bills flow.",
     ],

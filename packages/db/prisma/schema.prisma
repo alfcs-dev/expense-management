@@ -254,6 +254,8 @@ model Category {
   id        String       @id @default(cuid())
   userId    String       @map("user_id")
   name      String
+  color     String?
+  icon      String?
   parentId  String?      @map("parent_id")
   kind      CategoryKind
   createdAt DateTime     @default(now()) @map("created_at")
