@@ -200,6 +200,12 @@ Each reintroduced feature must ship as vertical slice with:
 ## 8. In Progress Log
 
 **Achievements**
+- 2026-02-20: Established finance-v2 checkpoint baseline for merge/replan.
+  - Checkpoint commit: `b5469cf` on branch `phase-2.6-finance-v2`.
+  - Transaction routing now includes a dedicated `/transactions` list hub plus `/transactions/deposit` and `/transactions/expense` entry routes.
+  - Dashboard now links to `/transactions` as the primary transaction flow entry point.
+  - Included migration and backend consistency work already validated in-branch (opening balance snapshot backfill, category defaults, signed transaction validation, and account balance projection updates).
+  - Linked forward plan: `.planning/in_progress/phase-2.6-finance-v2.md`.
 - 2026-02-19: Recorded scale-hardening plan for category template deduplication.
   - Added draft planning artifact: `.planning/drafts/category-template-scale-plan.md`.
   - Captures migration path from repeated per-user defaults to template-linked system categories.
