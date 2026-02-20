@@ -104,3 +104,23 @@ All listed checks above completed successfully after corresponding changes.
 - Wired into route tree and dashboard entry:
   - `apps/web/src/routes/router.tsx`
   - `apps/web/src/routes/dashboard.tsx`
+
+## 13) Transaction intent flow and category defaults
+
+- Added transaction posting UI route:
+  - `apps/web/src/routes/transactions.tsx`
+- Switched UX from signed-amount mental model to intent model:
+  - User chooses `Expense` or `Deposit`
+  - User enters positive amount
+  - System maps sign at submit (`expense -> negative`, `deposit -> positive`)
+- Filtered category dropdown by intent:
+  - `deposit` shows `income` categories
+  - `expense` shows `expense` categories
+- Added default user categories auto-provision on category list:
+  - `Income` (`income`)
+  - `Expenses` (`expense`)
+  - implemented in `packages/trpc/src/routers/category.ts`
+- Added backend guardrails in transaction router:
+  - Reject `positive + expense category`
+  - Reject `negative + income category`
+- Preserved and reinforced atomic balance projection updates for `accounts.current_balance` on transaction create/update/delete in `packages/trpc/src/routers/expense.ts`.

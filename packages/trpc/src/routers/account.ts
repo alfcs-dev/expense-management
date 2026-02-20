@@ -92,51 +92,66 @@ export const accountRouter = router({
         });
       }
 
-      return db.account.create({
-        data: {
-          userId,
-          name: input.name,
-          type: input.type,
-          currency: input.currency,
-          currentBalance: input.currentBalance ?? 0,
-          institutionId: resolvedInstitutionId,
-          isActive: input.isActive,
-          transferProfile: input.transferProfile
-            ? {
-                create: {
-                  clabe: normalizedClabe,
-                  depositReference: input.transferProfile.depositReference ?? null,
-                  beneficiaryName: input.transferProfile.beneficiaryName ?? null,
-                  isProgrammable: input.transferProfile.isProgrammable ?? false,
-                },
-              }
-            : undefined,
-          cardProfile:
-            input.cardProfile && (input.cardProfile.brand || input.cardProfile.last4)
+      return db.$transaction(async (tx) => {
+        const created = await tx.account.create({
+          data: {
+            userId,
+            name: input.name,
+            type: input.type,
+            currency: input.currency,
+            currentBalance: input.currentBalance ?? 0,
+            institutionId: resolvedInstitutionId,
+            isActive: input.isActive,
+            transferProfile: input.transferProfile
               ? {
                   create: {
-                    brand: input.cardProfile.brand ?? null,
-                    last4: input.cardProfile.last4 ?? null,
+                    clabe: normalizedClabe,
+                    depositReference: input.transferProfile.depositReference ?? null,
+                    beneficiaryName: input.transferProfile.beneficiaryName ?? null,
+                    isProgrammable: input.transferProfile.isProgrammable ?? false,
                   },
                 }
               : undefined,
-          creditCardSettings:
-            isCreditCard && input.creditCardSettings
-              ? {
-                  create: {
-                    statementDay: input.creditCardSettings.statementDay ?? 15,
-                    graceDays: input.creditCardSettings.graceDays ?? null,
-                    creditLimit: input.creditCardSettings.creditLimit ?? null,
-                  },
-                }
-              : undefined,
-        },
-        include: {
-          institution: true,
-          transferProfile: true,
-          cardProfile: true,
-          creditCardSettings: true,
-        },
+            cardProfile:
+              input.cardProfile && (input.cardProfile.brand || input.cardProfile.last4)
+                ? {
+                    create: {
+                      brand: input.cardProfile.brand ?? null,
+                      last4: input.cardProfile.last4 ?? null,
+                    },
+                  }
+                : undefined,
+            creditCardSettings:
+              isCreditCard && input.creditCardSettings
+                ? {
+                    create: {
+                      statementDay: input.creditCardSettings.statementDay ?? 15,
+                      graceDays: input.creditCardSettings.graceDays ?? null,
+                      creditLimit: input.creditCardSettings.creditLimit ?? null,
+                    },
+                  }
+                : undefined,
+          },
+          include: {
+            institution: true,
+            transferProfile: true,
+            cardProfile: true,
+            creditCardSettings: true,
+          },
+        });
+
+        await tx.accountBalanceSnapshot.create({
+          data: {
+            userId,
+            accountId: created.id,
+            asOfDate: created.createdAt,
+            balance: created.currentBalance,
+            source: "manual",
+            notes: "opening_balance",
+          },
+        });
+
+        return created;
       });
     }),
 

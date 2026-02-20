@@ -34,7 +34,7 @@ async function assertOwnedRefs(
     statementId?: string;
     installmentId?: string;
   },
-): Promise<void> {
+): Promise<{ categoryKind: "expense" | "income" | "transfer" | "savings" | "debt" }> {
   const [account, category] = await Promise.all([
     db.account.findFirst({
       where: { id: input.accountId, userId },
@@ -42,7 +42,7 @@ async function assertOwnedRefs(
     }),
     db.category.findFirst({
       where: { id: input.categoryId, userId },
-      select: { id: true },
+      select: { id: true, kind: true },
     }),
   ]);
 
@@ -80,6 +80,29 @@ async function assertOwnedRefs(
     if (!installment) {
       throw new TRPCError({ code: "BAD_REQUEST", message: "Installment not found" });
     }
+  }
+
+  return { categoryKind: category.kind };
+}
+
+function assertAmountMatchesCategoryKind(
+  amount: number,
+  categoryKind: "expense" | "income" | "transfer" | "savings" | "debt",
+): void {
+  if (amount === 0) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "Transaction amount cannot be zero" });
+  }
+  if (amount > 0 && categoryKind === "expense") {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "Positive amounts cannot use expense categories",
+    });
+  }
+  if (amount < 0 && categoryKind === "income") {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "Negative amounts cannot use income categories",
+    });
   }
 }
 
@@ -132,23 +155,33 @@ export const transactionRouter = router({
     .input(transactionInputSchema)
     .mutation(async ({ ctx, input }) => {
       const userId = requireUserId(ctx.user);
-      await assertOwnedRefs(userId, input);
+      const refs = await assertOwnedRefs(userId, input);
+      assertAmountMatchesCategoryKind(input.amount, refs.categoryKind);
 
-      return db.transaction.create({
-        data: {
-          userId,
-          accountId: input.accountId,
-          categoryId: input.categoryId,
-          description: input.description,
-          amount: input.amount,
-          date: input.date,
-          projectId: input.projectId,
-          statementId: input.statementId,
-          installmentId: input.installmentId,
-          reimbursable: input.reimbursable ?? false,
-          reimbursed: input.reimbursed ?? false,
-          notes: input.notes ?? null,
-        },
+      return db.$transaction(async (tx) => {
+        const created = await tx.transaction.create({
+          data: {
+            userId,
+            accountId: input.accountId,
+            categoryId: input.categoryId,
+            description: input.description,
+            amount: input.amount,
+            date: input.date,
+            projectId: input.projectId,
+            statementId: input.statementId,
+            installmentId: input.installmentId,
+            reimbursable: input.reimbursable ?? false,
+            reimbursed: input.reimbursed ?? false,
+            notes: input.notes ?? null,
+          },
+        });
+
+        await tx.account.update({
+          where: { id: input.accountId },
+          data: { currentBalance: { increment: input.amount } },
+        });
+
+        return created;
       });
     }),
 
@@ -168,6 +201,7 @@ export const transactionRouter = router({
           id: true,
           accountId: true,
           categoryId: true,
+          amount: true,
           projectId: true,
           statementId: true,
           installmentId: true,
@@ -177,7 +211,7 @@ export const transactionRouter = router({
         throw new TRPCError({ code: "NOT_FOUND", message: "Transaction not found" });
       }
 
-      await assertOwnedRefs(userId, {
+      const refs = await assertOwnedRefs(userId, {
         accountId: input.data.accountId ?? existing.accountId,
         categoryId: input.data.categoryId ?? existing.categoryId,
         projectId: input.data.projectId ?? existing.projectId ?? undefined,
@@ -185,21 +219,46 @@ export const transactionRouter = router({
         installmentId: input.data.installmentId ?? existing.installmentId ?? undefined,
       });
 
-      await db.transaction.updateMany({
-        where: { id: input.id, userId },
-        data: {
-          accountId: input.data.accountId,
-          categoryId: input.data.categoryId,
-          description: input.data.description,
-          amount: input.data.amount,
-          date: input.data.date,
-          projectId: input.data.projectId,
-          statementId: input.data.statementId,
-          installmentId: input.data.installmentId,
-          reimbursable: input.data.reimbursable,
-          reimbursed: input.data.reimbursed,
-          notes: input.data.notes,
-        },
+      const nextAccountId = input.data.accountId ?? existing.accountId;
+      const nextAmount = input.data.amount ?? existing.amount;
+      assertAmountMatchesCategoryKind(nextAmount, refs.categoryKind);
+
+      await db.$transaction(async (tx) => {
+        await tx.transaction.updateMany({
+          where: { id: input.id, userId },
+          data: {
+            accountId: input.data.accountId,
+            categoryId: input.data.categoryId,
+            description: input.data.description,
+            amount: input.data.amount,
+            date: input.data.date,
+            projectId: input.data.projectId,
+            statementId: input.data.statementId,
+            installmentId: input.data.installmentId,
+            reimbursable: input.data.reimbursable,
+            reimbursed: input.data.reimbursed,
+            notes: input.data.notes,
+          },
+        });
+
+        if (nextAccountId === existing.accountId) {
+          const delta = nextAmount - existing.amount;
+          if (delta !== 0) {
+            await tx.account.update({
+              where: { id: existing.accountId },
+              data: { currentBalance: { increment: delta } },
+            });
+          }
+        } else {
+          await tx.account.update({
+            where: { id: existing.accountId },
+            data: { currentBalance: { increment: -existing.amount } },
+          });
+          await tx.account.update({
+            where: { id: nextAccountId },
+            data: { currentBalance: { increment: nextAmount } },
+          });
+        }
       });
 
       return db.transaction.findUniqueOrThrow({ where: { id: input.id } });
@@ -209,12 +268,22 @@ export const transactionRouter = router({
     .input(z.object({ id: idSchema }))
     .mutation(async ({ ctx, input }) => {
       const userId = requireUserId(ctx.user);
-      const deleted = await db.transaction.deleteMany({
+      const existing = await db.transaction.findFirst({
         where: { id: input.id, userId },
+        select: { id: true, accountId: true, amount: true },
       });
-      if (deleted.count === 0) {
+      if (!existing) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Transaction not found" });
       }
+
+      await db.$transaction(async (tx) => {
+        await tx.transaction.delete({ where: { id: input.id } });
+        await tx.account.update({
+          where: { id: existing.accountId },
+          data: { currentBalance: { increment: -existing.amount } },
+        });
+      });
+
       return { success: true };
     }),
 });

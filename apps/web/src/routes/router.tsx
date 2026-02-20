@@ -6,13 +6,25 @@ import { registerRoute } from "./register";
 import { dashboardRoute } from "./dashboard";
 import { accountsRoute } from "./accounts";
 import { creditCardStatementsRoute } from "./credit-card-statements";
+import {
+  transactionsDepositRoute,
+  transactionsExpenseRoute,
+  transactionsRoute,
+} from "./transactions";
 import { protectedRoute } from "./protected";
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
   signInRoute,
   registerRoute,
-  protectedRoute.addChildren([dashboardRoute, accountsRoute, creditCardStatementsRoute]),
+  protectedRoute.addChildren([
+    dashboardRoute,
+    accountsRoute,
+    transactionsRoute,
+    transactionsDepositRoute,
+    transactionsExpenseRoute,
+    creditCardStatementsRoute,
+  ]),
 ]);
 
 export const router = createRouter({

@@ -32,7 +32,13 @@ function CreditCardStatementsPage() {
   const [periodStart, setPeriodStart] = useState(toDateInput(new Date()));
   const [periodEnd, setPeriodEnd] = useState(toDateInput(new Date()));
   const [closingDate, setClosingDate] = useState(toDateInput(new Date()));
+  const [statementId, setStatementId] = useState("");
+  const [fromAccountId, setFromAccountId] = useState("");
+  const [amountApplied, setAmountApplied] = useState("");
+  const [paymentDate, setPaymentDate] = useState(toDateInput(new Date()));
+  const [paymentNotes, setPaymentNotes] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!accountId && creditCardAccounts.length > 0) {
@@ -44,6 +50,10 @@ function CreditCardStatementsPage() {
     accountId ? { accountId } : undefined,
     { enabled: !!accountId },
   );
+  const fundingAccounts = useMemo(
+    () => (accountsQuery.data ?? []).filter((account) => account.id !== accountId),
+    [accountId, accountsQuery.data],
+  );
 
   const closeMutation = trpc.creditCardStatement.close.useMutation({
     onSuccess: async () => {
@@ -54,6 +64,30 @@ function CreditCardStatementsPage() {
       await utils.account.list.invalidate();
     },
   });
+  const recordPaymentMutation = trpc.creditCardStatement.recordPayment.useMutation({
+    onSuccess: async () => {
+      setPaymentError(null);
+      setAmountApplied("");
+      setPaymentNotes("");
+      if (accountId) {
+        await utils.creditCardStatement.list.invalidate({ accountId });
+      }
+      await utils.account.list.invalidate();
+    },
+  });
+
+  useEffect(() => {
+    const firstStatementId = statementsQuery.data?.[0]?.id ?? "";
+    if (!statementId || !(statementsQuery.data ?? []).some((s) => s.id === statementId)) {
+      setStatementId(firstStatementId);
+    }
+  }, [statementId, statementsQuery.data]);
+
+  useEffect(() => {
+    if (!fromAccountId && fundingAccounts.length > 0) {
+      setFromAccountId(fundingAccounts[0].id);
+    }
+  }, [fromAccountId, fundingAccounts]);
 
   const onCloseStatement = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -86,6 +120,41 @@ function CreditCardStatementsPage() {
       periodStart: start,
       periodEnd: end,
       closingDate: closeDate,
+    });
+  };
+
+  const onRecordPayment = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setPaymentError(null);
+    if (!statementId) {
+      setPaymentError("Select a statement first.");
+      return;
+    }
+    if (!fromAccountId) {
+      setPaymentError("Select the source account.");
+      return;
+    }
+    const parsedAmount = Number(amountApplied);
+    if (
+      !Number.isFinite(parsedAmount) ||
+      !Number.isInteger(parsedAmount) ||
+      parsedAmount <= 0
+    ) {
+      setPaymentError("Amount must be a positive integer.");
+      return;
+    }
+    const parsedDate = new Date(`${paymentDate}T12:00:00.000Z`);
+    if (Number.isNaN(parsedDate.getTime())) {
+      setPaymentError("Payment date is invalid.");
+      return;
+    }
+
+    await recordPaymentMutation.mutateAsync({
+      statementId,
+      fromAccountId,
+      amountApplied: parsedAmount,
+      date: parsedDate,
+      notes: paymentNotes.trim() || undefined,
     });
   };
 
@@ -158,12 +227,92 @@ function CreditCardStatementsPage() {
           <CardHeader>
             <CardTitle>Statements</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-4">
             {statementsQuery.isLoading ? (
               <p className="text-sm text-muted-foreground">Loading...</p>
             ) : null}
             {!statementsQuery.isLoading && (statementsQuery.data?.length ?? 0) === 0 ? (
               <p className="text-sm text-muted-foreground">No statements yet.</p>
+            ) : null}
+            {(statementsQuery.data?.length ?? 0) > 0 ? (
+              <form
+                className="grid gap-3 rounded-xl border border-border p-3 md:grid-cols-5"
+                onSubmit={(event) => void onRecordPayment(event)}
+              >
+                <label className="grid gap-1 text-sm">
+                  Statement
+                  <select
+                    className="h-9 w-full rounded-4xl border border-input bg-input/30 px-3 text-sm"
+                    value={statementId}
+                    onChange={(event) => setStatementId(event.target.value)}
+                  >
+                    {(statementsQuery.data ?? []).map((statement) => (
+                      <option key={statement.id} value={statement.id}>
+                        {formatDateByLanguage(statement.closingDate, i18n.language)} ·{" "}
+                        {statement.status}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="grid gap-1 text-sm">
+                  From account
+                  <select
+                    className="h-9 w-full rounded-4xl border border-input bg-input/30 px-3 text-sm"
+                    value={fromAccountId}
+                    onChange={(event) => setFromAccountId(event.target.value)}
+                  >
+                    <option value="">Select account</option>
+                    {fundingAccounts.map((account) => (
+                      <option key={account.id} value={account.id}>
+                        {account.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="grid gap-1 text-sm">
+                  Amount (minor units)
+                  <Input
+                    type="number"
+                    min={1}
+                    step={1}
+                    value={amountApplied}
+                    onChange={(event) => setAmountApplied(event.target.value)}
+                    placeholder="100000"
+                  />
+                </label>
+                <label className="grid gap-1 text-sm">
+                  Payment date
+                  <Input
+                    type="date"
+                    value={paymentDate}
+                    onChange={(event) => setPaymentDate(event.target.value)}
+                  />
+                </label>
+                <div className="flex items-end">
+                  <Button
+                    type="submit"
+                    disabled={recordPaymentMutation.isPending || !statementId}
+                  >
+                    {recordPaymentMutation.isPending ? "Recording..." : "Record payment"}
+                  </Button>
+                </div>
+                <label className="grid gap-1 text-sm md:col-span-5">
+                  Notes (optional)
+                  <Input
+                    value={paymentNotes}
+                    onChange={(event) => setPaymentNotes(event.target.value)}
+                    placeholder="Statement payment"
+                  />
+                </label>
+                {paymentError ? (
+                  <p className="text-sm text-red-600">{paymentError}</p>
+                ) : null}
+                {recordPaymentMutation.error?.message ? (
+                  <p className="text-sm text-red-600">
+                    {recordPaymentMutation.error.message}
+                  </p>
+                ) : null}
+              </form>
             ) : null}
             {(statementsQuery.data ?? []).map((statement) => (
               <div key={statement.id} className="rounded-xl border border-border p-3">

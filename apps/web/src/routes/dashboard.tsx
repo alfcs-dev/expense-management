@@ -41,6 +41,12 @@ function DashboardPage() {
           >
             Credit Card Statements
           </Button>
+          <Button
+            variant="outline"
+            onClick={() => void navigate({ to: "/transactions" })}
+          >
+            Transactions
+          </Button>
           <Button onClick={() => void onSignOut()}>{t("session.signOut")}</Button>
         </CardContent>
       </Card>

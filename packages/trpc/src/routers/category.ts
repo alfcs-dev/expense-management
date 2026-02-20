@@ -19,9 +19,34 @@ const categoryInputSchema = z.object({
   parentId: idSchema.optional(),
 });
 
+const DEFAULT_USER_CATEGORIES: Array<{ name: string; kind: z.infer<typeof categoryKindSchema> }> =
+  [
+    { name: "Income", kind: "income" },
+    { name: "Expenses", kind: "expense" },
+  ];
+
+async function ensureDefaultCategories(userId: string): Promise<void> {
+  for (const category of DEFAULT_USER_CATEGORIES) {
+    const existing = await db.category.findFirst({
+      where: { userId, name: category.name, kind: category.kind },
+      select: { id: true },
+    });
+    if (!existing) {
+      await db.category.create({
+        data: {
+          userId,
+          name: category.name,
+          kind: category.kind,
+        },
+      });
+    }
+  }
+}
+
 export const categoryRouter = router({
   list: protectedProcedure.query(async ({ ctx }) => {
     const userId = requireUserId(ctx.user);
+    await ensureDefaultCategories(userId);
     return db.category.findMany({
       where: { userId },
       orderBy: [{ kind: "asc" }, { name: "asc" }],
