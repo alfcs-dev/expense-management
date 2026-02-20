@@ -78,6 +78,9 @@ Capture a clean baseline of finance-v2 progress that is stable enough to merge, 
   - `apps/web/src/routes/dashboard.tsx`
 - 2026-02-20: Recorded merge checkpoint for branch stabilization:
   - Commit `b5469cf` created as the agreed new starting point.
+- 2026-02-20: Stabilized CI for branch gate checks:
+  - Added `DATABASE_URL` to Turborepo global env passthrough so `@expense-management/db` typecheck can resolve Prisma config in GitHub Actions.
+  - Added explicit workspace dependency build before API smoke tests in `.github/workflows/ci.yml` so Vitest resolves `@expense-management/trpc` reliably in CI.
 
 **Decisions**
 - Keep both patterns:
@@ -87,4 +90,3 @@ Capture a clean baseline of finance-v2 progress that is stable enough to merge, 
 
 **Roadblocks**
 - None blocking this checkpoint baseline.
-
