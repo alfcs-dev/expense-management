@@ -200,6 +200,20 @@ Each reintroduced feature must ship as vertical slice with:
 ## 8. In Progress Log
 
 **Achievements**
+- 2026-02-19: Recorded scale-hardening plan for category template deduplication.
+  - Added draft planning artifact: `.planning/drafts/category-template-scale-plan.md`.
+  - Captures migration path from repeated per-user defaults to template-linked system categories.
+  - Linked to Phase 8 scale context for future execution sequencing.
+- 2026-02-19: Implemented intent-based transaction posting flow and balance-safe backend rules.
+  - Added `/transactions` screen (`apps/web/src/routes/transactions.tsx`) with `Expense/Deposit` intent selector.
+  - Updated transaction form UX to accept positive amount input only and apply sign internally:
+    - `deposit` posts `+amount`
+    - `expense` posts `-amount`
+  - Filtered category dropdown by intent (`income` for deposits, `expense` for expenses) with default category preselection.
+  - Auto-provisioned default per-user categories on category list (`Income`, `Expenses`) in `packages/trpc/src/routers/category.ts`.
+  - Added backend validation in `packages/trpc/src/routers/expense.ts` to reject sign/category mismatches.
+  - Kept `accounts.current_balance` as derived cache and ensured atomic projection updates on transaction create/update/delete.
+  - Validation complete: `pnpm --filter @expense-management/trpc typecheck`, `pnpm --filter @expense-management/web typecheck`, and `pnpm --filter @expense-management/web lint` pass.
 - 2026-02-19: Added account balance + credit limit fields and started statement UI workflow.
   - Added `accounts.current_balance` (cached current balance in minor units) and `credit_card_settings.credit_limit` (optional limit in minor units).
   - Added migration `20260219143000_account_balance_and_credit_limit` for new columns.
