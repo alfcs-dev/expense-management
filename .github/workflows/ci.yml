@@ -92,6 +92,9 @@ jobs:
       - name: Apply database migrations
         run: pnpm --filter @expense-management/db exec prisma migrate deploy
 
+      - name: Build API workspace dependencies
+        run: pnpm --filter @expense-management/api^... build
+
       - name: Run API smoke tests
         run: pnpm --filter @expense-management/api test
 
