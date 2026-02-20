@@ -75,6 +75,7 @@ describe("API smoke", () => {
       headers: { cookie: authCookie },
       payload: {
         name: `Smoke Category ${unique}`,
+        kind: "expense",
         color: "#4A6CF7",
       },
     });
@@ -97,40 +98,33 @@ describe("API smoke", () => {
     const account = extractJson<{ id: string }>(accountResponse.json());
     expect(account.id).toBeTruthy();
 
+    const budgetPeriodResponse = await app.inject({
+      method: "POST",
+      url: "/api/trpc/budgetPeriod.create",
+      headers: { cookie: authCookie },
+      payload: {
+        month: "2030-02",
+        currency: "MXN",
+        expectedIncomeAmount: 200000,
+      },
+    });
+    expect(budgetPeriodResponse.statusCode).toBe(200);
+    const budgetPeriod = extractJson<{ id: string }>(budgetPeriodResponse.json());
+    expect(budgetPeriod.id).toBeTruthy();
+
     const budgetResponse = await app.inject({
       method: "POST",
       url: "/api/trpc/budget.create",
       headers: { cookie: authCookie },
       payload: {
-        name: "Smoke Budget",
-        startDate: "2030-02-01T00:00:00.000Z",
-        endDate: "2030-02-28T23:59:59.999Z",
-        currency: "MXN",
-        budgetLimit: 200000,
-        isDefault: true,
+        budgetPeriodId: budgetPeriod.id,
+        categoryId: category.id,
+        plannedAmount: 5000,
       },
     });
     expect(budgetResponse.statusCode).toBe(200);
     const budget = extractJson<{ id: string }>(budgetResponse.json());
     expect(budget.id).toBeTruthy();
-
-    const recurringResponse = await app.inject({
-      method: "POST",
-      url: "/api/trpc/recurringExpense.create",
-      headers: { cookie: authCookie },
-      payload: {
-        budgetId: budget.id,
-        categoryId: category.id,
-        sourceAccountId: account.id,
-        description: "Smoke recurring",
-        amount: 5000,
-        currency: "MXN",
-        frequency: "monthly",
-        isAnnual: false,
-        isActive: true,
-      },
-    });
-    expect(recurringResponse.statusCode).toBe(200);
 
     const expenseResponse = await app.inject({
       method: "POST",
@@ -141,7 +135,7 @@ describe("API smoke", () => {
         categoryId: category.id,
         accountId: account.id,
         description: "Smoke manual expense",
-        amount: 12345,
+        amount: -12345,
         currency: "MXN",
         date: "2030-02-15T12:00:00.000Z",
       },
@@ -150,10 +144,10 @@ describe("API smoke", () => {
     const expense = extractJson<{ id: string }>(expenseResponse.json());
     expect(expense.id).toBeTruthy();
 
-    const listInput = encodeURIComponent(JSON.stringify({ budgetId: budget.id }));
+    const listInput = encodeURIComponent(JSON.stringify({ accountId: account.id }));
     const listResponse = await app.inject({
       method: "GET",
-      url: `/api/trpc/expense.list?input=${listInput}`,
+      url: `/api/trpc/transaction.list?input=${listInput}`,
       headers: { cookie: authCookie },
     });
     expect(listResponse.statusCode).toBe(200);
