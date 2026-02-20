@@ -2,6 +2,7 @@ import { hashPassword } from "better-auth/crypto";
 import {
   type AccountType,
   type BillAmountType,
+  type BillOccurrenceStatus,
   type BudgetRuleType,
   type CategoryKind,
   type Currency,
@@ -46,6 +47,8 @@ type SeedAccount = {
 type SeedCategory = {
   name: string;
   kind: CategoryKind;
+  color?: string;
+  icon?: string;
   parentName?: string;
 };
 
@@ -179,13 +182,9 @@ const seedInstitutions = seedInstitutionEntries.map(([code, name]) => ({
 }));
 
 const seedCategories: SeedCategory[] = [
-  { name: "Income", kind: "income" },
-  { name: "Expenses", kind: "expense" },
-  { name: "Food", kind: "expense", parentName: "Expenses" },
-  { name: "Transport", kind: "expense", parentName: "Expenses" },
-  { name: "Debt", kind: "debt" },
-  { name: "Buffer", kind: "savings" },
-  { name: "Transfers", kind: "transfer" },
+  { name: "Salary", kind: "income", color: "#10B981", icon: "Briefcase" },
+  { name: "Deposit", kind: "income", color: "#3B82F6", icon: "Banknote" },
+  { name: "Other", kind: "income", color: "#F59E0B", icon: "Sparkles" },
 ];
 
 async function applySeed() {
@@ -262,6 +261,7 @@ async function applySeed() {
   await prisma.statementPayment.deleteMany({ where: { userId: user.id } });
   await prisma.transfer.deleteMany({ where: { userId: user.id } });
   await prisma.transaction.deleteMany({ where: { userId: user.id } });
+  await prisma.billOccurrence.deleteMany({ where: { userId: user.id } });
   await prisma.plannedTransfer.deleteMany({ where: { userId: user.id } });
   await prisma.accountBalanceSnapshot.deleteMany({ where: { userId: user.id } });
   await prisma.bill.deleteMany({ where: { userId: user.id } });
@@ -343,16 +343,18 @@ async function applySeed() {
         userId: user.id,
         name: category.name,
         kind: category.kind,
+        color: category.color ?? null,
+        icon: category.icon ?? null,
         parentId,
       },
     });
     categoryByName.set(category.name, created.id);
   }
 
-  const foodCategoryId = categoryByName.get("Food");
-  const debtCategoryId = categoryByName.get("Debt");
-  const bufferCategoryId = categoryByName.get("Buffer");
-  if (!foodCategoryId || !debtCategoryId || !bufferCategoryId) {
+  const salaryCategoryId = categoryByName.get("Salary");
+  const depositCategoryId = categoryByName.get("Deposit");
+  const otherIncomeCategoryId = categoryByName.get("Other");
+  if (!salaryCategoryId || !depositCategoryId || !otherIncomeCategoryId) {
     throw new Error("Required seed categories were not created");
   }
 
@@ -396,8 +398,8 @@ async function applySeed() {
   const fixedRule = await prisma.budgetRule.create({
     data: {
       userId: user.id,
-      name: "Food fixed",
-      categoryId: foodCategoryId,
+      name: "Other fixed",
+      categoryId: otherIncomeCategoryId,
       ruleType: "fixed" satisfies BudgetRuleType,
       value: 18_000_00,
       applyOrder: 0,
@@ -407,8 +409,8 @@ async function applySeed() {
   const percentRule = await prisma.budgetRule.create({
     data: {
       userId: user.id,
-      name: "Buffer 10%",
-      categoryId: bufferCategoryId,
+      name: "Deposit 10%",
+      categoryId: depositCategoryId,
       ruleType: "percent_of_income" satisfies BudgetRuleType,
       value: 1000,
       applyOrder: 1,
@@ -420,14 +422,14 @@ async function applySeed() {
       {
         userId: user.id,
         budgetPeriodId: budgetPeriod.id,
-        categoryId: foodCategoryId,
+        categoryId: otherIncomeCategoryId,
         plannedAmount: 18_000_00,
         generatedFromRuleId: fixedRule.id,
       },
       {
         userId: user.id,
         budgetPeriodId: budgetPeriod.id,
-        categoryId: bufferCategoryId,
+        categoryId: depositCategoryId,
         plannedAmount: 12_000_00,
         generatedFromRuleId: percentRule.id,
       },
@@ -453,7 +455,7 @@ async function applySeed() {
       installmentCountTotal: 12,
       installmentAmount: 2_000_00,
       status: "active" satisfies InstallmentPlanStatus,
-      categoryId: debtCategoryId,
+      categoryId: otherIncomeCategoryId,
       projectId: project.id,
     },
   });
@@ -482,29 +484,60 @@ async function applySeed() {
     },
   });
 
-  await prisma.transaction.create({
+  const expenseTransaction = await prisma.transaction.create({
     data: {
       userId: user.id,
       date: addDays(periodStart, 8),
       description: "Groceries card purchase",
-      amount: 2_200_00,
+      amount: -2_200_00,
       accountId: creditAccountId,
-      categoryId: foodCategoryId,
+      categoryId: otherIncomeCategoryId,
       statementId: statement.id,
       installmentId: firstInstallment.id,
+      isPaid: false,
       notes: "Seed transaction",
     },
   });
 
-  await prisma.transaction.create({
+  const salaryTransaction = await prisma.transaction.create({
     data: {
       userId: user.id,
       date: periodStart,
       description: "Salary deposit",
       amount: 120_000_00,
       accountId: checkingAccountId,
-      categoryId: categoryByName.get("Income")!,
+      categoryId: salaryCategoryId,
+      isPaid: true,
+      paidAt: periodStart,
       notes: "Seed income",
+    },
+  });
+
+  await prisma.transaction.create({
+    data: {
+      userId: user.id,
+      date: addDays(periodStart, 2),
+      description: "Interest payout",
+      amount: 1_250_00,
+      accountId: checkingAccountId,
+      categoryId: depositCategoryId,
+      isPaid: true,
+      paidAt: addDays(periodStart, 2),
+      notes: "Seed deposit income",
+    },
+  });
+
+  await prisma.transaction.create({
+    data: {
+      userId: user.id,
+      date: addDays(periodStart, 18),
+      description: "Cashback reward",
+      amount: 350_00,
+      accountId: checkingAccountId,
+      categoryId: otherIncomeCategoryId,
+      isPaid: true,
+      paidAt: addDays(periodStart, 18),
+      notes: "Seed other income",
     },
   });
 
@@ -515,7 +548,9 @@ async function applySeed() {
       description: "Card payment outflow",
       amount: -4_200_00,
       accountId: checkingAccountId,
-      categoryId: categoryByName.get("Transfers")!,
+      categoryId: otherIncomeCategoryId,
+      isPaid: true,
+      paidAt: addDays(periodStart, 12),
       notes: "Seed transfer outflow",
     },
   });
@@ -527,7 +562,9 @@ async function applySeed() {
       description: "Card payment inflow",
       amount: 4_200_00,
       accountId: creditAccountId,
-      categoryId: categoryByName.get("Transfers")!,
+      categoryId: otherIncomeCategoryId,
+      isPaid: true,
+      paidAt: addDays(periodStart, 12),
       notes: "Seed transfer inflow",
     },
   });
@@ -568,11 +605,11 @@ async function applySeed() {
     },
   });
 
-  await prisma.bill.create({
+  const internetBill = await prisma.bill.create({
     data: {
       userId: user.id,
       name: "Internet",
-      categoryId: foodCategoryId,
+      categoryId: otherIncomeCategoryId,
       amountType: "fixed" satisfies BillAmountType,
       defaultAmount: 600_00,
       dueDay: 10,
@@ -582,6 +619,60 @@ async function applySeed() {
       notes: "Seed monthly bill",
     },
   });
+
+  const gymBill = await prisma.bill.create({
+    data: {
+      userId: user.id,
+      name: "Gym Membership",
+      categoryId: otherIncomeCategoryId,
+      amountType: "fixed" satisfies BillAmountType,
+      defaultAmount: 899_00,
+      dueDay: 20,
+      payingAccountId: checkingAccountId,
+      fundingAccountId: null,
+      isActive: true,
+      notes: "Seed recurring bill (pending occurrence)",
+    },
+  });
+
+  const billOccurrenceSeed: Array<{
+    billId: string;
+    dueDate: Date;
+    expectedAmount: number;
+    status: BillOccurrenceStatus;
+    paidAt?: Date;
+    transactionId?: string;
+  }> = [
+    {
+      billId: internetBill.id,
+      dueDate: addDays(periodStart, 10),
+      expectedAmount: 600_00,
+      status: "paid",
+      paidAt: addDays(periodStart, 9),
+      transactionId: expenseTransaction.id,
+    },
+    {
+      billId: gymBill.id,
+      dueDate: addDays(periodStart, 20),
+      expectedAmount: 899_00,
+      status: "pending",
+    },
+  ];
+
+  for (const occurrence of billOccurrenceSeed) {
+    await prisma.billOccurrence.create({
+      data: {
+        userId: user.id,
+        billId: occurrence.billId,
+        periodMonth,
+        dueDate: occurrence.dueDate,
+        expectedAmount: occurrence.expectedAmount,
+        status: occurrence.status,
+        paidAt: occurrence.paidAt ?? null,
+        transactionId: occurrence.transactionId ?? null,
+      },
+    });
+  }
 
   await prisma.accountBalanceSnapshot.createMany({
     data: [
@@ -596,7 +687,7 @@ async function applySeed() {
         userId: user.id,
         accountId: creditAccountId,
         asOfDate: periodStart,
-        balance: -2_200_00,
+        balance: -24_830_00,
         source: "manual" satisfies SnapshotSource,
       },
     ],
@@ -608,10 +699,13 @@ async function applySeed() {
     password: seedUserPassword,
     accountsCreated: seedAccounts.length,
     categoriesCreated: seedCategories.length,
-    transactionsCreated: 4,
+    transactionsCreated: 6,
     budgetsCreated: 2,
+    billsCreated: 2,
+    billOccurrencesCreated: billOccurrenceSeed.length,
     statementsCreated: 1,
     installmentPlansCreated: 1,
+    samplePaidTransactionId: salaryTransaction.id,
   };
 }
 
@@ -623,6 +717,9 @@ function previewData() {
       "Seed will create one monthly budget period with rules and generated budgets.",
       "Seed will create a credit statement with a linked payment transfer.",
       "Seed will create one installment plan with first installment linked to transaction.",
+      "Seed will create root income defaults: Salary, Deposit, Other.",
+      "Seed will create bill occurrences with paid and pending statuses.",
+      "Seed will create transactions with paid/unpaid status for dashboard and bills flow.",
     ],
   };
 }

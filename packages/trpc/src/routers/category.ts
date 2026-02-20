@@ -1,6 +1,10 @@
 import { TRPCError } from "@trpc/server";
 import { db } from "@expense-management/db";
-import { idSchema } from "@expense-management/shared";
+import {
+  categoryColorSchema,
+  categoryIconNameSchema,
+  idSchema,
+} from "@expense-management/shared";
 import { z } from "zod";
 import { protectedProcedure, router } from "../trpc.js";
 
@@ -16,30 +20,49 @@ function requireUserId(user: { id: string } | null): string {
 const categoryInputSchema = z.object({
   name: z.string().trim().min(1).max(80),
   kind: categoryKindSchema,
+  color: categoryColorSchema.optional(),
+  icon: categoryIconNameSchema.optional(),
   parentId: idSchema.optional(),
 });
 
-const DEFAULT_USER_CATEGORIES: Array<{
-  name: string;
-  kind: z.infer<typeof categoryKindSchema>;
-}> = [
-  { name: "Income", kind: "income" },
-  { name: "Expenses", kind: "expense" },
-];
-
 async function ensureDefaultCategories(userId: string): Promise<void> {
-  for (const category of DEFAULT_USER_CATEGORIES) {
+  for (const defaultName of ["Salary", "Deposit", "Other"]) {
     const existing = await db.category.findFirst({
-      where: { userId, name: category.name, kind: category.kind },
-      select: { id: true },
+      where: {
+        userId,
+        name: defaultName,
+        kind: "income",
+      },
+      select: { id: true, parentId: true },
     });
     if (!existing) {
       await db.category.create({
         data: {
           userId,
-          name: category.name,
-          kind: category.kind,
+          name: defaultName,
+          kind: "income",
+          color:
+            defaultName === "Salary"
+              ? "#10B981"
+              : defaultName === "Deposit"
+                ? "#3B82F6"
+                : "#F59E0B",
+          icon:
+            defaultName === "Salary"
+              ? "Briefcase"
+              : defaultName === "Deposit"
+                ? "Banknote"
+                : "Sparkles",
+          parentId: null,
         },
+      });
+      continue;
+    }
+
+    if (existing.parentId) {
+      await db.category.update({
+        where: { id: existing.id },
+        data: { parentId: null },
       });
     }
   }
@@ -78,6 +101,8 @@ export const categoryRouter = router({
           userId,
           name: input.name,
           kind: input.kind,
+          color: input.color ?? null,
+          icon: input.icon ?? null,
           parentId: input.parentId ?? null,
         },
       });
@@ -106,6 +131,8 @@ export const categoryRouter = router({
         data: {
           name: input.data.name,
           kind: input.data.kind,
+          color: input.data.color,
+          icon: input.data.icon,
           parentId: input.data.parentId,
         },
       });

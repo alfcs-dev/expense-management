@@ -289,6 +289,36 @@ export const transactionRouter = router({
 
       return { success: true };
     }),
+
+  updatePaidStatus: protectedProcedure
+    .input(
+      z.object({
+        id: idSchema,
+        isPaid: z.boolean(),
+        paidAt: z.coerce.date().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const userId = requireUserId(ctx.user);
+
+      const existing = await db.transaction.findFirst({
+        where: { id: input.id, userId },
+        select: { id: true },
+      });
+      if (!existing) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Transaction not found" });
+      }
+
+      await db.transaction.update({
+        where: { id: input.id },
+        data: {
+          isPaid: input.isPaid,
+          paidAt: input.isPaid ? (input.paidAt ?? new Date()) : null,
+        },
+      });
+
+      return db.transaction.findUniqueOrThrow({ where: { id: input.id } });
+    }),
 });
 
 // Temporary alias to avoid breaking existing consumers immediately.

@@ -64,6 +64,13 @@ enum BillAmountType {
   variable
 }
 
+enum BillOccurrenceStatus {
+  pending
+  paid
+  skipped
+  overdue
+}
+
 enum IncomeSource {
   salary
   bonus
@@ -106,6 +113,7 @@ model User {
   budgets                 Budget[]
   plannedTransfers        PlannedTransfer[]
   bills                   Bill[]
+  billOccurrences         BillOccurrence[]
   accountBalanceSnapshots AccountBalanceSnapshot[]
 
   @@map("users")
@@ -246,6 +254,8 @@ model Category {
   id        String       @id @default(cuid())
   userId    String       @map("user_id")
   name      String
+  color     String?
+  icon      String?
   parentId  String?      @map("parent_id")
   kind      CategoryKind
   createdAt DateTime     @default(now()) @map("created_at")
@@ -515,6 +525,8 @@ model Transaction {
   installmentId String?  @map("installment_id")
   reimbursable  Boolean  @default(false)
   reimbursed    Boolean  @default(false)
+  isPaid        Boolean  @default(false) @map("is_paid")
+  paidAt        DateTime? @map("paid_at")
   notes         String?
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
@@ -527,11 +539,13 @@ model Transaction {
   installment     Installment?         @relation(fields: [installmentId], references: [id], onDelete: SetNull)
   transferOutflow Transfer[]           @relation("TransferOutflowTransaction")
   transferInflow  Transfer[]           @relation("TransferInflowTransaction")
+  billOccurrences BillOccurrence[]
 
   @@index([accountId, date])
   @@index([categoryId, date])
   @@index([statementId])
   @@index([userId, date])
+  @@index([userId, isPaid, date])
   @@map("transactions")
 }
 
@@ -601,11 +615,36 @@ model Bill {
   category       Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   payingAccount  Account? @relation("BillPayingAccount", fields: [payingAccountId], references: [id], onDelete: SetNull)
   fundingAccount Account? @relation("BillFundingAccount", fields: [fundingAccountId], references: [id], onDelete: SetNull)
+  occurrences    BillOccurrence[]
 
   @@index([dueDay, isActive])
   @@index([categoryId])
   @@index([userId, isActive])
   @@map("bills")
+}
+
+model BillOccurrence {
+  id             String               @id @default(cuid())
+  userId         String               @map("user_id")
+  billId         String               @map("bill_id")
+  periodMonth    String               @map("period_month")
+  dueDate        DateTime             @map("due_date")
+  expectedAmount Int                  @map("expected_amount")
+  status         BillOccurrenceStatus @default(pending)
+  paidAt         DateTime?            @map("paid_at")
+  transactionId  String?              @map("transaction_id")
+  createdAt      DateTime             @default(now()) @map("created_at")
+  updatedAt      DateTime             @updatedAt @map("updated_at")
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bill        Bill         @relation(fields: [billId], references: [id], onDelete: Cascade)
+  transaction Transaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+
+  @@unique([billId, periodMonth])
+  @@index([userId, periodMonth])
+  @@index([userId, status, dueDate])
+  @@index([transactionId])
+  @@map("bill_occurrences")
 }
 
 model AccountBalanceSnapshot {

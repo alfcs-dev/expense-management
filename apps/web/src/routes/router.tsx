@@ -5,6 +5,9 @@ import { signInRoute } from "./sign-in";
 import { registerRoute } from "./register";
 import { dashboardRoute } from "./dashboard";
 import { accountsRoute } from "./accounts";
+import { billsRoute } from "./bills";
+import { budgetsRoute } from "./budgets";
+import { categoriesRoute } from "./categories";
 import { creditCardStatementsRoute } from "./credit-card-statements";
 import {
   transactionsDepositRoute,
@@ -20,6 +23,9 @@ const routeTree = rootRoute.addChildren([
   protectedRoute.addChildren([
     dashboardRoute,
     accountsRoute,
+    categoriesRoute,
+    budgetsRoute,
+    billsRoute,
     transactionsRoute,
     transactionsDepositRoute,
     transactionsExpenseRoute,

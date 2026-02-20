@@ -1,6 +1,6 @@
-# Phase 5 — Mobile App (After Solid MVP)
+# Phase 6 — Mobile App
 
-> **Source:** [PLAN.md](../PLAN.md) Section 6, Phase 5.  
+> **Source:** rebased after new Phase 3 core E2E flow.  
 > **When starting this phase:** move this file to `../in_progress/` and use the "In progress" section at the bottom to log achievements, decisions, and roadblocks.
 
 **Planning Metadata**
@@ -10,7 +10,7 @@
 - Target end: Post-MVP milestone
 - Actual start: TBD
 - Actual end: TBD
-- Dependencies: Phase 4 complete (production baseline)
+- Dependencies: Phase 5 complete (production baseline)
 - Linked PRs/issues: TBD
 
 ---
