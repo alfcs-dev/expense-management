@@ -43,6 +43,7 @@ function TransactionsExpensePage() {
 function TransactionsListPage() {
   const { i18n } = useTranslation();
   const navigate = useNavigate();
+  const utils = trpc.useUtils();
 
   const accountsQuery = trpc.account.list.useQuery();
   const categoriesQuery = trpc.category.list.useQuery();
@@ -65,6 +66,20 @@ function TransactionsListPage() {
   }, [accountIdFilter, categoryIdFilter, fromDateFilter, toDateFilter]);
 
   const transactionsQuery = trpc.transaction.list.useQuery(queryInput);
+
+  const updateMutation = trpc.transaction.update.useMutation({
+    onSuccess: async () => {
+      await utils.transaction.list.invalidate();
+      await utils.dashboard.summary.invalidate();
+    },
+  });
+
+  const paidMutation = trpc.transaction.updatePaidStatus.useMutation({
+    onSuccess: async () => {
+      await utils.transaction.list.invalidate();
+      await utils.dashboard.summary.invalidate();
+    },
+  });
 
   const accounts = useMemo(() => accountsQuery.data ?? [], [accountsQuery.data]);
   const categories = useMemo(() => categoriesQuery.data ?? [], [categoriesQuery.data]);
@@ -175,9 +190,45 @@ function TransactionsListPage() {
                   {transaction.account.name} · {transaction.category.name} ·{" "}
                   {formatDateByLanguage(transaction.date, i18n.language)}
                 </p>
+                <p className="text-sm text-muted-foreground">
+                  Status: {transaction.isPaid ? "paid" : "pending"}
+                </p>
                 {transaction.notes ? (
                   <p className="text-sm text-muted-foreground">{transaction.notes}</p>
                 ) : null}
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    variant={transaction.isPaid ? "outline" : "default"}
+                    onClick={() =>
+                      void paidMutation.mutateAsync({
+                        id: transaction.id,
+                        isPaid: !transaction.isPaid,
+                      })
+                    }
+                    disabled={paidMutation.isPending}
+                  >
+                    {transaction.isPaid ? "Mark unpaid" : "Mark paid"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      const nextDescription = window.prompt(
+                        "Edit description",
+                        transaction.description,
+                      );
+                      if (!nextDescription?.trim()) return;
+                      void updateMutation.mutateAsync({
+                        id: transaction.id,
+                        data: { description: nextDescription.trim() },
+                      });
+                    }}
+                    disabled={updateMutation.isPending}
+                  >
+                    Edit description
+                  </Button>
+                </div>
               </div>
             ))}
           </CardContent>
@@ -194,6 +245,7 @@ function TransactionPostPage({ mode }: { mode: TransactionMode }) {
 
   const accountsQuery = trpc.account.list.useQuery();
   const categoriesQuery = trpc.category.list.useQuery();
+  const recentTransactionsQuery = trpc.transaction.list.useQuery();
 
   const accounts = useMemo(() => accountsQuery.data ?? [], [accountsQuery.data]);
   const categories = useMemo(() => categoriesQuery.data ?? [], [categoriesQuery.data]);
@@ -230,6 +282,7 @@ function TransactionPostPage({ mode }: { mode: TransactionMode }) {
       setNotes("");
       await utils.transaction.list.invalidate();
       await utils.account.list.invalidate();
+      await utils.dashboard.summary.invalidate();
       await navigate({ to: "/transactions" });
     },
   });
@@ -395,29 +448,27 @@ function TransactionPostPage({ mode }: { mode: TransactionMode }) {
             <CardTitle>Recent Transactions</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {trpc.transaction.list.useQuery().isLoading ? (
+            {recentTransactionsQuery.isLoading ? (
               <p className="text-sm text-muted-foreground">Loading...</p>
             ) : null}
-            {(trpc.transaction.list.useQuery().data ?? [])
-              .slice(0, 5)
-              .map((transaction) => (
-                <div key={transaction.id} className="rounded-xl border border-border p-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-medium">{transaction.description}</p>
-                    <p className="text-sm">
-                      {formatCurrencyByLanguage(
-                        transaction.amount,
-                        transaction.account.currency,
-                        i18n.language,
-                      )}
-                    </p>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    {transaction.account.name} · {transaction.category.name} ·{" "}
-                    {formatDateByLanguage(transaction.date, i18n.language)}
+            {(recentTransactionsQuery.data ?? []).slice(0, 5).map((transaction) => (
+              <div key={transaction.id} className="rounded-xl border border-border p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-medium">{transaction.description}</p>
+                  <p className="text-sm">
+                    {formatCurrencyByLanguage(
+                      transaction.amount,
+                      transaction.account.currency,
+                      i18n.language,
+                    )}
                   </p>
                 </div>
-              ))}
+                <p className="text-sm text-muted-foreground">
+                  {transaction.account.name} · {transaction.category.name} ·{" "}
+                  {formatDateByLanguage(transaction.date, i18n.language)}
+                </p>
+              </div>
+            ))}
           </CardContent>
         </Card>
       </div>

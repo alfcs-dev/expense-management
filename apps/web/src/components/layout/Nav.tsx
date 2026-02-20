@@ -33,7 +33,14 @@ export function Nav({ user }: { user?: User | null }) {
   const navigate = useNavigate();
   const { refetch } = authClient.useSession();
   const displayName = user?.name?.trim() || user?.email || "User";
-  const navLinks = [{ to: "/dashboard", label: t("dashboard.title") }] as const;
+  const navLinks = [
+    { to: "/dashboard", label: t("dashboard.title") },
+    { to: "/accounts", label: "Accounts" },
+    { to: "/categories", label: "Categories" },
+    { to: "/budgets", label: "Budgets" },
+    { to: "/bills", label: "Bills" },
+    { to: "/transactions", label: "Transactions" },
+  ] as const;
 
   const currentLanguage: "en" | "es" = i18n.resolvedLanguage?.startsWith("es")
     ? "es"
