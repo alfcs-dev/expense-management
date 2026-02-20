@@ -19,26 +19,40 @@ const categoryInputSchema = z.object({
   parentId: idSchema.optional(),
 });
 
-const DEFAULT_USER_CATEGORIES: Array<{
-  name: string;
-  kind: z.infer<typeof categoryKindSchema>;
-}> = [
-  { name: "Income", kind: "income" },
-  { name: "Expenses", kind: "expense" },
-];
-
 async function ensureDefaultCategories(userId: string): Promise<void> {
-  for (const category of DEFAULT_USER_CATEGORIES) {
+  let incomeParent = await db.category.findFirst({
+    where: { userId, name: "Income", kind: "income", parentId: null },
+    select: { id: true },
+  });
+
+  if (!incomeParent) {
+    incomeParent = await db.category.create({
+      data: {
+        userId,
+        name: "Income",
+        kind: "income",
+      },
+      select: { id: true },
+    });
+  }
+
+  for (const childName of ["Salary", "Deposit", "Other"]) {
     const existing = await db.category.findFirst({
-      where: { userId, name: category.name, kind: category.kind },
+      where: {
+        userId,
+        name: childName,
+        kind: "income",
+        parentId: incomeParent.id,
+      },
       select: { id: true },
     });
     if (!existing) {
       await db.category.create({
         data: {
           userId,
-          name: category.name,
-          kind: category.kind,
+          name: childName,
+          kind: "income",
+          parentId: incomeParent.id,
         },
       });
     }
