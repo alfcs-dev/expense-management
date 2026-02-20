@@ -1,6 +1,6 @@
-# Phase 8 — Frontend Performance & Scale (When Data Gets Heavy)
+# Phase 9 — Frontend Performance & Scale (When Data Gets Heavy)
 
-> **Source:** [PLAN.md](../PLAN.md) Section 6, Phase 8 (Sections 8.1–8.7).  
+> **Source:** rebased after new Phase 3 core E2E flow.  
 > **When starting this phase:** move this file to `../in_progress/` and use the "In progress" section at the bottom to log achievements, decisions, and roadblocks.
 
 **Planning Metadata**

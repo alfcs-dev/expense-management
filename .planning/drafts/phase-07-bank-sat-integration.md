@@ -1,6 +1,6 @@
-# Phase 6 — Bank & SAT Integration (Automation)
+# Phase 7 — Bank & SAT Integration (Automation)
 
-> **Source:** [PLAN.md](../PLAN.md) Section 6, Phase 6 and Section 9.  
+> **Source:** rebased after new Phase 3 core E2E flow.  
 > **Detailed research:** [BANK_SAT_INTEGRATION_RESEARCH.md](../research/BANK_SAT_INTEGRATION_RESEARCH.md).  
 > **When starting this phase:** move this file to `../in_progress/` and use the "In progress" section at the bottom to log achievements, decisions, and roadblocks.
 
@@ -11,7 +11,7 @@
 - Target end: Post-MVP milestone
 - Actual start: TBD
 - Actual end: TBD
-- Dependencies: Phase 3 complete; vendor selection finalized; dedup design approved
+- Dependencies: Phase 4 complete; vendor selection finalized; dedup design approved
 - Linked PRs/issues: TBD
 
 ---

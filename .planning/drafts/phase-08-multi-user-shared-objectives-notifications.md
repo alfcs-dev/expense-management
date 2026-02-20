@@ -1,6 +1,6 @@
-# Phase 7 — Multi-User, Shared Objectives, Notifications & Intelligence
+# Phase 8 — Multi-User, Shared Objectives, Notifications & Intelligence
 
-> **Source:** [PLAN.md](../PLAN.md) Section 6, Phase 7.  
+> **Source:** rebased after new Phase 3 core E2E flow.  
 > **Shared Objectives:** [SHARED_OBJECTIVES_DESIGN.md](../docs/SHARED_OBJECTIVES_DESIGN.md).  
 > **Auth/collab:** [DEV_SERVICES_RESEARCH.md](../research/DEV_SERVICES_RESEARCH.md) (Better Auth organization plugin).  
 > **When starting this phase:** move this file to `../in_progress/` and use the "In progress" section at the bottom to log achievements, decisions, and roadblocks.
@@ -12,7 +12,7 @@
 - Target end: Post-Phase 6 milestone
 - Actual start: TBD
 - Actual end: TBD
-- Dependencies: Phase 6 complete (or Phase 3+4 baseline for partial rollout)
+- Dependencies: Phase 7 complete (or Phase 4+5 baseline for partial rollout)
 - Linked PRs/issues: TBD
 
 ---

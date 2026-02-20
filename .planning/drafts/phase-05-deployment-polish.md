@@ -1,6 +1,6 @@
-# Phase 4 — Deployment & Polish (Weeks 9–10)
+# Phase 5 — Deployment & Polish
 
-> **Source:** [PLAN.md](../PLAN.md) Section 6, Phase 4.  
+> **Source:** rebased after new Phase 3 core E2E flow.  
 > **When starting this phase:** move this file to `../in_progress/` and use the "In progress" section at the bottom to log achievements, decisions, and roadblocks.
 
 **Planning Metadata**
@@ -10,7 +10,7 @@
 - Target end: Week 10
 - Actual start: TBD
 - Actual end: TBD
-- Dependencies: Phase 3 MVP stable
+- Dependencies: Phase 4 advanced features stable
 - Linked PRs/issues: TBD
 
 ---

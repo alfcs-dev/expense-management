@@ -1,6 +1,6 @@
-# Phase 3 — Advanced Features (Weeks 6–8)
+# Phase 4 — Advanced Features (Post Core E2E)
 
-> **Source:** [PLAN.md](../PLAN.md) Section 6, Phase 3.  
+> **Source:** rebased after new Phase 3 core E2E flow.  
 > **When starting this phase:** move this file to `../in_progress/` and use the "In progress" section at the bottom to log achievements, decisions, and roadblocks.
 
 **Planning Metadata**
@@ -10,7 +10,7 @@
 - Target end: Week 8
 - Actual start: TBD
 - Actual end: TBD
-- Dependencies: Phase 2 complete
+- Dependencies: Phase 3 core E2E complete
 - Linked PRs/issues: TBD
 
 ---
@@ -30,7 +30,7 @@
 
 ## 2. Prerequisites
 
-- Phase 2 complete: accounts, categories, recurring expenses, budgets, manual expenses, dashboard, i18n.
+- Phase 3 complete: accounts, category hierarchy, transactions paid status, bills, budget allocations, dashboard summary.
 
 ---
 
