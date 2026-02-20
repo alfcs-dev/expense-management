@@ -3,6 +3,7 @@
     "home": "Inicio",
     "dashboard": "Panel",
     "accounts": "Cuentas",
+    "budgets": "Presupuestos",
     "categories": "Categorías",
     "expenses": "Gastos",
     "recurringExpenses": "Recurrentes"
@@ -12,6 +13,9 @@
     "signedInAs": "Sesión: {{email}}",
     "notSignedIn": "Sesión: sin iniciar",
     "signOut": "Cerrar sesión"
+  },
+  "common": {
+    "cancel": "Cancelar"
   },
   "home": {
     "title": "Administrador de Presupuesto",
@@ -30,14 +34,25 @@
     "signInFailed": "Error al iniciar sesión.",
     "signUpFailed": "Error al crear cuenta.",
     "signedInSuccess": "Sesión iniciada.",
-    "accountCreatedSuccess": "Cuenta creada e inicio de sesión correcto."
+    "accountCreatedSuccess": "Cuenta creada e inicio de sesión correcto.",
+    "loginDescription": "Inicia sesión con tu correo y contraseña",
+    "login": "Entrar",
+    "register": "Registrarse",
+    "forgotPassword": "¿Olvidaste tu contraseña?",
+    "dontHaveAccount": "¿No tienes una cuenta?"
   },
   "dashboard": {
     "title": "Panel",
     "loading": "Cargando…",
     "error": "Error: {{message}}",
-    "description": "Resumen mensual con montos planificados vs reales por categoría.",
-    "overviewTitle": "Resumen mensual",
+    "description": "Resumen del presupuesto con montos planificados vs reales por categoría.",
+    "overviewTitle": "Resumen",
+    "limitTitle": "Uso del límite del presupuesto",
+    "limit": "Límite del presupuesto",
+    "used": "Usado",
+    "remaining": "Disponible",
+    "usagePercent": "Uso: {{value}}%",
+    "estimatedWarning": "{{count}} gasto(s) usan conversión estimada. Los totales pueden cambiar.",
     "plannedIncome": "Ingreso planificado",
     "actualIncome": "Ingreso real",
     "plannedExpense": "Gasto planificado",
@@ -46,10 +61,10 @@
     "chartTitle": "Gráfica por categoría",
     "chartPlannedMXN": "Planificado (MXN)",
     "chartActualMXN": "Real (MXN)",
-    "empty": "Sin datos para el mes seleccionado.",
+    "empty": "Sin datos para el presupuesto seleccionado.",
+    "noBudgets": "Primero crea un presupuesto para ver datos del panel.",
     "fields": {
-      "month": "Mes",
-      "year": "Año"
+      "budget": "Presupuesto"
     },
     "table": {
       "category": "Categoría",
@@ -75,10 +90,26 @@
     "error": "Error: {{message}}",
     "listTitle": "Tus cuentas",
     "empty": "Aún no hay cuentas.",
+    "sheetEdit": "Editar cuenta",
+    "sheetCreate": "Crear cuenta",
+    "sheetDescription": "Configura detalles de la cuenta, perfil de transferencia y opciones de tarjeta.",
+    "noIdentifier": "Sin identificador",
+    "noInstitution": "Sin institución",
+    "copyClabe": "Copiar CLABE",
+    "copyFullClabe": "Copiar CLABE completo",
+    "moreInfo": "Más información",
+    "deactivate": "Desactivar",
+    "activate": "Activar",
+    "dialogTitle": "Detalles de la cuenta",
+    "dialogDescription": "Metadatos completos de la cuenta para transferencias y pagos.",
+    "na": "N/D",
     "balanceLabel": "Saldo",
     "creditLimitLabel": "Límite de crédito",
     "currentDebtLabel": "Deuda actual",
     "availableCreditLabel": "Crédito disponible",
+    "statementClosingDayLabel": "Fecha de corte",
+    "paymentGraceDaysLabel": "Días de gracia de pago",
+    "estimatedDueDateLabel": "Fecha límite estimada",
     "institutionLabel": "Institución",
     "clabeLabel": "CLABE",
     "fields": {
@@ -88,6 +119,8 @@
       "balance": "Saldo",
       "creditLimit": "Límite de crédito",
       "currentDebt": "Deuda actual",
+      "statementClosingDay": "Fecha de corte",
+      "paymentGraceDays": "Días de gracia de pago",
       "institution": "Institución",
       "clabe": "CLABE"
     },
@@ -102,13 +135,68 @@
     "errors": {
       "typeRequired": "El tipo de cuenta es obligatorio.",
       "debitClabeRequired": "Las cuentas de débito requieren CLABE válida para inferir institución.",
-      "creditInstitutionRequired": "Las cuentas de crédito requieren institución o CLABE válida."
+      "creditInstitutionRequired": "Las cuentas de crédito requieren institución o CLABE válida.",
+      "statementClosingDayInvalid": "La fecha de corte debe estar entre 1 y 31.",
+      "paymentGraceDaysInvalid": "Los días de gracia deben estar entre 1 y 60.",
+      "ACCOUNT_NAME_REQUIRED": "El nombre de la cuenta es obligatorio.",
+      "INVALID_CLABE": "CLABE inválida.",
+      "LAST4_INVALID": "Los últimos 4 dígitos deben ser exactamente 4.",
+      "CREDIT_CARD_SETTINGS_REQUIRED": "Día de corte y días de gracia son obligatorios para tarjetas de crédito.",
+      "STATEMENT_DAY_INVALID": "El día de corte debe estar entre 1 y 31.",
+      "GRACE_DAYS_INVALID": "Los días de gracia deben estar entre 0 y 90.",
+      "INSTITUTION_NOT_FOUND": "Institución no encontrada.",
+      "ACCOUNT_NOT_FOUND": "Cuenta no encontrada."
     },
     "types": {
       "debit": "Débito",
-      "credit": "Crédito",
+      "savings": "Ahorro",
       "investment": "Inversión",
-      "cash": "Efectivo"
+      "cash": "Efectivo",
+      "credit": "Crédito",
+      "credit_card": "Tarjeta de crédito"
+    },
+    "form": {
+      "sectionAccountDetails": "Datos de la cuenta",
+      "sectionTransferProfile": "Perfil de transferencia",
+      "sectionCardDetails": "Datos de la tarjeta",
+      "accountName": "Nombre de la cuenta",
+      "depositReference": "Referencia de depósito",
+      "beneficiaryName": "Nombre del beneficiario",
+      "programmableTransferProfile": "Perfil de transferencia programable",
+      "cardNumber": "Número de tarjeta",
+      "cardBrand": "Marca de tarjeta",
+      "cardLast4": "Últimos 4",
+      "currentBalance": "Saldo actual",
+      "currentBalanceHint": "Ingresa el saldo actual de la cuenta.",
+      "statementDay": "Día de corte",
+      "statementDayHint": "Último día de transacciones incluidas en el estado de cuenta.",
+      "computedDueDay": "Pago vence: día {{day}} del mes siguiente.",
+      "graceDays": "Días de gracia",
+      "creditLimit": "Límite de crédito",
+      "creditLimitHint": "Ingresa la línea total de crédito de esta tarjeta.",
+      "institutionLabel": "Institución",
+      "notSelected": "No seleccionado",
+      "validClabe": "CLABE válida",
+      "invalidClabe": "CLABE inválida",
+      "bankCode": "código banco {{code}}",
+      "detectedBrand": "Marca detectada: {{brand}}",
+      "detectedBrandPending": "Marca detectada: pendiente",
+      "storedLast4": "Últimos 4: {{last4}}",
+      "cycle": "Ciclo",
+      "cycleStatement": "corte {{statement}}, gracia {{grace}}",
+      "cardNumberHint": "Nunca guardamos el número completo. Solo guardamos marca y últimos 4 dígitos.",
+      "cancel": "Cancelar",
+      "saving": "Guardando...",
+      "saveChanges": "Guardar cambios",
+      "create": "Crear",
+      "placeholders": {
+        "name": "Débito principal, HSBC World Elite...",
+        "clabeDigits": "18 dígitos",
+        "referenceOrAlias": "Referencia o alias",
+        "whoReceives": "Quién recibe la transferencia",
+        "none": "Ninguna",
+        "cardNumber": "Número de tarjeta"
+      }
     }
   },
   "categories": {
@@ -150,6 +238,7 @@
     "empty": "Aún no hay gastos recurrentes.",
     "inactive": "Inactivo",
     "fields": {
+      "budget": "Presupuesto",
       "description": "Descripción",
       "category": "Categoría",
       "sourceAccount": "Cuenta origen",
@@ -163,10 +252,12 @@
       "isActive": "Activo"
     },
     "placeholders": {
+      "selectBudget": "Selecciona presupuesto",
       "selectCategory": "Selecciona categoría",
       "selectSourceAccount": "Selecciona cuenta origen",
       "none": "Ninguna"
     },
+    "budgetLabel": "Presupuesto",
     "frequency": {
       "monthly": "Mensual",
       "biweekly": "Quincenal",
@@ -176,7 +267,7 @@
   },
   "expenses": {
     "title": "Gastos",
-    "description": "Registra gastos manuales para el presupuesto mensual seleccionado.",
+    "description": "Registra gastos manuales para el presupuesto seleccionado.",
     "loading": "Cargando configuración de gastos...",
     "loadingList": "Cargando gastos...",
     "saving": "Guardando...",
@@ -189,19 +280,59 @@
     "error": "Error: {{message}}",
     "listTitle": "Gastos del presupuesto seleccionado",
     "empty": "Aún no hay gastos.",
+    "noBudgets": "Primero crea un presupuesto antes de agregar gastos.",
+    "estimatedConversionWarning": "La moneda del gasto es distinta a la moneda del presupuesto ({{currency}}). Si ya conoces el monto convertido, captúralo ahora.",
+    "convertedAmount": "Monto en presupuesto: {{amount}}",
+    "estimatedTag": "estimado",
     "fields": {
-      "month": "Mes",
-      "year": "Año",
+      "budget": "Presupuesto",
       "description": "Descripción",
       "category": "Categoría",
       "account": "Cuenta",
       "amount": "Monto",
       "currency": "Moneda",
+      "amountInBudgetCurrency": "Monto en {{currency}}",
       "date": "Fecha"
     },
     "placeholders": {
       "selectCategory": "Selecciona categoría",
-      "selectAccount": "Selecciona cuenta"
+      "selectAccount": "Selecciona cuenta",
+      "amountInBudgetCurrency": "Monto convertido opcional"
+    },
+    "validation": {
+      "budgetRequired": "Selecciona un presupuesto antes de guardar un gasto.",
+      "categoryRequired": "La categoría es obligatoria.",
+      "accountRequired": "La cuenta es obligatoria.",
+      "descriptionRequired": "La descripción es obligatoria.",
+      "dateRequired": "La fecha es obligatoria.",
+      "amountPositive": "El monto debe ser mayor a 0.",
+      "convertedAmountPositive": "El monto convertido debe ser mayor a 0 cuando se captura."
+    }
+  },
+  "budgets": {
+    "title": "Presupuestos",
+    "description": "Crea presupuestos con nombre, rango de fechas, moneda y límite de gasto.",
+    "loading": "Cargando presupuestos...",
+    "saving": "Guardando...",
+    "create": "Crear presupuesto",
+    "error": "Error: {{message}}",
+    "listTitle": "Tus presupuestos",
+    "empty": "Aún no hay presupuestos.",
+    "openExpenses": "Abrir gastos",
+    "openDashboard": "Abrir panel",
+    "setDefault": "Usar por defecto",
+    "defaultTag": "Predeterminado",
+    "fields": {
+      "name": "Nombre",
+      "startDate": "Fecha de inicio",
+      "endDate": "Fecha de fin",
+      "currency": "Moneda del presupuesto",
+      "limit": "Límite del presupuesto",
+      "isDefault": "Usar como presupuesto predeterminado"
+    },
+    "placeholders": {
+      "name": "Nombre del presupuesto",
+      "limit": "0.00"
     }
   },
   "app": {

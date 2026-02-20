@@ -167,6 +167,18 @@ Keep a single `.env` at the repo root and use **`pnpm db:migrate`** for migratio
 
 ---
 
+## Formatting and Linting
+
+- The repo uses **ESLint as the formatter entrypoint** with Prettier integrated via `eslint-plugin-prettier/recommended`.
+- `pnpm lint` checks both lint and formatting consistency.
+- In VS Code/Cursor, enable:
+  - `editor.formatOnSave: true`
+  - `editor.defaultFormatter: dbaeumer.vscode-eslint`
+  - `editor.codeActionsOnSave.source.fixAll.eslint: "explicit"` (or `true`)
+- This setup keeps one formatter path for all TypeScript files in apps and packages.
+
+---
+
 ## URLs
 
 | Service | URL |
@@ -207,10 +219,34 @@ Keep a single `.env` at the repo root and use **`pnpm db:migrate`** for migratio
 - After pulling schema changes: from root, run `pnpm db:migrate` to apply new migrations.
 - To regenerate the client only: `pnpm db:generate` or `pnpm build`.
 
+### Finance V2 baseline changes (pre-launch)
+
+- Finance V2 introduces new planning/statement/installment tables while keeping auth tables.
+- If your local DB has heavy drift from older budget migrations, run:
+  - `pnpm db:reset`
+  - `pnpm db:seed`
+- Then restart dev with `pnpm dev`.
+
+### Transactions-first cutover (breaking for old finance tables)
+
+- The DB schema now uses `transactions` as the canonical ledger and removes old `Expense`-centric tables from migration history.
+- This requires a one-time local reset for all developers after pulling the cutover branch:
+  - `pnpm exec dotenv -e .env -- pnpm --filter @expense-management/db exec prisma migrate reset --force --skip-seed`
+  - `pnpm db:seed`
+- Auth/user seed credentials remain available through `SEED_USER_EMAIL` / `SEED_USER_PASSWORD`.
+
 ### Postgres not running
 
 - Start it: `docker compose up -d postgres`.
 - Check: `docker compose ps` or `docker ps` and confirm the postgres container is up.
+
+### tRPC says "No procedure found on path ..."
+
+- This usually means a stale workspace build for shared backend packages.
+- Use `pnpm dev` from repo root (it now starts watch tasks for `@expense-management/shared` and `@expense-management/trpc`).
+- If the error persists, fully stop all dev processes and start again with:
+  - `pnpm dev`
+  - then hard refresh the browser.
 
 ### TypeScript / IDE shows many errors
 

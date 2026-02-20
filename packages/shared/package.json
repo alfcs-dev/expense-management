@@ -14,11 +14,14 @@
   },
   "scripts": {
     "build": "tsc",
-    "lint": "echo no lint yet",
+    "dev": "tsc --watch --preserveWatchOutput",
+    "lint": "eslint .",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "zod": "^3.23.0"
+    "card-validator": "^10.0.4",
+    "clabe-validator": "^1.2.9",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "typescript": "^5.7.0"

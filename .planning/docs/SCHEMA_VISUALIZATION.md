@@ -4,6 +4,8 @@ This document contains the Mermaid ER diagram for the Budget Manager database.
 It reflects all resolved decisions from [PLAN.md](../PLAN.md) and includes the
 shared objectives feature design.
 
+> Finance V2 planning/cycle entities are documented in `docs/ERD_FINANCE_V2.md`.
+
 > **Conventions:**
 > - All monetary amounts are stored as **integers** (centavos/cents) to avoid
 >   floating-point errors. The app converts to/from display format.
@@ -25,6 +27,10 @@ erDiagram
     USER ||--o{ EXPENSE : records
     USER ||--o{ TRANSFER : initiates
     USER ||--o{ INSTALLMENT_PLAN : creates
+    USER ||--o{ INSTALLMENT : tracks
+    USER ||--o{ BUDGET_PERIOD : plans
+    USER ||--o{ BUDGET_RULE : configures
+    USER ||--o{ BUDGET_ALLOCATION : allocates
     USER ||--o{ SAVINGS_GOAL : sets
     USER ||--o{ BUDGET_COLLABORATOR : participates_in
     USER ||--o{ BANK_LINK : connects
@@ -34,12 +40,18 @@ erDiagram
 
     %% ── Budget structure ──
     BUDGET ||--o{ EXPENSE : contains
+    BUDGET ||--o{ RECURRING_EXPENSE : plans
     BUDGET ||--o{ BUDGET_COLLABORATOR : shared_with
+    BUDGET_PERIOD ||--o{ INCOME_PLAN_ITEM : plans_income
+    BUDGET_PERIOD ||--o{ BUDGET_ALLOCATION : contains
+    BUDGET_RULE ||--o{ BUDGET_ALLOCATION : generates
 
     %% ── Category ──
     CATEGORY ||--o{ EXPENSE : categorizes
     CATEGORY ||--o{ RECURRING_EXPENSE : groups
     CATEGORY ||--o{ INSTALLMENT_PLAN : groups
+    CATEGORY ||--o{ BUDGET_RULE : controls
+    CATEGORY ||--o{ BUDGET_ALLOCATION : targets
 
     %% ── Account ──
     ACCOUNT ||--o{ EXPENSE : charged_to
@@ -48,11 +60,20 @@ erDiagram
     ACCOUNT ||--o{ TRANSFER : "source"
     ACCOUNT ||--o{ TRANSFER : "destination"
     ACCOUNT ||--o{ INSTALLMENT_PLAN : pays
+    ACCOUNT ||--o{ CREDIT_CARD_STATEMENT : issues
+    ACCOUNT ||--o{ INCOME_PLAN_ITEM : receives
     ACCOUNT ||--o{ SAVINGS_GOAL : holds
     ACCOUNT ||--o{ BANK_LINK : linked_via
 
     %% ── Installment plans ──
     INSTALLMENT_PLAN ||--o{ EXPENSE : generates
+    INSTALLMENT_PLAN ||--o{ INSTALLMENT : schedules
+    INSTALLMENT ||--o{ EXPENSE : posts_as
+
+    %% ── Credit statement cycle ──
+    CREDIT_CARD_STATEMENT ||--o{ EXPENSE : includes
+    CREDIT_CARD_STATEMENT ||--o{ STATEMENT_PAYMENT : receives
+    TRANSFER ||--o{ STATEMENT_PAYMENT : applies
 
     %% ── Reconciliation ──
     STAGED_TRANSACTION }o--o| EXPENSE : "matched_to"
@@ -83,6 +104,10 @@ erDiagram
         string currency "MXN | USD"
         string clabe UK "nullable"
         int balance "centavos/cents"
+        int creditLimit "nullable — credit accounts only"
+        int currentDebt "nullable — credit accounts only"
+        int statementClosingDay "nullable — 1..31"
+        int paymentGraceDays "nullable — days after cutoff"
         string institution "nullable — HSBC, Nu, etc."
         string bankLinkId FK "nullable — banking API link"
         datetime createdAt
@@ -92,9 +117,12 @@ erDiagram
     BUDGET {
         string id PK
         string userId FK
-        string name "nullable — auto: Jan 2026"
-        int month "1-12"
-        int year "2026"
+        string name "required"
+        datetime startDate
+        datetime endDate
+        boolean isDefault "only one true budget per user"
+        string currency "MXN | USD"
+        int budgetLimit "centavos/cents in budget currency"
         datetime createdAt
         datetime updatedAt
     }
@@ -112,6 +140,7 @@ erDiagram
     RECURRING_EXPENSE {
         string id PK
         string userId FK
+        string budgetId FK
         string categoryId FK
         string sourceAccountId FK "Cuenta Cargo"
         string destAccountId FK "nullable — Cuenta Deposito"
@@ -138,6 +167,10 @@ erDiagram
         string description
         int amount "centavos/cents"
         string currency "MXN | USD"
+        int amountInBudgetCurrency "nullable — stored in budget currency"
+        string conversionStatus "none | estimated | confirmed"
+        string statementId FK "nullable — credit statement assignment"
+        string installmentId FK "nullable — installment schedule linkage"
         datetime date
         int installmentNumber "nullable — e.g. 3 of 12"
         string source "manual | banking_api | cfdi | csv | recurring | installment | objective"
@@ -278,6 +311,92 @@ erDiagram
         string matchValue "the RFC or merchant name"
         string categoryId FK
         float confidence "1.0 = user-set"
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    INSTALLMENT {
+        string id PK
+        string userId FK
+        string installmentPlanId FK
+        int installmentNumber "1..N schedule row"
+        datetime dueDate
+        int amount "centavos"
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    CREDIT_CARD_STATEMENT {
+        string id PK
+        string accountId FK
+        datetime periodStart
+        datetime periodEnd
+        datetime closingDate
+        datetime dueDate
+        int statementBalance "centavos"
+        int paymentsApplied "centavos"
+        string status "open | closed | partial | paid | overdue"
+        datetime closedAt "nullable"
+        datetime paidAt "nullable"
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    STATEMENT_PAYMENT {
+        string id PK
+        string statementId FK
+        string transferId FK
+        int amountApplied "centavos"
+        datetime createdAt
+    }
+
+    BUDGET_PERIOD {
+        string id PK
+        string userId FK
+        string month "YYYY-MM"
+        string currency "MXN | USD"
+        int expectedIncomeAmount "centavos"
+        string notes "nullable"
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    INCOME_PLAN_ITEM {
+        string id PK
+        string budgetPeriodId FK
+        datetime date "nullable"
+        string source "Salary, Bonus, etc."
+        int amount "centavos"
+        string accountId FK "nullable"
+        boolean isRecurring
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    BUDGET_RULE {
+        string id PK
+        string userId FK
+        string name
+        string categoryId FK
+        string ruleType "fixed | percent_of_income"
+        int value "fixed cents OR basis points (10000 = 100%)"
+        int applyOrder
+        int minAmount "nullable"
+        int capAmount "nullable"
+        string activeFrom "nullable YYYY-MM"
+        string activeTo "nullable YYYY-MM"
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    BUDGET_ALLOCATION {
+        string id PK
+        string userId FK
+        string budgetPeriodId FK
+        string categoryId FK
+        int plannedAmount "centavos"
+        string generatedFromRuleId FK "nullable"
+        boolean isOverride
         datetime createdAt
         datetime updatedAt
     }

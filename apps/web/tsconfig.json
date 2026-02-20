@@ -7,7 +7,11 @@
     "jsx": "react-jsx",
     "useDefineForClassFields": true,
     "allowImportingTsExtensions": true,
-    "moduleDetection": "force"
+    "moduleDetection": "force",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@components/*": ["./src/components/*"]
+    }
   },
   "include": ["src"]
 }

@@ -1,19 +1,35 @@
 import { createRouter } from "@tanstack/react-router";
 import { rootRoute } from "./__root";
 import { indexRoute } from "./index";
+import { signInRoute } from "./sign-in";
+import { registerRoute } from "./register";
 import { dashboardRoute } from "./dashboard";
 import { accountsRoute } from "./accounts";
-import { categoriesRoute } from "./categories";
-import { expensesRoute } from "./expenses";
-import { recurringExpensesRoute } from "./recurring-expenses";
+import { creditCardStatementsRoute } from "./credit-card-statements";
+import {
+  transactionsDepositRoute,
+  transactionsExpenseRoute,
+  transactionsRoute,
+} from "./transactions";
+import { protectedRoute } from "./protected";
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
-  dashboardRoute,
-  accountsRoute,
-  categoriesRoute,
-  expensesRoute,
-  recurringExpensesRoute,
+  signInRoute,
+  registerRoute,
+  protectedRoute.addChildren([
+    dashboardRoute,
+    accountsRoute,
+    transactionsRoute,
+    transactionsDepositRoute,
+    transactionsExpenseRoute,
+    creditCardStatementsRoute,
+  ]),
 ]);
 
-export const router = createRouter({ routeTree });
+export const router = createRouter({
+  routeTree,
+  context: {
+    auth: undefined!,
+  },
+});

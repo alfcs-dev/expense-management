@@ -1,5 +1,7 @@
 node_modules
+.pnpm-store
 dist
+packages/db/dist2/
 .env
 .env.local
 *.log

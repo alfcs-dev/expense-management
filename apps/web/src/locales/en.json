@@ -3,6 +3,7 @@
     "home": "Home",
     "dashboard": "Dashboard",
     "accounts": "Accounts",
+    "budgets": "Budgets",
     "categories": "Categories",
     "expenses": "Expenses",
     "recurringExpenses": "Recurring"
@@ -12,6 +13,9 @@
     "signedInAs": "Session: {{email}}",
     "notSignedIn": "Session: not signed in",
     "signOut": "Sign out"
+  },
+  "common": {
+    "cancel": "Cancel"
   },
   "home": {
     "title": "Budget Manager",
@@ -30,14 +34,26 @@
     "signInFailed": "Sign-in failed.",
     "signUpFailed": "Sign-up failed.",
     "signedInSuccess": "Signed in.",
-    "accountCreatedSuccess": "Account created and signed in."
+    "accountCreatedSuccess": "Account created and signed in.",
+    "loginDescription": "Login with your email and password",
+    "login": "Login",
+    "register": "Register",
+    "forgotPassword": "Forgot your password?",
+    "dontHaveAccount": "Don't have an account?",
+    "registerDescription": "Create an account to get started."
   },
   "dashboard": {
     "title": "Dashboard",
     "loading": "Loading…",
     "error": "Error: {{message}}",
-    "description": "Monthly overview with planned vs actual amounts by category.",
-    "overviewTitle": "Monthly overview",
+    "description": "Budget overview with planned vs actual amounts by category.",
+    "overviewTitle": "Overview",
+    "limitTitle": "Budget limit usage",
+    "limit": "Budget limit",
+    "used": "Used",
+    "remaining": "Remaining",
+    "usagePercent": "Used: {{value}}%",
+    "estimatedWarning": "{{count}} expense(s) use estimated conversion. Totals may change.",
     "plannedIncome": "Planned income",
     "actualIncome": "Actual income",
     "plannedExpense": "Planned expenses",
@@ -46,10 +62,10 @@
     "chartTitle": "Category chart",
     "chartPlannedMXN": "Planned (MXN)",
     "chartActualMXN": "Actual (MXN)",
-    "empty": "No data for selected month.",
+    "empty": "No data for selected budget.",
+    "noBudgets": "Create a budget first to see dashboard data.",
     "fields": {
-      "month": "Month",
-      "year": "Year"
+      "budget": "Budget"
     },
     "table": {
       "category": "Category",
@@ -75,10 +91,26 @@
     "error": "Error: {{message}}",
     "listTitle": "Your accounts",
     "empty": "No accounts yet.",
+    "sheetEdit": "Edit account",
+    "sheetCreate": "Create account",
+    "sheetDescription": "Configure account details, transfer profile, and optional card settings.",
+    "noIdentifier": "No identifier",
+    "noInstitution": "No institution",
+    "copyClabe": "Copy CLABE",
+    "copyFullClabe": "Copy full CLABE",
+    "moreInfo": "More info",
+    "deactivate": "Deactivate",
+    "activate": "Activate",
+    "dialogTitle": "Account details",
+    "dialogDescription": "Complete account metadata for transfers and payments.",
+    "na": "N/A",
     "balanceLabel": "Balance",
     "creditLimitLabel": "Credit limit",
     "currentDebtLabel": "Current debt",
     "availableCreditLabel": "Available credit",
+    "statementClosingDayLabel": "Statement closing day",
+    "paymentGraceDaysLabel": "Payment grace days",
+    "estimatedDueDateLabel": "Estimated next due date",
     "institutionLabel": "Institution",
     "clabeLabel": "CLABE",
     "fields": {
@@ -88,6 +120,8 @@
       "balance": "Balance",
       "creditLimit": "Credit limit",
       "currentDebt": "Current debt",
+      "statementClosingDay": "Statement closing day",
+      "paymentGraceDays": "Payment grace days",
       "institution": "Institution",
       "clabe": "CLABE"
     },
@@ -102,13 +136,68 @@
     "errors": {
       "typeRequired": "Account type is required.",
       "debitClabeRequired": "Debit accounts require a valid CLABE to infer institution.",
-      "creditInstitutionRequired": "Credit accounts require an institution or a valid CLABE."
+      "creditInstitutionRequired": "Credit accounts require an institution or a valid CLABE.",
+      "statementClosingDayInvalid": "Statement closing day must be between 1 and 31.",
+      "paymentGraceDaysInvalid": "Payment grace days must be between 1 and 60.",
+      "ACCOUNT_NAME_REQUIRED": "Account name is required.",
+      "INVALID_CLABE": "Invalid CLABE.",
+      "LAST4_INVALID": "Last 4 digits must be exactly 4 digits.",
+      "CREDIT_CARD_SETTINGS_REQUIRED": "Statement day and grace days are required for credit card accounts.",
+      "STATEMENT_DAY_INVALID": "Statement day must be between 1 and 31.",
+      "GRACE_DAYS_INVALID": "Grace days must be between 0 and 90.",
+      "INSTITUTION_NOT_FOUND": "Institution not found.",
+      "ACCOUNT_NOT_FOUND": "Account not found."
     },
     "types": {
       "debit": "Debit",
-      "credit": "Credit",
+      "savings": "Savings",
       "investment": "Investment",
-      "cash": "Cash"
+      "cash": "Cash",
+      "credit": "Credit",
+      "credit_card": "Credit card"
+    },
+    "form": {
+      "sectionAccountDetails": "Account details",
+      "sectionTransferProfile": "Transfer profile",
+      "sectionCardDetails": "Card details",
+      "accountName": "Account name",
+      "depositReference": "Deposit reference",
+      "beneficiaryName": "Beneficiary name",
+      "programmableTransferProfile": "Programmable transfer profile",
+      "cardNumber": "Card number",
+      "cardBrand": "Card brand",
+      "cardLast4": "Card last4",
+      "currentBalance": "Current balance",
+      "currentBalanceHint": "Enter the account's current balance.",
+      "statementDay": "Statement day",
+      "statementDayHint": "Last day of transactions included in the statement.",
+      "computedDueDay": "Payment due: day {{day}} of the following month.",
+      "graceDays": "Grace days",
+      "creditLimit": "Credit limit",
+      "creditLimitHint": "Enter the total credit line for this card.",
+      "institutionLabel": "Institution",
+      "notSelected": "Not selected",
+      "validClabe": "Valid CLABE",
+      "invalidClabe": "Invalid CLABE",
+      "bankCode": "bank code {{code}}",
+      "detectedBrand": "Detected brand: {{brand}}",
+      "detectedBrandPending": "Detected brand: pending",
+      "storedLast4": "Stored last4: {{last4}}",
+      "cycle": "Cycle",
+      "cycleStatement": "statement {{statement}}, grace {{grace}}",
+      "cardNumberHint": "We never store the full card number. We only store brand and last 4 digits.",
+      "cancel": "Cancel",
+      "saving": "Saving...",
+      "saveChanges": "Save changes",
+      "create": "Create",
+      "placeholders": {
+        "name": "Main Debit, HSBC World Elite...",
+        "clabeDigits": "18 digits",
+        "referenceOrAlias": "Reference or alias",
+        "whoReceives": "Who receives the transfer",
+        "none": "None",
+        "cardNumber": "Card number"
+      }
     }
   },
   "categories": {
@@ -150,6 +239,7 @@
     "empty": "No recurring expenses yet.",
     "inactive": "Inactive",
     "fields": {
+      "budget": "Budget",
       "description": "Description",
       "category": "Category",
       "sourceAccount": "Source account",
@@ -163,10 +253,12 @@
       "isActive": "Active"
     },
     "placeholders": {
+      "selectBudget": "Select budget",
       "selectCategory": "Select category",
       "selectSourceAccount": "Select source account",
       "none": "None"
     },
+    "budgetLabel": "Budget",
     "frequency": {
       "monthly": "Monthly",
       "biweekly": "Biweekly",
@@ -176,7 +268,7 @@
   },
   "expenses": {
     "title": "Expenses",
-    "description": "Log manual expenses for a selected month budget.",
+    "description": "Log manual expenses for the selected budget.",
     "loading": "Loading expense setup...",
     "loadingList": "Loading expenses...",
     "saving": "Saving...",
@@ -189,19 +281,59 @@
     "error": "Error: {{message}}",
     "listTitle": "Expenses in selected budget",
     "empty": "No expenses yet.",
+    "noBudgets": "Create a budget first before adding expenses.",
+    "estimatedConversionWarning": "This expense currency differs from the budget currency ({{currency}}). If you already know the converted amount, enter it now.",
+    "convertedAmount": "Budget amount: {{amount}}",
+    "estimatedTag": "estimated",
     "fields": {
-      "month": "Month",
-      "year": "Year",
+      "budget": "Budget",
       "description": "Description",
       "category": "Category",
       "account": "Account",
       "amount": "Amount",
       "currency": "Currency",
+      "amountInBudgetCurrency": "Amount in {{currency}}",
       "date": "Date"
     },
     "placeholders": {
       "selectCategory": "Select category",
-      "selectAccount": "Select account"
+      "selectAccount": "Select account",
+      "amountInBudgetCurrency": "Optional converted amount"
+    },
+    "validation": {
+      "budgetRequired": "Select a budget before saving an expense.",
+      "categoryRequired": "Category is required.",
+      "accountRequired": "Account is required.",
+      "descriptionRequired": "Description is required.",
+      "dateRequired": "Date is required.",
+      "amountPositive": "Amount must be greater than 0.",
+      "convertedAmountPositive": "Converted amount must be greater than 0 when provided."
+    }
+  },
+  "budgets": {
+    "title": "Budgets",
+    "description": "Create named budgets with date ranges, currency, and spending limits.",
+    "loading": "Loading budgets...",
+    "saving": "Saving...",
+    "create": "Create budget",
+    "error": "Error: {{message}}",
+    "listTitle": "Your budgets",
+    "empty": "No budgets yet.",
+    "openExpenses": "Open expenses",
+    "openDashboard": "Open dashboard",
+    "setDefault": "Set as default",
+    "defaultTag": "Default",
+    "fields": {
+      "name": "Name",
+      "startDate": "Start date",
+      "endDate": "End date",
+      "currency": "Budget currency",
+      "limit": "Budget limit",
+      "isDefault": "Set as default budget"
+    },
+    "placeholders": {
+      "name": "Budget name",
+      "limit": "0.00"
     }
   },
   "app": {

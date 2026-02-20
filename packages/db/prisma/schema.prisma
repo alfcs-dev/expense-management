@@ -1,15 +1,11 @@
-// Phase 1 schema: User + core entities. StagedTransaction, CategoryMapping,
-// SharedObjective, ObjectiveMember, ObjectiveContribution deferred to later phases.
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
-// ─── Enums ─────────────────────────────────────────────────────────────
 enum Currency {
   MXN
   USD
@@ -17,53 +13,70 @@ enum Currency {
 
 enum AccountType {
   debit
-  credit
+  savings
   investment
+  credit_card
+  credit
   cash
 }
 
-enum ExpenseSource {
-  manual
-  banking_api
-  cfdi
-  csv
-  recurring
-  installment
-  objective
+enum CategoryKind {
+  expense
+  income
+  transfer
+  savings
+  debt
 }
 
-enum RecurringFrequency {
-  monthly
-  biweekly
-  annual
-  bimonthly
+enum ProjectStatus {
+  active
+  closed
+}
+
+enum CreditCardStatementStatus {
+  open
+  closed
+  partial
+  paid
+  overdue
+}
+
+enum PlannedTransferStatus {
+  planned
+  executed
+  skipped
+  modified
+}
+
+enum BudgetRuleType {
+  fixed
+  percent_of_income
 }
 
 enum InstallmentPlanStatus {
   active
-  completed
+  closed
   cancelled
 }
 
-enum BudgetCollaboratorRole {
-  owner
-  editor
-  viewer
+enum BillAmountType {
+  fixed
+  variable
 }
 
-enum BankLinkStatus {
-  active
-  inactive
-  error
+enum IncomeSource {
+  salary
+  bonus
+  refund
+  other
 }
 
-enum ReconciliationStatus {
-  unmatched
-  partial
-  full
+enum SnapshotSource {
+  manual
+  imported
+  reconciled
 }
 
-// ─── User (Better Auth–compatible; session/account tables added when integrating) ───
 model User {
   id            String   @id @default(cuid())
   email         String   @unique
@@ -74,267 +87,542 @@ model User {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  accounts            Account[]
-  budgets             Budget[]
-  categories          Category[]
-  recurringExpenses   RecurringExpense[]
-  expenses            Expense[]
-  transfers           Transfer[]
-  installmentPlans    InstallmentPlan[]
-  savingsGoals        SavingsGoal[]
-  budgetCollaborators BudgetCollaborator[]
-  bankLinks           BankLink[]
-  authSessions        AuthSession[] @relation("AuthUserSessions")
-  authAccounts        AuthAccount[] @relation("AuthUserAccounts")
+  authSessions AuthSession[] @relation("AuthUserSessions")
+  authAccounts AuthAccount[] @relation("AuthUserAccounts")
+
+  accounts                Account[]
+  categories              Category[]
+  projects                Project[]
+  transactions            Transaction[]
+  transfers               Transfer[]
+  statements              CreditCardStatement[]
+  statementPayments       StatementPayment[]
+  installmentPlans        InstallmentPlan[]
+  installments            Installment[]
+  budgetPeriods           BudgetPeriod[]
+  incomePlanItems         IncomePlanItem[]
+  incomeEvents            IncomeEvent[]
+  budgetRules             BudgetRule[]
+  budgets                 Budget[]
+  plannedTransfers        PlannedTransfer[]
+  bills                   Bill[]
+  accountBalanceSnapshots AccountBalanceSnapshot[]
+
+  @@map("users")
 }
 
 model AuthSession {
   id        String   @id @default(cuid())
-  userId    String
+  userId    String   @map("user_id")
   token     String   @unique
-  expiresAt DateTime
-  ipAddress String?
-  userAgent String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  expiresAt DateTime @map("expires_at")
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   user User @relation("AuthUserSessions", fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@map("auth_sessions")
 }
 
 model AuthAccount {
-  id                    String   @id @default(cuid())
-  userId                String
-  accountId             String
-  providerId            String
-  accessToken           String?
-  refreshToken          String?
-  accessTokenExpiresAt  DateTime?
-  refreshTokenExpiresAt DateTime?
+  id                    String    @id @default(cuid())
+  userId                String    @map("user_id")
+  accountId             String    @map("account_id")
+  providerId            String    @map("provider_id")
+  accessToken           String?   @map("access_token")
+  refreshToken          String?   @map("refresh_token")
+  accessTokenExpiresAt  DateTime? @map("access_token_expires_at")
+  refreshTokenExpiresAt DateTime? @map("refresh_token_expires_at")
   scope                 String?
-  idToken               String?
+  idToken               String?   @map("id_token")
   password              String?
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
 
   user User @relation("AuthUserAccounts", fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
   @@unique([providerId, accountId])
+  @@index([userId])
+  @@map("auth_accounts")
 }
 
 model AuthVerification {
   id         String   @id @default(cuid())
   identifier String
   value      String
-  expiresAt  DateTime
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  expiresAt  DateTime @map("expires_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
 
   @@unique([identifier, value])
+  @@map("auth_verifications")
 }
 
-// ─── Core ───────────────────────────────────────────────────────────────
 model Account {
-  id           String      @id @default(cuid())
-  userId       String
-  name         String
-  type         AccountType
-  currency     Currency
-  clabe        String?     @unique
-  balance      Int         @default(0) // centavos/cents
-  creditLimit  Int?        // centavos/cents; for credit accounts
-  currentDebt  Int?        // centavos/cents; for credit accounts
-  institution  String?
-  bankLinkId   String?
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  id        String      @id @default(cuid())
+  userId    String      @map("user_id")
+  name      String
+  type      AccountType
+  currency  Currency
+  currentBalance Int    @default(0) @map("current_balance")
+  institutionId String? @db.Uuid @map("institution_id")
+  isActive  Boolean     @default(true) @map("is_active")
+  createdAt DateTime    @default(now()) @map("created_at")
+  updatedAt DateTime    @updatedAt @map("updated_at")
 
-  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  expenses          Expense[]          @relation("ExpenseAccount")
-  recurringExpensesSource RecurringExpense[] @relation("RecurringSourceAccount")
-  recurringExpensesDest   RecurringExpense[] @relation("RecurringDestAccount")
-  transfersFrom     Transfer[]         @relation("TransferSource")
-  transfersTo       Transfer[]         @relation("TransferDest")
-  installmentPlans  InstallmentPlan[]
-  savingsGoals      SavingsGoal[]
-  bankLink          BankLink?     @relation(fields: [bankLinkId], references: [id], onDelete: SetNull)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  institution          InstitutionCatalog?      @relation(fields: [institutionId], references: [id], onDelete: SetNull)
+  transferProfile      AccountTransferProfile?
+  cardProfile          AccountCardProfile?
+  creditCardSettings   CreditCardSettings?
+  creditCardStatements CreditCardStatement[]
+  transactions         Transaction[]
+  incomingTransfers    Transfer[]               @relation("TransferToAccount")
+  outgoingTransfers    Transfer[]               @relation("TransferFromAccount")
+  incomePlanItems      IncomePlanItem[]
+  incomeEvents         IncomeEvent[]
+  installmentPlans     InstallmentPlan[]
+  billsPaidFrom        Bill[]                   @relation("BillPayingAccount")
+  billsFundedFrom      Bill[]                   @relation("BillFundingAccount")
+  plannedTransfersFrom PlannedTransfer[]        @relation("PlannedTransferFromAccount")
+  plannedTransfersTo   PlannedTransfer[]        @relation("PlannedTransferToAccount")
+  balanceSnapshots     AccountBalanceSnapshot[]
+
+  @@index([userId, type])
+  @@index([userId, isActive])
+  @@index([institutionId])
+  @@map("accounts")
+}
+
+model AccountTransferProfile {
+  accountId        String   @id @map("account_id")
+  clabe            String?
+  depositReference String?  @map("deposit_reference")
+  beneficiaryName  String?  @map("beneficiary_name")
+  isProgrammable   Boolean  @default(false) @map("is_programmable")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@map("account_transfer_profiles")
+}
+
+model AccountCardProfile {
+  accountId String   @id @map("account_id")
+  brand     String?
+  last4     String?  @map("last4")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@map("account_card_profiles")
 }
 
 model InstitutionCatalog {
-  code       String   @id
-  bankCode   String?
+  id         String   @id @default(uuid()) @db.Uuid
+  code       String?  @unique
+  bankCode   String?  @map("bank_code")
   name       String
   source     String
-  isActive   Boolean  @default(true)
-  lastSeenAt DateTime @default(now())
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-}
+  isActive   Boolean  @default(true) @map("is_active")
+  lastSeenAt DateTime @map("last_seen_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
 
-model Budget {
-  id        String   @id @default(cuid())
-  userId    String
-  name      String?
-  month     Int      // 1-12
-  year      Int
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  accounts Account[]
 
-  user       User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  expenses   Expense[]
-  collaborators BudgetCollaborator[]
-
-  @@unique([userId, month, year])
+  @@unique([bankCode])
+  @@index([isActive])
+  @@map("institution_catalog")
 }
 
 model Category {
-  id        String   @id @default(cuid())
-  userId    String
+  id        String       @id @default(cuid())
+  userId    String       @map("user_id")
   name      String
-  icon      String?
-  color     String?
-  sortOrder Int      @default(0)
-  createdAt DateTime @default(now())
+  parentId  String?      @map("parent_id")
+  kind      CategoryKind
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent           Category?         @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children         Category[]        @relation("CategoryHierarchy")
+  transactions     Transaction[]
+  budgets          Budget[]
+  budgetRules      BudgetRule[]
+  bills            Bill[]
+  installmentPlans InstallmentPlan[]
+
+  @@index([userId, kind])
+  @@index([userId, parentId])
+  @@index([userId, name])
+  @@map("categories")
+}
+
+model Project {
+  id        String        @id @default(cuid())
+  userId    String        @map("user_id")
+  name      String
+  status    ProjectStatus @default(active)
+  startDate DateTime?     @map("start_date")
+  endDate   DateTime?     @map("end_date")
+  createdAt DateTime      @default(now()) @map("created_at")
+  updatedAt DateTime      @updatedAt @map("updated_at")
+
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions     Transaction[]
+  installmentPlans InstallmentPlan[]
+
+  @@index([userId, status])
+  @@map("projects")
+}
+
+model CreditCardSettings {
+  accountId    String   @id @map("account_id")
+  statementDay Int      @map("statement_day")
+  graceDays    Int?     @map("grace_days")
+  creditLimit  Int?     @map("credit_limit")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@map("credit_card_settings")
+}
+
+model CreditCardStatement {
+  id               String                    @id @default(cuid())
+  userId           String                    @map("user_id")
+  accountId        String                    @map("account_id")
+  periodStart      DateTime                  @map("period_start")
+  periodEnd        DateTime                  @map("period_end")
+  closingDate      DateTime                  @map("closing_date")
+  dueDate          DateTime                  @map("due_date")
+  statementBalance Int                       @default(0) @map("statement_balance")
+  paymentsApplied  Int                       @default(0) @map("payments_applied")
+  status           CreditCardStatementStatus @default(open)
+  closedAt         DateTime?                 @map("closed_at")
+  paidAt           DateTime?                 @map("paid_at")
+  createdAt        DateTime                  @default(now()) @map("created_at")
+  updatedAt        DateTime                  @updatedAt @map("updated_at")
 
   user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  expenses          Expense[]
-  recurringExpenses RecurringExpense[]
-  installmentPlans  InstallmentPlan[]
-}
+  account           Account            @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  transactions      Transaction[]
+  statementPayments StatementPayment[]
 
-// ─── Expense tracking ────────────────────────────────────────────────────
-model RecurringExpense {
-  id               String            @id @default(cuid())
-  userId           String
-  categoryId       String
-  sourceAccountId  String
-  destAccountId    String?
-  description      String
-  amount           Int               // centavos, monthly equivalent
-  currency         Currency
-  frequency        RecurringFrequency
-  isAnnual         Boolean           @default(false)
-  annualCost       Int?              // centavos
-  notes            String?
-  isActive         Boolean           @default(true)
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
-
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  category      Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  sourceAccount Account  @relation("RecurringSourceAccount", fields: [sourceAccountId], references: [id], onDelete: Cascade)
-  destAccount   Account? @relation("RecurringDestAccount", fields: [destAccountId], references: [id], onDelete: SetNull)
-}
-
-model Expense {
-  id                      String              @id @default(cuid())
-  userId                  String
-  budgetId                String
-  categoryId              String
-  accountId               String
-  installmentPlanId       String?
-  objectiveContributionId String?             // FK added in Phase 7 when ObjectiveContribution exists
-  description             String
-  amount                  Int                 // centavos/cents
-  currency                Currency
-  date                    DateTime
-  installmentNumber       Int?
-  source                  ExpenseSource       @default(manual)
-  bankingApiTransactionId String?             @unique
-  cfdiUuid                String?             @unique
-  cfdiData                Json?
-  reconciliationStatus    ReconciliationStatus? @default(unmatched)
-  isVerified              Boolean             @default(false)
-  createdAt               DateTime            @default(now())
-  updatedAt               DateTime            @updatedAt
-
-  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  budget           Budget           @relation(fields: [budgetId], references: [id], onDelete: Cascade)
-  category         Category         @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  account          Account          @relation("ExpenseAccount", fields: [accountId], references: [id], onDelete: Cascade)
-  installmentPlan  InstallmentPlan? @relation(fields: [installmentPlanId], references: [id], onDelete: SetNull)
+  @@unique([accountId, periodStart, periodEnd])
+  @@index([accountId, dueDate])
+  @@index([userId, status])
+  @@map("credit_card_statements")
 }
 
 model InstallmentPlan {
-  id           String                @id @default(cuid())
-  userId       String
-  accountId    String
-  categoryId   String
-  description  String
-  totalAmount  Int                   // centavos
-  currency     Currency
-  months       Int
-  interestRate Float                 @default(0)
-  startDate    DateTime
-  status       InstallmentPlanStatus @default(active)
-  createdAt    DateTime             @default(now())
-  updatedAt    DateTime             @updatedAt
+  id                    String                @id @default(cuid())
+  userId                String                @map("user_id")
+  accountId             String                @map("account_id")
+  name                  String
+  purchaseDate          DateTime              @map("purchase_date")
+  principalAmount       Int                   @map("principal_amount")
+  installmentCountTotal Int                   @map("installment_count_total")
+  installmentAmount     Int?                  @map("installment_amount")
+  status                InstallmentPlanStatus
+  categoryId            String?               @map("category_id")
+  projectId             String?               @map("project_id")
+  createdAt             DateTime              @default(now()) @map("created_at")
+  updatedAt             DateTime              @updatedAt @map("updated_at")
 
-  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  account  Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  category Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  expenses Expense[]
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account      Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  category     Category?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  project      Project?      @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  installments Installment[]
+
+  @@index([userId, accountId, status])
+  @@map("installment_plans")
+}
+
+model Installment {
+  id                String   @id @default(cuid())
+  userId            String   @map("user_id")
+  planId            String   @map("plan_id")
+  installmentNumber Int      @map("installment_number")
+  dueDate           DateTime @map("due_date")
+  amount            Int
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan         InstallmentPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@unique([planId, installmentNumber])
+  @@index([planId, dueDate])
+  @@index([userId, dueDate])
+  @@map("installments")
+}
+
+model BudgetPeriod {
+  id                   String   @id @default(cuid())
+  userId               String   @map("user_id")
+  month                String
+  currency             Currency
+  expectedIncomeAmount Int      @default(0) @map("expected_income_amount")
+  notes                String?
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  incomePlanItems IncomePlanItem[]
+  incomeEvents    IncomeEvent[]
+  budgets         Budget[]
+
+  @@unique([userId, month])
+  @@map("budget_periods")
+}
+
+model IncomePlanItem {
+  id             String    @id @default(cuid())
+  userId         String    @map("user_id")
+  budgetPeriodId String    @map("budget_period_id")
+  date           DateTime?
+  source         String
+  amount         Int
+  accountId      String?   @map("account_id")
+  isRecurring    Boolean   @default(false) @map("is_recurring")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  budgetPeriod BudgetPeriod @relation(fields: [budgetPeriodId], references: [id], onDelete: Cascade)
+  account      Account?     @relation(fields: [accountId], references: [id], onDelete: SetNull)
+
+  @@index([budgetPeriodId])
+  @@index([userId, date])
+  @@map("income_plan_items")
+}
+
+model IncomeEvent {
+  id             String       @id @default(cuid())
+  userId         String       @map("user_id")
+  date           DateTime
+  amount         Int
+  accountId      String       @map("account_id")
+  budgetPeriodId String?      @map("budget_period_id")
+  source         IncomeSource
+  notes          String?
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account          Account           @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  budgetPeriod     BudgetPeriod?     @relation(fields: [budgetPeriodId], references: [id], onDelete: SetNull)
+  plannedTransfers PlannedTransfer[]
+
+  @@index([accountId, date])
+  @@index([budgetPeriodId])
+  @@index([userId, date])
+  @@map("income_events")
+}
+
+model BudgetRule {
+  id         String         @id @default(cuid())
+  userId     String         @map("user_id")
+  name       String
+  categoryId String         @map("category_id")
+  ruleType   BudgetRuleType @map("rule_type")
+  value      Int
+  applyOrder Int            @default(0) @map("apply_order")
+  minAmount  Int?           @map("min_amount")
+  capAmount  Int?           @map("cap_amount")
+  activeFrom String?        @map("active_from")
+  activeTo   String?        @map("active_to")
+  createdAt  DateTime       @default(now()) @map("created_at")
+  updatedAt  DateTime       @updatedAt @map("updated_at")
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  budgets  Budget[]
+
+  @@index([userId, categoryId, activeFrom, activeTo])
+  @@map("budget_rules")
+}
+
+model Budget {
+  id                  String   @id @default(cuid())
+  userId              String   @map("user_id")
+  budgetPeriodId      String   @map("budget_period_id")
+  categoryId          String   @map("category_id")
+  plannedAmount       Int      @map("planned_amount")
+  generatedFromRuleId String?  @map("generated_from_rule_id")
+  isOverride          Boolean  @default(false) @map("is_override")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  budgetPeriod      BudgetPeriod @relation(fields: [budgetPeriodId], references: [id], onDelete: Cascade)
+  category          Category     @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  generatedFromRule BudgetRule?  @relation(fields: [generatedFromRuleId], references: [id], onDelete: SetNull)
+
+  @@unique([budgetPeriodId, categoryId])
+  @@index([budgetPeriodId])
+  @@index([userId, categoryId])
+  @@map("budgets")
+}
+
+model PlannedTransfer {
+  id            String                @id @default(cuid())
+  userId        String                @map("user_id")
+  plannedDate   DateTime              @map("planned_date")
+  fromAccountId String                @map("from_account_id")
+  toAccountId   String                @map("to_account_id")
+  amount        Int
+  status        PlannedTransferStatus @default(planned)
+  incomeEventId String?               @map("income_event_id")
+  note          String?
+  createdAt     DateTime              @default(now()) @map("created_at")
+  updatedAt     DateTime              @updatedAt @map("updated_at")
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fromAccount Account      @relation("PlannedTransferFromAccount", fields: [fromAccountId], references: [id], onDelete: Cascade)
+  toAccount   Account      @relation("PlannedTransferToAccount", fields: [toAccountId], references: [id], onDelete: Cascade)
+  incomeEvent IncomeEvent? @relation(fields: [incomeEventId], references: [id], onDelete: SetNull)
+  transfers   Transfer[]
+
+  @@index([plannedDate])
+  @@index([fromAccountId, plannedDate])
+  @@index([userId, plannedDate])
+  @@map("planned_transfers")
+}
+
+model Transaction {
+  id            String   @id @default(cuid())
+  userId        String   @map("user_id")
+  date          DateTime
+  description   String
+  amount        Int
+  accountId     String   @map("account_id")
+  categoryId    String   @map("category_id")
+  projectId     String?  @map("project_id")
+  statementId   String?  @map("statement_id")
+  installmentId String?  @map("installment_id")
+  reimbursable  Boolean  @default(false)
+  reimbursed    Boolean  @default(false)
+  notes         String?
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  user            User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account         Account              @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  category        Category             @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  project         Project?             @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  statement       CreditCardStatement? @relation(fields: [statementId], references: [id], onDelete: SetNull)
+  installment     Installment?         @relation(fields: [installmentId], references: [id], onDelete: SetNull)
+  transferOutflow Transfer[]           @relation("TransferOutflowTransaction")
+  transferInflow  Transfer[]           @relation("TransferInflowTransaction")
+
+  @@index([accountId, date])
+  @@index([categoryId, date])
+  @@index([statementId])
+  @@index([userId, date])
+  @@map("transactions")
 }
 
 model Transfer {
-  id                 String   @id @default(cuid())
-  userId             String
-  sourceAccountId    String
-  destAccountId      String
-  amount             Int      // centavos
-  currency           Currency
-  date               DateTime
-  notes              String?
-  createdAt          DateTime @default(now())
+  id                   String   @id @default(cuid())
+  userId               String   @map("user_id")
+  date                 DateTime
+  fromAccountId        String   @map("from_account_id")
+  toAccountId          String   @map("to_account_id")
+  amount               Int
+  note                 String?
+  outflowTransactionId String?  @map("outflow_transaction_id")
+  inflowTransactionId  String?  @map("inflow_transaction_id")
+  plannedTransferId    String?  @map("planned_transfer_id")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
 
-  user          User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  sourceAccount Account @relation("TransferSource", fields: [sourceAccountId], references: [id], onDelete: Cascade)
-  destAccount   Account @relation("TransferDest", fields: [destAccountId], references: [id], onDelete: Cascade)
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fromAccount        Account            @relation("TransferFromAccount", fields: [fromAccountId], references: [id], onDelete: Cascade)
+  toAccount          Account            @relation("TransferToAccount", fields: [toAccountId], references: [id], onDelete: Cascade)
+  outflowTransaction Transaction?       @relation("TransferOutflowTransaction", fields: [outflowTransactionId], references: [id], onDelete: SetNull)
+  inflowTransaction  Transaction?       @relation("TransferInflowTransaction", fields: [inflowTransactionId], references: [id], onDelete: SetNull)
+  plannedTransfer    PlannedTransfer?   @relation(fields: [plannedTransferId], references: [id], onDelete: SetNull)
+  statementPayments  StatementPayment[]
+
+  @@index([fromAccountId, date])
+  @@index([toAccountId, date])
+  @@index([plannedTransferId])
+  @@index([userId, date])
+  @@map("transfers")
 }
 
-// ─── Goals ──────────────────────────────────────────────────────────────
-model SavingsGoal {
-  id               String   @id @default(cuid())
-  userId           String
-  accountId        String
+model StatementPayment {
+  id            String   @id @default(cuid())
+  userId        String   @map("user_id")
+  statementId   String   @map("statement_id")
+  transferId    String   @map("transfer_id")
+  amountApplied Int      @map("amount_applied")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  statement CreditCardStatement @relation(fields: [statementId], references: [id], onDelete: Cascade)
+  transfer  Transfer            @relation(fields: [transferId], references: [id], onDelete: Cascade)
+
+  @@index([statementId])
+  @@index([transferId])
+  @@index([userId, statementId])
+  @@map("statement_payments")
+}
+
+model Bill {
+  id               String         @id @default(cuid())
+  userId           String         @map("user_id")
   name             String
-  targetPercentage Float?
-  targetAmount     Int?     // centavos
-  currency         Currency
+  categoryId       String         @map("category_id")
+  amountType       BillAmountType @map("amount_type")
+  defaultAmount    Int?           @map("default_amount")
+  dueDay           Int            @map("due_day")
+  payingAccountId  String?        @map("paying_account_id")
+  fundingAccountId String?        @map("funding_account_id")
+  isActive         Boolean        @default(true) @map("is_active")
   notes            String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category       Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  payingAccount  Account? @relation("BillPayingAccount", fields: [payingAccountId], references: [id], onDelete: SetNull)
+  fundingAccount Account? @relation("BillFundingAccount", fields: [fundingAccountId], references: [id], onDelete: SetNull)
+
+  @@index([dueDay, isActive])
+  @@index([categoryId])
+  @@index([userId, isActive])
+  @@map("bills")
+}
+
+model AccountBalanceSnapshot {
+  id        String         @id @default(cuid())
+  userId    String         @map("user_id")
+  accountId String         @map("account_id")
+  asOfDate  DateTime       @map("as_of_date")
+  balance   Int
+  source    SnapshotSource
+  notes     String?
+  createdAt DateTime       @default(now()) @map("created_at")
 
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
-}
 
-// ─── Collaboration & integration ─────────────────────────────────────────
-model BudgetCollaborator {
-  id        String                 @id @default(cuid())
-  budgetId  String
-  userId    String
-  role      BudgetCollaboratorRole
-  createdAt DateTime              @default(now())
-
-  budget Budget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([budgetId, userId])
-}
-
-model BankLink {
-  id              String         @id @default(cuid())
-  userId          String
-  provider        String         // e.g. belvo, syncfy
-  externalLinkId  String
-  status          BankLinkStatus @default(active)
-  lastSyncAt      DateTime?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-
-  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  accounts Account[]
+  @@unique([accountId, asOfDate])
+  @@index([accountId, asOfDate])
+  @@index([userId, asOfDate])
+  @@map("account_balance_snapshots")
 }

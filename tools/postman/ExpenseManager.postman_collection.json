@@ -1,0 +1,523 @@
+{
+  "info": {
+    "_postman_id": "8c9f6fe7-9f22-4d1f-8c63-00d12ce3e438",
+    "name": "Expense Management Core API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/health"
+      }
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Sign Up (email)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const setCookie = pm.response.headers.get('set-cookie');",
+                  "if (setCookie) pm.environment.set('session_cookie', setCookie.split(';')[0]);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{name}}\",\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": "{{base_url}}/api/auth/sign-up/email"
+          }
+        },
+        {
+          "name": "Sign In (email)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const setCookie = pm.response.headers.get('set-cookie');",
+                  "if (setCookie) pm.environment.set('session_cookie', setCookie.split(';')[0]);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": "{{base_url}}/api/auth/sign-in/email"
+          }
+        },
+        {
+          "name": "Get Session",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{session_cookie}}"
+              }
+            ],
+            "url": "{{base_url}}/api/auth/get-session"
+          }
+        },
+        {
+          "name": "Sign Out",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Cookie",
+                "value": "{{session_cookie}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": "{{base_url}}/api/auth/sign-out"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Core tRPC",
+      "item": [
+        {
+          "name": "Category Create",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const id = pm.response.json()?.result?.data?.json?.id;",
+                  "if (id) pm.environment.set('category_id', id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Cookie",
+                "value": "{{session_cookie}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Category\",\n  \"kind\": \"expense\"\n}"
+            },
+            "url": "{{base_url}}/api/trpc/category.create"
+          }
+        },
+        {
+          "name": "Account Create (debit + transfer profile)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const id = pm.response.json()?.result?.data?.json?.id;",
+                  "if (id) pm.environment.set('account_id', id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Cookie",
+                "value": "{{session_cookie}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Main Debit\",\n  \"type\": \"debit\",\n  \"currency\": \"MXN\",\n  \"isActive\": true,\n  \"transferProfile\": {\n    \"clabe\": \"012180004180123456\",\n    \"beneficiaryName\": \"Postman User\",\n    \"bankName\": \"BBVA\",\n    \"isProgrammable\": true\n  }\n}"
+            },
+            "url": "{{base_url}}/api/trpc/account.create"
+          }
+        },
+        {
+          "name": "Transaction Create",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const id = pm.response.json()?.result?.data?.json?.id;",
+                  "if (id) pm.environment.set('transaction_id', id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Cookie",
+                "value": "{{session_cookie}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountId\": \"{{account_id}}\",\n  \"categoryId\": \"{{category_id}}\",\n  \"description\": \"Manual grocery transaction\",\n  \"amount\": 15000,\n  \"date\": \"2026-02-14T12:00:00.000Z\"\n}"
+            },
+            "url": "{{base_url}}/api/trpc/transaction.create"
+          }
+        },
+        {
+          "name": "Transaction List",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{session_cookie}}"
+              }
+            ],
+            "url": "{{base_url}}/api/trpc/transaction.list?input=%7B%22accountId%22%3A%22{{account_id}}%22%7D"
+          }
+        },
+        {
+          "name": "Institution Catalog List",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{session_cookie}}"
+              }
+            ],
+            "url": "{{base_url}}/api/trpc/institutionCatalog.list?input=%7B%22limit%22%3A20%7D"
+          }
+        },
+        {
+          "name": "Recurring Expense List (Deprecated)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{session_cookie}}"
+              }
+            ],
+            "url": "{{base_url}}/api/trpc/recurringExpense.list"
+          }
+        },
+        {
+          "name": "Account Create (credit card metadata)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Cookie",
+                "value": "{{session_cookie}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"HSBC World Elite\",\n  \"type\": \"credit_card\",\n  \"currency\": \"MXN\",\n  \"isActive\": true,\n  \"cardProfile\": {\n    \"brand\": \"mastercard\",\n    \"last4\": \"1234\"\n  },\n  \"creditCardSettings\": {\n    \"statementDay\": 15,\n    \"dueDay\": 5,\n    \"graceDays\": 20\n  }\n}"
+            },
+            "url": "{{base_url}}/api/trpc/account.create"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Finance V2 tRPC",
+      "item": [
+        {
+          "name": "Budget Period Create",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const id = pm.response.json()?.result?.data?.json?.id;",
+                  "if (id) pm.environment.set('budget_period_id', id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Cookie",
+                "value": "{{session_cookie}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"month\": \"{{budget_period_month}}\",\n  \"currency\": \"{{budget_currency}}\",\n  \"expectedIncomeAmount\": {{budget_period_expected_income}},\n  \"notes\": \"Postman finance v2 period\"\n}"
+            },
+            "url": "{{base_url}}/api/trpc/budgetPeriod.create"
+          }
+        },
+        {
+          "name": "Budget Period List",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{session_cookie}}"
+              }
+            ],
+            "url": "{{base_url}}/api/trpc/budgetPeriod.list"
+          }
+        },
+        {
+          "name": "Budget Period Get By Month",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{session_cookie}}"
+              }
+            ],
+            "url": "{{base_url}}/api/trpc/budgetPeriod.getByMonth?input=%7B%22month%22%3A%22{{budget_period_month}}%22%7D"
+          }
+        },
+        {
+          "name": "Income Plan Item Create",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const id = pm.response.json()?.result?.data?.json?.id;",
+                  "if (id) pm.environment.set('income_plan_item_id', id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Cookie",
+                "value": "{{session_cookie}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"budgetPeriodId\": \"{{budget_period_id}}\",\n  \"source\": \"Salary\",\n  \"amount\": {{budget_period_expected_income}},\n  \"accountId\": \"{{account_id}}\",\n  \"isRecurring\": true\n}"
+            },
+            "url": "{{base_url}}/api/trpc/incomePlanItem.create"
+          }
+        },
+        {
+          "name": "Budget Rule Create (fixed)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const id = pm.response.json()?.result?.data?.json?.id;",
+                  "if (id) pm.environment.set('budget_rule_id', id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Cookie",
+                "value": "{{session_cookie}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Fixed Rule\",\n  \"categoryId\": \"{{category_id}}\",\n  \"ruleType\": \"fixed\",\n  \"value\": {{budget_rule_fixed_value}},\n  \"applyOrder\": 0\n}"
+            },
+            "url": "{{base_url}}/api/trpc/budgetRule.create"
+          }
+        },
+        {
+          "name": "Budget Rule Create (percent)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Cookie",
+                "value": "{{session_cookie}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Percent Rule\",\n  \"categoryId\": \"{{category_id}}\",\n  \"ruleType\": \"percent_of_income\",\n  \"value\": {{budget_rule_percent_bps}},\n  \"applyOrder\": 1\n}"
+            },
+            "url": "{{base_url}}/api/trpc/budgetRule.create"
+          }
+        },
+        {
+          "name": "Budget Rule List",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{session_cookie}}"
+              }
+            ],
+            "url": "{{base_url}}/api/trpc/budgetRule.list"
+          }
+        },
+        {
+          "name": "Budget Allocation Generate For Period",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Cookie",
+                "value": "{{session_cookie}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"budgetPeriodId\": \"{{budget_period_id}}\"\n}"
+            },
+            "url": "{{base_url}}/api/trpc/budgetAllocation.generateForPeriod"
+          }
+        },
+        {
+          "name": "Budget Allocation List",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{session_cookie}}"
+              }
+            ],
+            "url": "{{base_url}}/api/trpc/budgetAllocation.list?input=%7B%22budgetPeriodId%22%3A%22{{budget_period_id}}%22%7D"
+          }
+        },
+        {
+          "name": "Budget Allocation Set Override",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Cookie",
+                "value": "{{session_cookie}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"budgetPeriodId\": \"{{budget_period_id}}\",\n  \"categoryId\": \"{{category_id}}\",\n  \"plannedAmount\": {{budget_allocation_override_value}}\n}"
+            },
+            "url": "{{base_url}}/api/trpc/budgetAllocation.setOverride"
+          }
+        },
+        {
+          "name": "Budget List (Period)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{session_cookie}}"
+              }
+            ],
+            "url": "{{base_url}}/api/trpc/budget.list?input=%7B%22budgetPeriodId%22%3A%22{{budget_period_id}}%22%7D"
+          }
+        },
+        {
+          "name": "Budget Planned By Category (Period)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{session_cookie}}"
+              }
+            ],
+            "url": "{{base_url}}/api/trpc/budget.getPlannedByCategory?input=%7B%22budgetPeriodId%22%3A%22{{budget_period_id}}%22%7D"
+          }
+        }
+      ]
+    }
+  ]
+}

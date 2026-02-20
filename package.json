@@ -19,13 +19,17 @@
     "prod:build": "docker compose --env-file .env.production -f docker-compose.prod.yml build",
     "prod:up": "docker compose --env-file .env.production -f docker-compose.prod.yml up -d",
     "prod:down": "docker compose --env-file .env.production -f docker-compose.prod.yml down",
-    "prod:logs": "docker compose --env-file .env.production -f docker-compose.prod.yml logs -f"
+    "prod:logs": "docker compose --env-file .env.production -f docker-compose.prod.yml logs -f",
+    "test:api": "dotenv -e .env -- pnpm --filter @expense-management/api test"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
     "dotenv-cli": "^7.4.2",
     "eslint": "^9.39.2",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.5",
     "globals": "^17.3.0",
+    "prettier": "^3.8.1",
     "turbo": "^2.3.0",
     "typescript": "^5.7.0",
     "typescript-eslint": "^8.55.0"

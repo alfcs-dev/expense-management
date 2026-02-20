@@ -30,6 +30,8 @@ jobs:
 
   typecheck:
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/expense_management_test
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -49,9 +51,58 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
+  api_smoke:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: expense_management_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d expense_management_test"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/expense_management_test
+      BETTER_AUTH_SECRET: 0123456789abcdef0123456789abcdef
+      BETTER_AUTH_URL: http://localhost:4000
+      CORS_ORIGINS: http://localhost:5173
+      NODE_ENV: test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Apply database migrations
+        run: pnpm --filter @expense-management/db exec prisma migrate deploy
+
+      - name: Build API workspace dependencies
+        run: pnpm --filter @expense-management/api^... build
+
+      - name: Run API smoke tests
+        run: pnpm --filter @expense-management/api test
+
   build:
     runs-on: ubuntu-latest
-    needs: [lint, typecheck]
+    needs: [lint, typecheck, api_smoke]
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/expense_management_test
     steps:
       - name: Checkout
         uses: actions/checkout@v4

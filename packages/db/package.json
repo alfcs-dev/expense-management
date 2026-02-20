@@ -19,17 +19,19 @@
     "seed": "tsx seed.ts",
     "seed:preview": "tsx seed.ts --preview",
     "sync:institutions": "tsx scripts/sync-institutions.ts",
-    "lint": "echo no lint yet",
+    "lint": "eslint .",
     "typecheck": "prisma generate && tsc --noEmit"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
-    "prisma": "^6.0.0",
+    "dotenv": "^16.4.5",
+    "prisma": "^7.0.0",
     "tsx": "^4.20.6",
     "typescript": "^5.7.0"
   },
   "dependencies": {
-    "@prisma/client": "6.19.2",
+    "@prisma/adapter-pg": "^7.0.0",
+    "@prisma/client": "^7.0.0",
     "better-auth": "^1.4.18"
   }
 }

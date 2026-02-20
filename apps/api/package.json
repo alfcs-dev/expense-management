@@ -7,7 +7,8 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsup src/index.ts --format esm --clean",
     "lint": "eslint src/",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "pnpm exec vitest run"
   },
   "dependencies": {
     "@expense-management/db": "workspace:*",
@@ -23,6 +24,7 @@
     "@types/node": "^22.10.0",
     "tsup": "^8.3.0",
     "tsx": "^4.19.2",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "vitest": "^3.2.4"
   }
 }
