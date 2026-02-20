@@ -30,6 +30,8 @@ jobs:
 
   typecheck:
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/expense_management_test
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -91,7 +93,7 @@ jobs:
         run: pnpm --filter @expense-management/db exec prisma migrate deploy
 
       - name: Run API smoke tests
-        run: pnpm test:api
+        run: pnpm --filter @expense-management/api test
 
   build:
     runs-on: ubuntu-latest
